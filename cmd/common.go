@@ -65,8 +65,11 @@ func DefaultStateDir (programName string) string {
 }
 
 func logCallback (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
+	var certFilename string
 	if !*noSave {
-		alreadyPresent, err := ctwatch.WriteCertRepository(filepath.Join(stateDir, "certs"), entry)
+		var alreadyPresent bool
+		var err error
+		alreadyPresent, certFilename, err = ctwatch.WriteCertRepository(filepath.Join(stateDir, "certs"), entry)
 		if err != nil {
 			log.Print(err)
 		}
@@ -76,12 +79,12 @@ func logCallback (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 	}
 
 	if *script != "" {
-		if err := ctwatch.InvokeHookScript(*script, scanner.LogUri, entry); err != nil {
+		if err := ctwatch.InvokeHookScript(*script, scanner.LogUri, certFilename, entry); err != nil {
 			log.Print(err)
 		}
 	} else {
 		printMutex.Lock()
-		ctwatch.DumpLogEntry(os.Stdout, scanner.LogUri, entry)
+		ctwatch.DumpLogEntry(os.Stdout, scanner.LogUri, certFilename, entry)
 		fmt.Fprintf(os.Stdout, "\n")
 		printMutex.Unlock()
 	}

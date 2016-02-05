@@ -194,10 +194,14 @@ func (info *certInfo) TypeFriendlyString () string {
 	}
 }
 
-func DumpLogEntry (out io.Writer, logUri string, entry *ct.LogEntry) {
+func DumpLogEntry (out io.Writer, logUri string, filename string, entry *ct.LogEntry) {
 	info := makeCertInfo(entry)
 
-	fmt.Fprintf(out, "%d @ %s:\n", entry.Index, logUri)
+	if filename == "" {
+		fmt.Fprintf(out, "%d @ %s:\n", entry.Index, logUri)
+	} else {
+		fmt.Fprintf(out, "%s:\n", filename)
+	}
 	fmt.Fprintf(out, "\t         Type = %s\n", info.TypeFriendlyString())
 	fmt.Fprintf(out, "\t    DNS Names = %v\n", info.DnsNames)
 	fmt.Fprintf(out, "\t       Pubkey = %s\n", info.PubkeyHash)
@@ -210,7 +214,7 @@ func DumpLogEntry (out io.Writer, logUri string, entry *ct.LogEntry) {
 	fmt.Fprintf(out, "\t    Not After = %s\n", info.NotAfter)
 }
 
-func InvokeHookScript (command string, logUri string, entry *ct.LogEntry) error {
+func InvokeHookScript (command string, logUri string, filename string, entry *ct.LogEntry) error {
 	info := makeCertInfo(entry)
 
 	cmd := exec.Command(command)
@@ -226,6 +230,9 @@ func InvokeHookScript (command string, logUri string, entry *ct.LogEntry) error 
 				"FINGERPRINT=" + info.Fingerprint,
 				"NOT_BEFORE=" + strconv.FormatInt(info.NotBefore.Unix(), 10),
 				"NOT_AFTER=" + strconv.FormatInt(info.NotAfter.Unix(), 10))
+	if filename != "" {
+		cmd.Env = append(cmd.Env, "CERT_FILENAME=" + filename)
+	}
 	stderrBuffer := bytes.Buffer{}
 	cmd.Stderr = &stderrBuffer
 	if err := cmd.Run(); err != nil {
@@ -238,7 +245,7 @@ func InvokeHookScript (command string, logUri string, entry *ct.LogEntry) error 
 	return nil
 }
 
-func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, error) {
+func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, string, error) {
 	fingerprint := sha256hex(getRaw(entry))
 	prefixPath := filepath.Join(repoPath, fingerprint[0:2])
 	var filenameSuffix string
@@ -248,30 +255,30 @@ func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, error) {
 		filenameSuffix = ".cert.pem"
 	}
 	if err := os.Mkdir(prefixPath, 0777); err != nil && !os.IsExist(err) {
-		return false, fmt.Errorf("Failed to create prefix directory %s: %s", prefixPath, err)
+		return false, "", fmt.Errorf("Failed to create prefix directory %s: %s", prefixPath, err)
 	}
 	path := filepath.Join(prefixPath, fingerprint + filenameSuffix)
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
 		if os.IsExist(err) {
-			return true, nil
+			return true, path, nil
 		} else {
-			return false, fmt.Errorf("Failed to open %s for writing: %s", path, err)
+			return false, path, fmt.Errorf("Failed to open %s for writing: %s", path, err)
 		}
 	}
 	if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: getRaw(entry)}); err != nil {
 		file.Close()
-		return false, fmt.Errorf("Error writing to %s: %s", path, err)
+		return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
 	}
 	for _, chainCert := range entry.Chain {
 		if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: chainCert}); err != nil {
 			file.Close()
-			return false, fmt.Errorf("Error writing to %s: %s", path, err)
+			return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
 		}
 	}
 	if err := file.Close(); err != nil {
-		return false, fmt.Errorf("Error writing to %s: %s", path, err)
+		return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
 	}
 
-	return false, nil
+	return false, path, nil
 }
