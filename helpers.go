@@ -88,10 +88,19 @@ func allDNSNames (cert *x509.Certificate) []string {
 	return dnsNames
 }
 
+func isNonFatalError (err error) bool {
+	switch err.(type) {
+	case x509.NonFatalErrors:
+		return true
+	default:
+		return false
+	}
+}
+
 func getRoot (chain []ct.ASN1Cert) *x509.Certificate {
 	if len(chain) > 0 {
 		root, err := x509.ParseCertificate(chain[len(chain)-1])
-		if err == nil {
+		if err == nil || isNonFatalError(err) {
 			return root
 		}
 		log.Printf("Failed to parse root certificate: %s", err)
