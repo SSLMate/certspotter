@@ -185,10 +185,10 @@ func (info *certInfo) TypeFriendlyString () string {
 	}
 }
 
-func DumpLogEntry (out io.Writer, entry *ct.LogEntry) {
+func DumpLogEntry (out io.Writer, logUri string, entry *ct.LogEntry) {
 	info := makeCertInfo(entry)
 
-	fmt.Fprintf(out, "%d:\n", entry.Index)
+	fmt.Fprintf(out, "%d @ %s:\n", entry.Index, logUri)
 	fmt.Fprintf(out, "\t         Type = %s\n", info.TypeFriendlyString())
 	fmt.Fprintf(out, "\t    DNS Names = %v\n", info.DnsNames)
 	fmt.Fprintf(out, "\t       Pubkey = %s\n", info.PubkeyHash)
@@ -201,11 +201,12 @@ func DumpLogEntry (out io.Writer, entry *ct.LogEntry) {
 	fmt.Fprintf(out, "\t    Not After = %s\n", info.NotAfter)
 }
 
-func InvokeHookScript (command string, entry *ct.LogEntry) error {
+func InvokeHookScript (command string, logUri string, entry *ct.LogEntry) error {
 	info := makeCertInfo(entry)
 
 	cmd := exec.Command(command)
 	cmd.Env = append(os.Environ(),
+				"LOG_URI=" + logUri,
 				"LOG_INDEX=" + strconv.FormatInt(entry.Index, 10),
 				"CERT_TYPE=" + info.TypeString(),
 				"SUBJECT_DN=" + info.SubjectDn,

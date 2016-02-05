@@ -10,28 +10,23 @@ import (
 	"src.agwa.name/ctwatch/cmd"
 )
 
+var stateDir = flag.String("state_dir", cmd.DefaultStateDir("ctwatch"), "Directory for storing state")
+
 func main() {
 	flag.Parse()
-	if flag.NArg() < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags] log_uri state_file [domain ...]\n", os.Args[0])
-		os.Exit(2)
-	}
-
-	logUri := flag.Arg(0)
-	stateFile := flag.Arg(1)
 
 	var domains []string
-	if flag.NArg() == 3 && flag.Arg(2) == "-" {
+	if flag.NArg() == 1 && flag.Arg(0) == "-" {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			domains = append(domains, scanner.Text())
 		}
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading standard input: %s\n", err)
-			os.Exit(1)
+			fmt.Fprintf(os.Stderr, "%s: Error reading standard input: %s\n", os.Args[0], err)
+			os.Exit(3)
 		}
 	} else {
-		domains = flag.Args()[2:]
+		domains = flag.Args()
 	}
 
 	var matcher ctwatch.Matcher
@@ -41,5 +36,5 @@ func main() {
 		matcher = ctwatch.NewDomainMatcher(domains)
 	}
 
-	cmd.Main(logUri, stateFile, matcher)
+	cmd.Main(*stateDir, matcher)
 }

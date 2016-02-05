@@ -114,6 +114,9 @@ func DefaultScannerOptions() *ScannerOptions {
 
 // Scanner is a tool to scan all the entries in a CT Log.
 type Scanner struct {
+	// Base URI of CT log
+	LogUri				string
+
 	// Client used to talk to the CT log instance
 	logClient			*client.LogClient
 
@@ -170,7 +173,7 @@ func (s *Scanner) handleParseEntryError(err error, entryType ct.LogEntryType, in
 }
 
 // Processes the given |entry| in the specified log.
-func (s *Scanner) processEntry(entry ct.LogEntry, foundCert func(*ct.LogEntry)) {
+func (s *Scanner) processEntry(entry ct.LogEntry, foundCert func(*Scanner, *ct.LogEntry)) {
 	atomic.AddInt64(&s.certsProcessed, 1)
 	switch entry.Leaf.TimestampedEntry.EntryType {
 	case ct.X509LogEntryType:
@@ -181,7 +184,7 @@ func (s *Scanner) processEntry(entry ct.LogEntry, foundCert func(*ct.LogEntry)) 
 		}
 		if s.opts.Matcher.CertificateMatches(cert) {
 			entry.X509Cert = cert
-			foundCert(&entry)
+			foundCert(s, &entry)
 		}
 	case ct.PrecertLogEntryType:
 		c, err := x509.ParseTBSCertificate(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
@@ -196,7 +199,7 @@ func (s *Scanner) processEntry(entry ct.LogEntry, foundCert func(*ct.LogEntry)) 
 		}
 		if s.opts.Matcher.PrecertificateMatches(precert) {
 			entry.Precert = precert
-			foundCert(&entry)
+			foundCert(s, &entry)
 		}
 	}
 }
@@ -204,7 +207,7 @@ func (s *Scanner) processEntry(entry ct.LogEntry, foundCert func(*ct.LogEntry)) 
 // Worker function to match certs.
 // Accepts MatcherJobs over the |entries| channel, and processes them.
 // Returns true over the |done| channel when the |entries| channel is closed.
-func (s *Scanner) matcherJob(id int, entries <-chan matcherJob, foundCert func(*ct.LogEntry), wg *sync.WaitGroup) {
+func (s *Scanner) matcherJob(id int, entries <-chan matcherJob, foundCert func(*Scanner, *ct.LogEntry), wg *sync.WaitGroup) {
 	for e := range entries {
 		s.processEntry(e.entry, foundCert)
 	}
@@ -304,7 +307,7 @@ func (s *Scanner) TreeSize() (int64, error) {
 	return int64(latestSth.TreeSize), nil
 }
 
-func (s *Scanner) Scan(startIndex int64, endIndex int64, foundCert func(*ct.LogEntry)) error {
+func (s *Scanner) Scan(startIndex int64, endIndex int64, foundCert func(*Scanner, *ct.LogEntry)) error {
 	s.Log("Starting up...\n")
 
 	s.certsProcessed = 0
@@ -358,8 +361,9 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, foundCert func(*ct.LogE
 
 // Creates a new Scanner instance using |client| to talk to the log, and taking
 // configuration options from |opts|.
-func NewScanner(client *client.LogClient, opts ScannerOptions) *Scanner {
+func NewScanner(logUri string, client *client.LogClient, opts ScannerOptions) *Scanner {
 	var scanner Scanner
+	scanner.LogUri = logUri
 	scanner.logClient = client
 	// Set a default match-everything regex if none was provided:
 	if opts.Matcher == nil {
