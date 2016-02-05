@@ -163,7 +163,7 @@ func (s *Scanner) handleParseEntryError(err error, entryType ct.LogEntryType, in
 	case x509.NonFatalErrors:
 		s.entriesWithNonFatalErrors++
 		// We'll make a note, but continue.
-		s.Warn(fmt.Sprintf("Non-fatal error in %+v at index %d: %s", entryType, index, err.Error()))
+		s.Log(fmt.Sprintf("Non-fatal error in %+v at index %d: %s", entryType, index, err.Error()))
 	default:
 		s.unparsableEntries++
 		s.Warn(fmt.Sprintf("Failed to parse in %+v at index %d : %s", entryType, index, err.Error()))
