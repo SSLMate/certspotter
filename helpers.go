@@ -249,9 +249,9 @@ func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, string, er
 	fingerprint := sha256hex(getRaw(entry))
 	prefixPath := filepath.Join(repoPath, fingerprint[0:2])
 	var filenameSuffix string
-	if entry.Precert != nil {
+	if entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType {
 		filenameSuffix = ".precert.pem"
-	} else if entry.X509Cert != nil {
+	} else if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
 		filenameSuffix = ".cert.pem"
 	}
 	if err := os.Mkdir(prefixPath, 0777); err != nil && !os.IsExist(err) {
@@ -266,9 +266,11 @@ func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, string, er
 			return false, path, fmt.Errorf("Failed to open %s for writing: %s", path, err)
 		}
 	}
-	if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: getRaw(entry)}); err != nil {
-		file.Close()
-		return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
+	if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
+		if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: entry.Leaf.TimestampedEntry.X509Entry}); err != nil {
+			file.Close()
+			return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
+		}
 	}
 	for _, chainCert := range entry.Chain {
 		if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: chainCert}); err != nil {
