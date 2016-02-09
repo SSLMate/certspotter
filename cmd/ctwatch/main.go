@@ -5,12 +5,75 @@ import (
 	"fmt"
 	"os"
 	"bufio"
+	"strings"
 
+	"github.com/google/certificate-transparency/go"
 	"src.agwa.name/ctwatch"
 	"src.agwa.name/ctwatch/cmd"
 )
 
 var stateDir = flag.String("state_dir", cmd.DefaultStateDir("ctwatch"), "Directory for storing state")
+var watchDomains []string
+var watchDomainSuffixes []string
+
+func setWatchDomains (domains []string) {
+	for _, domain := range domains {
+		watchDomains = append(watchDomains, strings.ToLower(domain))
+		watchDomainSuffixes = append(watchDomainSuffixes, "." + strings.ToLower(domain))
+	}
+}
+
+func dnsNameMatches (dnsName string) bool {
+	dnsNameLower := strings.ToLower(dnsName)
+	for _, domain := range watchDomains {
+		if dnsNameLower == domain {
+			return true
+		}
+	}
+	for _, domainSuffix := range watchDomainSuffixes {
+		if strings.HasSuffix(dnsNameLower, domainSuffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func anyDnsNameMatches (dnsNames []string) bool {
+	for _, dnsName := range dnsNames {
+		if dnsNameMatches(dnsName) {
+			return true
+		}
+	}
+	return false
+}
+
+func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
+	info := ctwatch.EntryInfo{
+		LogUri:		scanner.LogUri,
+		Entry:		entry,
+	}
+
+	// Extract DNS names
+	var dnsNames []string
+	dnsNames, info.ParseError = ctwatch.EntryDNSNames(entry)
+
+	if info.ParseError == nil {
+		// Match DNS names
+		if !anyDnsNameMatches(dnsNames) {
+			return
+		}
+
+		// Parse the certificate
+		info.ParsedCert, info.ParseError = ctwatch.ParseEntryCertificate(entry)
+		if info.ParsedCert != nil {
+			info.CertInfo = ctwatch.MakeCertInfo(info.ParsedCert)
+		} else {
+			info.CertInfo.DnsNames = dnsNames
+		}
+	}
+
+	cmd.LogEntry(&info)
+}
 
 func main() {
 	flag.Parse()
@@ -23,7 +86,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	var matcher ctwatch.Matcher
 	if flag.NArg() == 1 && flag.Arg(0) == "-" {
 		var domains []string
 		scanner := bufio.NewScanner(os.Stdin)
@@ -34,12 +96,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%s: Error reading standard input: %s\n", os.Args[0], err)
 			os.Exit(3)
 		}
-		matcher = ctwatch.NewDomainMatcher(domains)
+		setWatchDomains(domains)
 	} else if flag.NArg() == 1 && flag.Arg(0) == "." { // "." as in root zone
-		matcher = ctwatch.MatchAll{}
+		watchDomainSuffixes = []string{""}
 	} else {
-		matcher = ctwatch.NewDomainMatcher(flag.Args())
+		setWatchDomains(flag.Args())
 	}
 
-	cmd.Main(*stateDir, matcher)
+	cmd.Main(*stateDir, processEntry)
 }

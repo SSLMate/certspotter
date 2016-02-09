@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 
 	"src.agwa.name/ctwatch"
-	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/client"
 )
 
@@ -64,12 +63,11 @@ func DefaultStateDir (programName string) string {
 	}
 }
 
-func logCallback (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
-	var certFilename string
+func LogEntry (info *ctwatch.EntryInfo) {
 	if !*noSave {
 		var alreadyPresent bool
 		var err error
-		alreadyPresent, certFilename, err = ctwatch.WriteCertRepository(filepath.Join(stateDir, "certs"), entry)
+		alreadyPresent, info.Filename, err = ctwatch.WriteCertRepository(filepath.Join(stateDir, "certs"), info.Entry)
 		if err != nil {
 			log.Print(err)
 		}
@@ -79,12 +77,12 @@ func logCallback (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 	}
 
 	if *script != "" {
-		if err := ctwatch.InvokeHookScript(*script, scanner.LogUri, certFilename, entry); err != nil {
+		if err := info.InvokeHookScript(*script); err != nil {
 			log.Print(err)
 		}
 	} else {
 		printMutex.Lock()
-		ctwatch.DumpLogEntry(os.Stdout, scanner.LogUri, certFilename, entry)
+		info.Write(os.Stdout)
 		fmt.Fprintf(os.Stdout, "\n")
 		printMutex.Unlock()
 	}
@@ -94,7 +92,7 @@ func defangLogUri (logUri string) string {
 	return strings.Replace(strings.Replace(logUri, "://", "_", 1), "/", "_", -1)
 }
 
-func Main (argStateDir string, matcher ctwatch.Matcher) {
+func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 	stateDir = argStateDir
 
 	var logs []string
@@ -141,7 +139,6 @@ func Main (argStateDir string, matcher ctwatch.Matcher) {
 
 		logClient := client.New(logUri)
 		opts := ctwatch.ScannerOptions{
-			Matcher:       matcher,
 			BatchSize:     *batchSize,
 			NumWorkers:    *numWorkers,
 			ParallelFetch: *parallelFetch,
@@ -157,7 +154,7 @@ func Main (argStateDir string, matcher ctwatch.Matcher) {
 		}
 
 		if startIndex != -1 {
-			if err := scanner.Scan(startIndex, endIndex, logCallback); err != nil {
+			if err := scanner.Scan(startIndex, endIndex, processCallback); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: Error scanning log: %s: %s\n", os.Args[0], logUri, err)
 				exitCode = 1
 				continue

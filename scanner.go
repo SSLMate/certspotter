@@ -7,91 +7,19 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"strings"
 
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/client"
-	"github.com/google/certificate-transparency/go/x509"
 )
 
-// Clients wishing to implement their own Matchers should implement this interface:
-type Matcher interface {
-	// CertificateMatches is called by the scanner for each X509 Certificate found in the log.
-	// The implementation should return |true| if the passed Certificate is interesting, and |false| otherwise.
-	CertificateMatches(*x509.Certificate) bool
-
-	// PrecertificateMatches is called by the scanner for each CT Precertificate found in the log.
-	// The implementation should return |true| if the passed Precertificate is interesting, and |false| otherwise.
-	PrecertificateMatches(*ct.Precertificate) bool
-}
-
-// MatchAll is a Matcher which will match every possible Certificate and Precertificate.
-type MatchAll struct{}
-
-func (m MatchAll) CertificateMatches(_ *x509.Certificate) bool {
-	return true
-}
-
-func (m MatchAll) PrecertificateMatches(_ *ct.Precertificate) bool {
-	return true
-}
-
-type DomainMatcher struct {
-	domains			[]string
-	domainSuffixes		[]string
-}
-
-func NewDomainMatcher (domains []string) DomainMatcher {
-	m := DomainMatcher{}
-	for _, domain := range domains {
-		m.domains = append(m.domains, strings.ToLower(domain))
-		m.domainSuffixes = append(m.domainSuffixes, "." + strings.ToLower(domain))
-	}
-	return m
-}
-
-func (m DomainMatcher) dnsNameMatches (dnsName string) bool {
-	dnsNameLower := strings.ToLower(dnsName)
-	for _, domain := range m.domains {
-		if dnsNameLower == domain {
-			return true
-		}
-	}
-	for _, domainSuffix := range m.domainSuffixes {
-		if strings.HasSuffix(dnsNameLower, domainSuffix) {
-			return true
-		}
-	}
-	return false
-}
-
-func (m DomainMatcher) CertificateMatches(c *x509.Certificate) bool {
-	if m.dnsNameMatches(c.Subject.CommonName) {
-		return true
-	}
-	for _, dnsName := range c.DNSNames {
-		if m.dnsNameMatches(dnsName) {
-			return true
-		}
-	}
-	return false
-}
-
-func (m DomainMatcher) PrecertificateMatches(pc *ct.Precertificate) bool {
-	return m.CertificateMatches(&pc.TBSCertificate)
-}
-
+type ProcessCallback func(*Scanner, *ct.LogEntry)
 
 // ScannerOptions holds configuration options for the Scanner
 type ScannerOptions struct {
-	// Custom matcher for x509 Certificates, functor will be called for each
-	// Certificate found during scanning.
-	Matcher Matcher
-
 	// Number of entries to request in one batch from the Log
 	BatchSize int
 
-	// Number of concurrent matchers to run
+	// Number of concurrent proecssors to run
 	NumWorkers int
 
 	// Number of concurrent fethers to run
@@ -104,7 +32,6 @@ type ScannerOptions struct {
 // Creates a new ScannerOptions struct with sensible defaults
 func DefaultScannerOptions() *ScannerOptions {
 	return &ScannerOptions{
-		Matcher:       &MatchAll{},
 		BatchSize:     1000,
 		NumWorkers:    1,
 		ParallelFetch: 1,
@@ -123,21 +50,8 @@ type Scanner struct {
 	// Configuration options for this Scanner instance
 	opts				ScannerOptions
 
-	// Size of tree at end of scan
-	latestTreeSize			int64
-
 	// Stats
 	certsProcessed			int64
-	unparsableEntries		int64
-	entriesWithNonFatalErrors	int64
-}
-
-// matcherJob represents the context for an individual matcher job.
-type matcherJob struct {
-	// The log entry returned by the log server
-	entry ct.LogEntry
-	// The index of the entry containing the LeafInput in the log
-	index int64
 }
 
 // fetchRange represents a range of certs to fetch from a CT log
@@ -146,82 +60,25 @@ type fetchRange struct {
 	end   int64
 }
 
-// Takes the error returned by either x509.ParseCertificate() or
-// x509.ParseTBSCertificate() and determines if it's non-fatal or otherwise.
-// In the case of non-fatal errors, the error will be logged,
-// entriesWithNonFatalErrors will be incremented, and the return value will be
-// nil.
-// Fatal errors will be logged, unparsableEntires will be incremented, and the
-// fatal error itself will be returned.
-// When |err| is nil, this method does nothing.
-func (s *Scanner) handleParseEntryError(err error, entryType ct.LogEntryType, index int64) error {
-	if err == nil {
-		// No error to handle
-		return nil
-	}
-	switch err.(type) {
-	case x509.NonFatalErrors:
-		s.entriesWithNonFatalErrors++
-		// We'll make a note, but continue.
-		s.Log(fmt.Sprintf("%s: Non-fatal error in %+v at index %d: %s", s.LogUri, entryType, index, err.Error()))
-	default:
-		s.unparsableEntries++
-		s.Warn(fmt.Sprintf("%s: Failed to parse in %+v at index %d : %s", s.LogUri, entryType, index, err.Error()))
-		return err
-	}
-	return nil
-}
-
-// Processes the given |entry| in the specified log.
-func (s *Scanner) processEntry(entry ct.LogEntry, foundCert func(*Scanner, *ct.LogEntry)) {
-	atomic.AddInt64(&s.certsProcessed, 1)
-	switch entry.Leaf.TimestampedEntry.EntryType {
-	case ct.X509LogEntryType:
-		cert, err := x509.ParseCertificate(entry.Leaf.TimestampedEntry.X509Entry)
-		if err = s.handleParseEntryError(err, entry.Leaf.TimestampedEntry.EntryType, entry.Index); err != nil {
-			// We hit an unparseable entry, already logged inside handleParseEntryError()
-			return
-		}
-		if s.opts.Matcher.CertificateMatches(cert) {
-			entry.X509Cert = cert
-			foundCert(s, &entry)
-		}
-	case ct.PrecertLogEntryType:
-		c, err := x509.ParseTBSCertificate(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
-		if err = s.handleParseEntryError(err, entry.Leaf.TimestampedEntry.EntryType, entry.Index); err != nil {
-			// We hit an unparseable entry, already logged inside handleParseEntryError()
-			return
-		}
-		precert := &ct.Precertificate{
-			Raw:            entry.Chain[0],
-			TBSCertificate: *c,
-			IssuerKeyHash:  entry.Leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash,
-		}
-		if s.opts.Matcher.PrecertificateMatches(precert) {
-			entry.Precert = precert
-			foundCert(s, &entry)
-		}
-	}
-}
-
-// Worker function to match certs.
-// Accepts MatcherJobs over the |entries| channel, and processes them.
+// Worker function to process certs.
+// Accepts ct.LogEntries over the |entries| channel, and invokes processCert on them.
 // Returns true over the |done| channel when the |entries| channel is closed.
-func (s *Scanner) matcherJob(id int, entries <-chan matcherJob, foundCert func(*Scanner, *ct.LogEntry), wg *sync.WaitGroup) {
-	for e := range entries {
-		s.processEntry(e.entry, foundCert)
+func (s *Scanner) processerJob(id int, entries <-chan ct.LogEntry, processCert ProcessCallback, wg *sync.WaitGroup) {
+	for entry := range entries {
+		atomic.AddInt64(&s.certsProcessed, 1)
+		processCert(s, &entry)
 	}
-	s.Log(fmt.Sprintf("Matcher %d finished", id))
+	s.Log(fmt.Sprintf("Processor %d finished", id))
 	wg.Done()
 }
 
 // Worker function for fetcher jobs.
 // Accepts cert ranges to fetch over the |ranges| channel, and if the fetch is
-// successful sends the individual LeafInputs out (as MatcherJobs) into the
-// |entries| channel for the matchers to chew on.
+// successful sends the individual LeafInputs out into the
+// |entries| channel for the processors to chew on.
 // Will retry failed attempts to retrieve ranges indefinitely.
 // Sends true over the |done| channel when the |ranges| channel is closed.
-func (s *Scanner) fetcherJob(id int, ranges <-chan fetchRange, entries chan<- matcherJob, wg *sync.WaitGroup) {
+func (s *Scanner) fetcherJob(id int, ranges <-chan fetchRange, entries chan<- ct.LogEntry, wg *sync.WaitGroup) {
 	for r := range ranges {
 		success := false
 		// TODO(alcutter): give up after a while:
@@ -234,7 +91,7 @@ func (s *Scanner) fetcherJob(id int, ranges <-chan fetchRange, entries chan<- ma
 			}
 			for _, logEntry := range logEntries {
 				logEntry.Index = r.start
-				entries <- matcherJob{logEntry, r.start}
+				entries <- logEntry
 				r.start++
 			}
 			if r.start > r.end {
@@ -291,12 +148,12 @@ func humanTime(seconds int) string {
 
 func (s Scanner) Log(msg string) {
 	if !s.opts.Quiet {
-		log.Print(msg)
+		log.Print(s.LogUri + ": " + msg)
 	}
 }
 
 func (s Scanner) Warn(msg string) {
-	log.Print(msg)
+	log.Print(s.LogUri + ": " + msg)
 }
 
 func (s *Scanner) TreeSize() (int64, error) {
@@ -307,26 +164,26 @@ func (s *Scanner) TreeSize() (int64, error) {
 	return int64(latestSth.TreeSize), nil
 }
 
-func (s *Scanner) Scan(startIndex int64, endIndex int64, foundCert func(*Scanner, *ct.LogEntry)) error {
-	s.Log("Starting up...\n")
+func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback) error {
+	s.Log("Starting scan...");
 
 	s.certsProcessed = 0
-	s.unparsableEntries = 0
-	s.entriesWithNonFatalErrors = 0
-	ticker := time.NewTicker(time.Second)
 	startTime := time.Now()
 	fetches := make(chan fetchRange, 1000)
-	jobs := make(chan matcherJob, 100000)
+	jobs := make(chan ct.LogEntry, 100000)
+	/* TODO: only launch ticker goroutine if in verbose mode; kill the goroutine when the scanner finishes
+	ticker := time.NewTicker(time.Second)
 	go func() {
 		for range ticker.C {
 			throughput := float64(s.certsProcessed) / time.Since(startTime).Seconds()
 			remainingCerts := int64(endIndex) - int64(startIndex) - s.certsProcessed
 			remainingSeconds := int(float64(remainingCerts) / throughput)
 			remainingString := humanTime(remainingSeconds)
-			s.Log(fmt.Sprintf("Processed: %d certs (to index %d). Throughput: %3.2f ETA: %s\n", s.certsProcessed,
+			s.Log(fmt.Sprintf("Processed: %d certs (to index %d). Throughput: %3.2f ETA: %s", s.certsProcessed,
 				startIndex+int64(s.certsProcessed), throughput, remainingString))
 		}
 	}()
+	*/
 
 	var ranges list.List
 	for start := startIndex; start < int64(endIndex); {
@@ -335,11 +192,11 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, foundCert func(*Scanner
 		start = end + 1
 	}
 	var fetcherWG sync.WaitGroup
-	var matcherWG sync.WaitGroup
-	// Start matcher workers
+	var processorWG sync.WaitGroup
+	// Start processor workers
 	for w := 0; w < s.opts.NumWorkers; w++ {
-		matcherWG.Add(1)
-		go s.matcherJob(w, jobs, foundCert, &matcherWG)
+		processorWG.Add(1)
+		go s.processerJob(w, jobs, processCert, &processorWG)
 	}
 	// Start fetcher workers
 	for w := 0; w < s.opts.ParallelFetch; w++ {
@@ -352,9 +209,8 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, foundCert func(*Scanner
 	close(fetches)
 	fetcherWG.Wait()
 	close(jobs)
-	matcherWG.Wait()
+	processorWG.Wait()
 	s.Log(fmt.Sprintf("Completed %d certs in %s", s.certsProcessed, humanTime(int(time.Since(startTime).Seconds()))))
-	s.Log(fmt.Sprintf("%d unparsable entries, %d non-fatal errors", s.unparsableEntries, s.entriesWithNonFatalErrors))
 
 	return nil
 }
@@ -365,10 +221,6 @@ func NewScanner(logUri string, client *client.LogClient, opts ScannerOptions) *S
 	var scanner Scanner
 	scanner.LogUri = logUri
 	scanner.logClient = client
-	// Set a default match-everything regex if none was provided:
-	if opts.Matcher == nil {
-		opts.Matcher = &MatchAll{}
-	}
 	scanner.opts = opts
 	return &scanner
 }

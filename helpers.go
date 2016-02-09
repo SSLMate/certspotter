@@ -2,7 +2,6 @@ package ctwatch
 
 import (
 	"fmt"
-	"log"
 	"time"
 	"os"
 	"os/exec"
@@ -41,6 +40,32 @@ func ReadStateFile (path string) (int64, error) {
 
 func WriteStateFile (path string, endIndex int64) error {
 	return ioutil.WriteFile(path, []byte(strconv.FormatInt(endIndex, 10) + "\n"), 0666)
+}
+
+func EntryDNSNames (entry *ct.LogEntry) ([]string, error) {
+	switch entry.Leaf.TimestampedEntry.EntryType {
+	case ct.X509LogEntryType:
+		return ExtractDNSNames(entry.Leaf.TimestampedEntry.X509Entry)
+	case ct.PrecertLogEntryType:
+		return ExtractDNSNamesFromTBS(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
+	}
+	panic("EntryDNSNames: entry is neither precert nor x509")
+}
+
+func ParseEntryCertificate (entry *ct.LogEntry) (*x509.Certificate, error) {
+	if entry.Precert != nil {
+		// already parsed
+		return &entry.Precert.TBSCertificate, nil
+	} else if entry.X509Cert != nil {
+		// already parsed
+		return entry.X509Cert, nil
+	} else if entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType {
+		return x509.ParseTBSCertificate(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
+	} else if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
+		return x509.ParseCertificate(entry.Leaf.TimestampedEntry.X509Entry)
+	} else {
+		panic("ParseEntryCertificate: entry is neither precert nor x509")
+	}
 }
 
 func appendDnArray (buf *bytes.Buffer, code string, values []string) {
@@ -88,33 +113,6 @@ func allDNSNames (cert *x509.Certificate) []string {
 	return dnsNames
 }
 
-func isNonFatalError (err error) bool {
-	switch err.(type) {
-	case x509.NonFatalErrors:
-		return true
-	default:
-		return false
-	}
-}
-
-func getRoot (chain []ct.ASN1Cert) *x509.Certificate {
-	if len(chain) > 0 {
-		root, err := x509.ParseCertificate(chain[len(chain)-1])
-		if err == nil || isNonFatalError(err) {
-			return root
-		}
-		log.Printf("Failed to parse root certificate: %s", err)
-	}
-	return nil
-}
-
-func getSubjectOrganization (cert *x509.Certificate) string {
-	if cert != nil && len(cert.Subject.Organization) > 0 {
-		return cert.Subject.Organization[0]
-	}
-	return ""
-}
-
 func formatSerial (serial *big.Int) string {
 	if serial != nil {
 		return fmt.Sprintf("%x", serial)
@@ -128,111 +126,163 @@ func sha256hex (data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func getRaw (entry *ct.LogEntry) []byte {
-	if entry.Precert != nil {
-		return entry.Precert.Raw
-	} else if entry.X509Cert != nil {
-		return entry.X509Cert.Raw
-	} else {
-		panic("getRaw: entry is neither precert nor x509")
+func GetRawCert (entry *ct.LogEntry) []byte {
+	switch entry.Leaf.TimestampedEntry.EntryType {
+	case ct.X509LogEntryType:
+		return entry.Leaf.TimestampedEntry.X509Entry
+	case ct.PrecertLogEntryType:
+		return entry.Chain[0]
 	}
+	panic("GetRawCert: entry is neither precert nor x509")
 }
 
-type certInfo struct {
-	IsPrecert	bool
-	RootOrg		string
+func IsPrecert (entry *ct.LogEntry) bool {
+	switch entry.Leaf.TimestampedEntry.EntryType {
+	case ct.PrecertLogEntryType:
+		return true
+	case ct.X509LogEntryType:
+		return false
+	}
+	panic("IsPrecert: entry is neither precert nor x509")
+}
+
+type EntryInfo struct {
+	LogUri		string
+	Entry		*ct.LogEntry
+	ParsedCert	*x509.Certificate
+	ParseError	error
+	CertInfo	CertInfo
+	Filename	string
+}
+
+type CertInfo struct {
+	DnsNames	[]string
 	SubjectDn	string
 	IssuerDn	string
-	DnsNames	[]string
 	Serial		string
 	PubkeyHash	string
-	Fingerprint	string
-	NotBefore	time.Time
-	NotAfter	time.Time
+	NotBefore	*time.Time
+	NotAfter	*time.Time
 }
 
-func makeCertInfo (entry *ct.LogEntry) certInfo {
-	var isPrecert bool
-	var cert *x509.Certificate
-
-	if entry.Precert != nil {
-		isPrecert = true
-		cert = &entry.Precert.TBSCertificate
-	} else if entry.X509Cert != nil {
-		isPrecert = false
-		cert = entry.X509Cert
-	} else {
-		panic("makeCertInfo: entry is neither precert nor x509")
-	}
-	return certInfo {
-		IsPrecert:	isPrecert,
-		RootOrg:	getSubjectOrganization(getRoot(entry.Chain)),
+func MakeCertInfo (cert *x509.Certificate) CertInfo {
+	return CertInfo {
+		DnsNames:	allDNSNames(cert),
 		SubjectDn:	formatDN(cert.Subject),
 		IssuerDn:	formatDN(cert.Issuer),
-		DnsNames:	allDNSNames(cert),
 		Serial:		formatSerial(cert.SerialNumber),
 		PubkeyHash:	sha256hex(cert.RawSubjectPublicKeyInfo),
-		Fingerprint:	sha256hex(getRaw(entry)),
-		NotBefore:	cert.NotBefore,
-		NotAfter:	cert.NotAfter,
+		NotBefore:	&cert.NotBefore,
+		NotAfter:	&cert.NotAfter,
 	}
 }
 
-func (info *certInfo) TypeString () string {
-	if info.IsPrecert {
+func (info *CertInfo) dnsNamesFriendlyString () string {
+	if info.DnsNames != nil {
+		return strings.Join(info.DnsNames, ", ")
+	} else {
+		return "*** UNKNOWN ***"
+	}
+}
+
+func (info *CertInfo) Environ () []string {
+	var env []string
+	if info.DnsNames != nil   { env = append(env, "DNS_NAMES=" + strings.Join(info.DnsNames, ",")) }
+	if info.SubjectDn != ""   { env = append(env, "SUBJECT_DN=" + info.SubjectDn) }
+	if info.IssuerDn != ""    { env = append(env, "ISSUER_DN=" + info.IssuerDn) }
+	if info.Serial != ""      { env = append(env, "SERIAL=" + info.Serial) }
+	if info.PubkeyHash != ""  { env = append(env, "PUBKEY_HASH=" + info.PubkeyHash) }
+	if info.NotBefore != nil  { env = append(env, "NOT_BEFORE=" + strconv.FormatInt(info.NotBefore.Unix(), 10)) }
+	if info.NotAfter != nil   { env = append(env, "NOT_AFTER=" + strconv.FormatInt(info.NotAfter.Unix(), 10)) }
+	return env
+}
+
+func (info *EntryInfo) GetRawCert () []byte {
+	return GetRawCert(info.Entry)
+}
+
+func (info *EntryInfo) Fingerprint () string {
+	return sha256hex(info.GetRawCert())
+}
+
+func (info *EntryInfo) IsPrecert () bool {
+	return IsPrecert(info.Entry)
+}
+
+func (info *EntryInfo) typeString () string {
+	if info.IsPrecert() {
 		return "precert"
 	} else {
 		return "cert"
 	}
 }
 
-func (info *certInfo) TypeFriendlyString () string {
-	if info.IsPrecert {
+func (info *EntryInfo) typeFriendlyString () string {
+	if info.IsPrecert() {
 		return "Pre-certificate"
 	} else {
 		return "Certificate"
 	}
 }
 
-func DumpLogEntry (out io.Writer, logUri string, filename string, entry *ct.LogEntry) {
-	info := makeCertInfo(entry)
-
-	if filename == "" {
-		fmt.Fprintf(out, "%d @ %s:\n", entry.Index, logUri)
+func yesnoString (value bool) string {
+	if value {
+		return "yes"
 	} else {
-		fmt.Fprintf(out, "%s:\n", filename)
+		return "no"
 	}
-	fmt.Fprintf(out, "\t         Type = %s\n", info.TypeFriendlyString())
-	fmt.Fprintf(out, "\t    DNS Names = %v\n", info.DnsNames)
-	fmt.Fprintf(out, "\t       Pubkey = %s\n", info.PubkeyHash)
-	fmt.Fprintf(out, "\t  Fingerprint = %s\n", info.Fingerprint)
-	fmt.Fprintf(out, "\t      Subject = %s\n", info.SubjectDn)
-	fmt.Fprintf(out, "\t       Issuer = %s\n", info.IssuerDn)
-	fmt.Fprintf(out, "\tRoot Operator = %s\n", info.RootOrg)
-	fmt.Fprintf(out, "\t       Serial = %s\n", info.Serial)
-	fmt.Fprintf(out, "\t   Not Before = %s\n", info.NotBefore)
-	fmt.Fprintf(out, "\t    Not After = %s\n", info.NotAfter)
 }
 
-func InvokeHookScript (command string, logUri string, filename string, entry *ct.LogEntry) error {
-	info := makeCertInfo(entry)
-
-	cmd := exec.Command(command)
-	cmd.Env = append(os.Environ(),
-				"LOG_URI=" + logUri,
-				"LOG_INDEX=" + strconv.FormatInt(entry.Index, 10),
-				"CERT_TYPE=" + info.TypeString(),
-				"SUBJECT_DN=" + info.SubjectDn,
-				"ISSUER_DN=" + info.IssuerDn,
-				"DNS_NAMES=" + strings.Join(info.DnsNames, ","),
-				"SERIAL=" + info.Serial,
-				"PUBKEY_HASH=" + info.PubkeyHash,
-				"FINGERPRINT=" + info.Fingerprint,
-				"NOT_BEFORE=" + strconv.FormatInt(info.NotBefore.Unix(), 10),
-				"NOT_AFTER=" + strconv.FormatInt(info.NotAfter.Unix(), 10))
-	if filename != "" {
-		cmd.Env = append(cmd.Env, "CERT_FILENAME=" + filename)
+func (info *EntryInfo) Environ () []string {
+	env := []string{
+		"FINGERPRINT=" + info.Fingerprint(),
+		"CERT_TYPE=" + info.typeString(),
+		"CERT_PARSEABLE=" + yesnoString(info.ParsedCert != nil),
+		"LOG_URI=" + info.LogUri,
+		"ENTRY_INDEX=" + strconv.FormatInt(info.Entry.Index, 10),
 	}
+
+	if info.Filename != "" {
+		env = append(env, "CERT_FILENAME=" + info.Filename)
+	}
+	if info.ParseError != nil {
+		env = append(env, "PARSE_ERROR=" + info.ParseError.Error())
+	}
+
+	certEnv := info.CertInfo.Environ()
+	env = append(env, certEnv...)
+
+	return env
+}
+
+func (info *EntryInfo) Write (out io.Writer) {
+	fingerprint := info.Fingerprint()
+	fmt.Fprintf(out, "%s:\n", fingerprint)
+	if info.ParseError != nil {
+		if info.ParsedCert != nil {
+			fmt.Fprintf(out, "\tParse Warning = *** %s ***\n", info.ParseError)
+		} else {
+			fmt.Fprintf(out, "\t  Parse Error = *** %s ***\n", info.ParseError)
+		}
+	}
+	fmt.Fprintf(out, "\t    DNS Names = %s\n", info.CertInfo.dnsNamesFriendlyString())
+	if info.CertInfo.PubkeyHash != "" { fmt.Fprintf(out, "\t       Pubkey = %s\n", info.CertInfo.PubkeyHash) }
+	if info.CertInfo.SubjectDn != ""  { fmt.Fprintf(out, "\t      Subject = %s\n", info.CertInfo.SubjectDn) }
+	if info.CertInfo.IssuerDn != ""   { fmt.Fprintf(out, "\t       Issuer = %s\n", info.CertInfo.IssuerDn) }
+	if info.CertInfo.Serial != ""     { fmt.Fprintf(out, "\t       Serial = %s\n", info.CertInfo.Serial) }
+	if info.CertInfo.NotBefore != nil { fmt.Fprintf(out, "\t   Not Before = %s\n", *info.CertInfo.NotBefore) }
+	if info.CertInfo.NotAfter != nil  { fmt.Fprintf(out, "\t    Not After = %s\n", *info.CertInfo.NotAfter) }
+	fmt.Fprintf(out, "\t         Type = %s\n", info.typeFriendlyString())
+	fmt.Fprintf(out, "\t    Log Entry = %d @ %s\n", info.Entry.Index, info.LogUri)
+	fmt.Fprintf(out, "\t       crt.sh = https://crt.sh/?q=%s\n", fingerprint)
+	if info.Filename != ""            { fmt.Fprintf(out, "\t     Filename = %s\n", info.Filename) }
+}
+
+func (info *EntryInfo) InvokeHookScript (command string) error {
+	cmd := exec.Command(command)
+	cmd.Env = os.Environ()
+	infoEnv := info.Environ()
+	cmd.Env = append(cmd.Env, infoEnv...)
 	stderrBuffer := bytes.Buffer{}
 	cmd.Stderr = &stderrBuffer
 	if err := cmd.Run(); err != nil {
@@ -246,7 +296,7 @@ func InvokeHookScript (command string, logUri string, filename string, entry *ct
 }
 
 func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, string, error) {
-	fingerprint := sha256hex(getRaw(entry))
+	fingerprint := sha256hex(GetRawCert(entry))
 	prefixPath := filepath.Join(repoPath, fingerprint[0:2])
 	var filenameSuffix string
 	if entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType {
