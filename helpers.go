@@ -15,31 +15,37 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/pem"
+	"encoding/json"
 
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/x509"
 	"github.com/google/certificate-transparency/go/x509/pkix"
 )
 
-func ReadStateFile (path string) (int64, error) {
+func ReadStateFile (path string) (*ct.SignedTreeHead, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return -1, nil
+			return nil, nil
 		}
-		return -1, err
+		return nil, err
 	}
 
-	startIndex, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
-	if err != nil {
-		return -1, err
+	var sth ct.SignedTreeHead
+	if err := json.Unmarshal(content, &sth); err != nil {
+		return nil, err
 	}
 
-	return startIndex, nil
+	return &sth, nil
 }
 
-func WriteStateFile (path string, endIndex int64) error {
-	return ioutil.WriteFile(path, []byte(strconv.FormatInt(endIndex, 10) + "\n"), 0666)
+func WriteStateFile (path string, sth *ct.SignedTreeHead) error {
+	sthJson, err := json.MarshalIndent(sth, "", "\t")
+	if err != nil {
+		return err
+	}
+	sthJson = append(sthJson, byte('\n'))
+	return ioutil.WriteFile(path, sthJson, 0666)
 }
 
 func EntryDNSNames (entry *ct.LogEntry) ([]string, error) {

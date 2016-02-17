@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"bytes"
 	"os/user"
 	"bufio"
 	"sync"
@@ -22,6 +23,7 @@ var script = flag.String("script", "", "Script to execute when a matching certif
 var logsFilename = flag.String("logs", "", "File containing log URLs")
 var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certificates")
 var verbose = flag.Bool("verbose", false, "Be verbose")
+var allTime = flag.Bool("all_time", false, "Scan certs from all time, not just since last scan")
 var stateDir string
 
 var printMutex sync.Mutex
@@ -119,7 +121,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], stateDir, err)
 		os.Exit(3)
 	}
-	for _, subdir := range []string{"certs", "logs"} {
+	for _, subdir := range []string{"certs", "sths"} {
 		path := filepath.Join(stateDir, subdir)
 		if err := os.Mkdir(path, 0777); err != nil && !os.IsExist(err) {
 			fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], path, err)
@@ -130,8 +132,8 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 	exitCode := 0
 
 	for _, logUri := range logs {
-		stateFilename := filepath.Join(stateDir, "logs", defangLogUri(logUri))
-		startIndex, err := ctwatch.ReadStateFile(stateFilename)
+		stateFilename := filepath.Join(stateDir, "sths", defangLogUri(logUri))
+		prevSTH, err := ctwatch.ReadStateFile(stateFilename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error reading state file: %s: %s\n", os.Args[0], stateFilename, err)
 			os.Exit(3)
@@ -146,22 +148,57 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		}
 		scanner := ctwatch.NewScanner(logUri, logClient, opts)
 
-		endIndex, err := scanner.TreeSize()
+		latestSTH, err := scanner.GetSTH()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error contacting log: %s: %s\n", os.Args[0], logUri, err)
 			exitCode = 1
 			continue
 		}
 
-		if startIndex != -1 {
-			if err := scanner.Scan(startIndex, endIndex, processCallback); err != nil {
+		var startIndex uint64
+		if *allTime {
+			startIndex = 0
+		} else if prevSTH != nil {
+			startIndex = prevSTH.TreeSize
+		} else {
+			startIndex = latestSTH.TreeSize
+		}
+
+		if latestSTH.TreeSize > startIndex {
+			var merkleBuilder *ctwatch.MerkleBuilder
+			if prevSTH != nil {
+				valid, nodes, err := scanner.CheckConsistency(prevSTH, latestSTH)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "%s: Error fetching consistency proof: %s: %s\n", os.Args[0], logUri, err)
+					exitCode = 1
+					continue
+				}
+				if !valid {
+					fmt.Fprintf(os.Stderr, "%s: %s: Consistency proof failed!\n", os.Args[0], logUri)
+					exitCode = 1
+					continue
+				}
+
+				merkleBuilder = ctwatch.ResumedMerkleBuilder(nodes, prevSTH.TreeSize)
+			} else {
+				merkleBuilder = &ctwatch.MerkleBuilder{}
+			}
+
+			if err := scanner.Scan(int64(startIndex), int64(latestSTH.TreeSize), processCallback, merkleBuilder); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: Error scanning log: %s: %s\n", os.Args[0], logUri, err)
+				exitCode = 1
+				continue
+			}
+
+			rootHash := merkleBuilder.Finish()
+			if !bytes.Equal(rootHash, latestSTH.SHA256RootHash[:]) {
+				fmt.Fprintf(os.Stderr, "%s: %s: Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s)\n", os.Args[0], logUri, rootHash, latestSTH.SHA256RootHash)
 				exitCode = 1
 				continue
 			}
 		}
 
-		if err := ctwatch.WriteStateFile(stateFilename, endIndex); err != nil {
+		if err := ctwatch.WriteStateFile(stateFilename, latestSTH); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error writing state file: %s: %s\n", os.Args[0], stateFilename, err)
 			os.Exit(3)
 		}
