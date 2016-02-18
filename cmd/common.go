@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 
 	"src.agwa.name/ctwatch"
-	"github.com/google/certificate-transparency/go/client"
 )
 
 var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries")
@@ -133,14 +132,13 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			os.Exit(3)
 		}
 
-		logClient := client.New(logUri)
 		opts := ctwatch.ScannerOptions{
 			BatchSize:     *batchSize,
 			NumWorkers:    *numWorkers,
 			ParallelFetch: *parallelFetch,
 			Quiet:         !*verbose,
 		}
-		scanner := ctwatch.NewScanner(logUri, logKey, logClient, opts)
+		scanner := ctwatch.NewScanner(logUri, logKey, opts)
 
 		latestSTH, err := scanner.GetSTH()
 		if err != nil {
@@ -161,7 +159,9 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		if latestSTH.TreeSize > startIndex {
 			var treeBuilder *ctwatch.MerkleTreeBuilder
 			if prevSTH != nil {
-				valid, nodes, err := scanner.CheckConsistency(prevSTH, latestSTH)
+				var valid bool
+				var err error
+				valid, treeBuilder, err = scanner.CheckConsistency(prevSTH, latestSTH)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "%s: Error fetching consistency proof: %s: %s\n", os.Args[0], logUri, err)
 					exitCode = 1
@@ -172,8 +172,6 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 					exitCode = 1
 					continue
 				}
-
-				treeBuilder = ctwatch.ResumedMerkleTreeBuilder(nodes, prevSTH.TreeSize)
 			} else {
 				treeBuilder = &ctwatch.MerkleTreeBuilder{}
 			}

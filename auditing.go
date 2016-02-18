@@ -13,7 +13,7 @@ func reverseHashes (hashes []ct.MerkleTreeNode) {
 	}
 }
 
-func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, []ct.MerkleTreeNode) {
+func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, *MerkleTreeBuilder) {
 	if second.TreeSize < first.TreeSize {
 		// Can't be consistent if tree got smaller
 		return false, nil
@@ -97,7 +97,7 @@ func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead
 
 	reverseHashes(leftHashes)
 
-	return true, leftHashes
+	return true, &MerkleTreeBuilder{stack: leftHashes, size: first.TreeSize}
 }
 
 func hashLeaf (leafBytes []byte) ct.MerkleTreeNode {
@@ -118,13 +118,6 @@ func hashChildren (left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTre
 type MerkleTreeBuilder struct {
 	stack		[]ct.MerkleTreeNode
 	size		uint64 // number of hashes added so far
-}
-
-func ResumedMerkleTreeBuilder (hashes []ct.MerkleTreeNode, size uint64) *MerkleTreeBuilder {
-	return &MerkleTreeBuilder{
-		stack: hashes,
-		size: size,
-	}
 }
 
 func (builder *MerkleTreeBuilder) Add (hash ct.MerkleTreeNode) {

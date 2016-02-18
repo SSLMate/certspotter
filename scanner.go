@@ -185,7 +185,7 @@ func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
 	return latestSth, nil
 }
 
-func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, []ct.MerkleTreeNode, error) {
+func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, *MerkleTreeBuilder, error) {
 	var proof ct.ConsistencyProof
 
 	if first.TreeSize > second.TreeSize {
@@ -203,8 +203,8 @@ func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTr
 		}
 	}
 
-	valid, builderNodes := VerifyConsistencyProof(proof, first, second)
-	return valid, builderNodes, nil
+	valid, treeBuilder := VerifyConsistencyProof(proof, first, second)
+	return valid, treeBuilder, nil
 }
 
 func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, treeBuilder *MerkleTreeBuilder) error {
@@ -268,11 +268,11 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 
 // Creates a new Scanner instance using |client| to talk to the log, and taking
 // configuration options from |opts|.
-func NewScanner(logUri string, publicKey crypto.PublicKey, client *client.LogClient, opts ScannerOptions) *Scanner {
+func NewScanner(logUri string, publicKey crypto.PublicKey, opts ScannerOptions) *Scanner {
 	var scanner Scanner
 	scanner.LogUri = logUri
 	scanner.publicKey = publicKey
-	scanner.logClient = client
+	scanner.logClient = client.New(logUri)
 	scanner.opts = opts
 	return &scanner
 }
