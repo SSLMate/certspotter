@@ -22,7 +22,7 @@ import (
 	"github.com/google/certificate-transparency/go/x509/pkix"
 )
 
-func ReadStateFile (path string) (*ct.SignedTreeHead, error) {
+func ReadSTHFile (path string) (*ct.SignedTreeHead, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -39,7 +39,7 @@ func ReadStateFile (path string) (*ct.SignedTreeHead, error) {
 	return &sth, nil
 }
 
-func WriteStateFile (path string, sth *ct.SignedTreeHead) error {
+func WriteSTHFile (path string, sth *ct.SignedTreeHead) error {
 	sthJson, err := json.MarshalIndent(sth, "", "\t")
 	if err != nil {
 		return err

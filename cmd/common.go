@@ -127,7 +127,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			os.Exit(3)
 		}
 		stateFilename := filepath.Join(stateDir, "sths", defangLogUri(logUri))
-		prevSTH, err := ctwatch.ReadStateFile(stateFilename)
+		prevSTH, err := ctwatch.ReadSTHFile(stateFilename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error reading state file: %s: %s\n", os.Args[0], stateFilename, err)
 			os.Exit(3)
@@ -192,7 +192,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			}
 		}
 
-		if err := ctwatch.WriteStateFile(stateFilename, latestSTH); err != nil {
+		if err := ctwatch.WriteSTHFile(stateFilename, latestSTH); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error writing state file: %s: %s\n", os.Args[0], stateFilename, err)
 			os.Exit(3)
 		}
