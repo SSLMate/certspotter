@@ -159,7 +159,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		}
 
 		if latestSTH.TreeSize > startIndex {
-			var merkleBuilder *ctwatch.MerkleBuilder
+			var treeBuilder *ctwatch.MerkleTreeBuilder
 			if prevSTH != nil {
 				valid, nodes, err := scanner.CheckConsistency(prevSTH, latestSTH)
 				if err != nil {
@@ -173,18 +173,18 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 					continue
 				}
 
-				merkleBuilder = ctwatch.ResumedMerkleBuilder(nodes, prevSTH.TreeSize)
+				treeBuilder = ctwatch.ResumedMerkleTreeBuilder(nodes, prevSTH.TreeSize)
 			} else {
-				merkleBuilder = &ctwatch.MerkleBuilder{}
+				treeBuilder = &ctwatch.MerkleTreeBuilder{}
 			}
 
-			if err := scanner.Scan(int64(startIndex), int64(latestSTH.TreeSize), processCallback, merkleBuilder); err != nil {
+			if err := scanner.Scan(int64(startIndex), int64(latestSTH.TreeSize), processCallback, treeBuilder); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: Error scanning log: %s: %s\n", os.Args[0], logUri, err)
 				exitCode = 1
 				continue
 			}
 
-			rootHash := merkleBuilder.Finish()
+			rootHash := treeBuilder.Finish()
 			if !bytes.Equal(rootHash, latestSTH.SHA256RootHash[:]) {
 				fmt.Fprintf(os.Stderr, "%s: %s: Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s)\n", os.Args[0], logUri, rootHash, latestSTH.SHA256RootHash)
 				exitCode = 1

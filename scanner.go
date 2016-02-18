@@ -77,7 +77,7 @@ func (s *Scanner) processerJob(id int, entries <-chan ct.LogEntry, processCert P
 	wg.Done()
 }
 
-func (s *Scanner) fetch(r fetchRange, entries chan<- ct.LogEntry, merkleBuilder *MerkleBuilder) {
+func (s *Scanner) fetch(r fetchRange, entries chan<- ct.LogEntry, treeBuilder *MerkleTreeBuilder) {
 	success := false
 	// TODO(alcutter): give up after a while:
 	for !success {
@@ -88,8 +88,8 @@ func (s *Scanner) fetch(r fetchRange, entries chan<- ct.LogEntry, merkleBuilder 
 			continue
 		}
 		for _, logEntry := range logEntries {
-			if merkleBuilder != nil {
-				merkleBuilder.Add(hashLeaf(logEntry.LeafBytes))
+			if treeBuilder != nil {
+				treeBuilder.Add(hashLeaf(logEntry.LeafBytes))
 			}
 			logEntry.Index = r.start
 			entries <- logEntry
@@ -207,7 +207,7 @@ func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTr
 	return valid, builderNodes, nil
 }
 
-func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, merkleBuilder *MerkleBuilder) error {
+func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, treeBuilder *MerkleTreeBuilder) error {
 	s.Log("Starting scan...");
 
 	s.certsProcessed = 0
@@ -256,7 +256,7 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 	*/
 	for start := startIndex; start < int64(endIndex); {
 		end := min(start+int64(s.opts.BatchSize), int64(endIndex)) - 1
-		s.fetch(fetchRange{start, end}, jobs, merkleBuilder)
+		s.fetch(fetchRange{start, end}, jobs, treeBuilder)
 		start = end + 1
 	}
 	close(jobs)

@@ -115,19 +115,19 @@ func hashChildren (left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTre
 	return hasher.Sum(nil)
 }
 
-type MerkleBuilder struct {
+type MerkleTreeBuilder struct {
 	stack		[]ct.MerkleTreeNode
 	size		uint64 // number of hashes added so far
 }
 
-func ResumedMerkleBuilder (hashes []ct.MerkleTreeNode, size uint64) *MerkleBuilder {
-	return &MerkleBuilder{
+func ResumedMerkleTreeBuilder (hashes []ct.MerkleTreeNode, size uint64) *MerkleTreeBuilder {
+	return &MerkleTreeBuilder{
 		stack: hashes,
 		size: size,
 	}
 }
 
-func (builder *MerkleBuilder) Add (hash ct.MerkleTreeNode) {
+func (builder *MerkleTreeBuilder) Add (hash ct.MerkleTreeNode) {
 	builder.stack = append(builder.stack, hash)
 	builder.size++
 	size := builder.size
@@ -139,9 +139,9 @@ func (builder *MerkleBuilder) Add (hash ct.MerkleTreeNode) {
 	}
 }
 
-func (builder *MerkleBuilder) Finish () ct.MerkleTreeNode {
+func (builder *MerkleTreeBuilder) Finish () ct.MerkleTreeNode {
 	if len(builder.stack) == 0 {
-		panic("MerkleBuilder.Finish called on an empty tree")
+		panic("MerkleTreeBuilder.Finish called on an empty tree")
 	}
 	for len(builder.stack) > 1 {
 		left, right := builder.stack[len(builder.stack)-2], builder.stack[len(builder.stack)-1]
