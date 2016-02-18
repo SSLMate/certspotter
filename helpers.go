@@ -17,9 +17,9 @@ import (
 	"encoding/pem"
 	"encoding/json"
 
-	"github.com/google/certificate-transparency/go"
-	"github.com/google/certificate-transparency/go/x509"
-	"github.com/google/certificate-transparency/go/x509/pkix"
+	"src.agwa.name/ctwatch/ct"
+	"src.agwa.name/ctwatch/ct/x509"
+	"src.agwa.name/ctwatch/ct/x509/pkix"
 )
 
 func ReadSTHFile (path string) (*ct.SignedTreeHead, error) {
@@ -59,13 +59,7 @@ func EntryDNSNames (entry *ct.LogEntry) ([]string, error) {
 }
 
 func ParseEntryCertificate (entry *ct.LogEntry) (*x509.Certificate, error) {
-	if entry.Precert != nil {
-		// already parsed
-		return &entry.Precert.TBSCertificate, nil
-	} else if entry.X509Cert != nil {
-		// already parsed
-		return entry.X509Cert, nil
-	} else if entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType {
+	if entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType {
 		return x509.ParseTBSCertificate(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
 	} else if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
 		return x509.ParseCertificate(entry.Leaf.TimestampedEntry.X509Entry)

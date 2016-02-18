@@ -1,7 +1,7 @@
 package ctwatch
 
 import (
-	"github.com/google/certificate-transparency/go"
+	"src.agwa.name/ctwatch/ct"
 	"bytes"
 	"crypto/sha256"
 )

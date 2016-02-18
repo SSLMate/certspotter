@@ -7,8 +7,8 @@ import (
 	"bufio"
 	"strings"
 
-	"github.com/google/certificate-transparency/go"
 	"src.agwa.name/ctwatch"
+	"src.agwa.name/ctwatch/ct"
 	"src.agwa.name/ctwatch/cmd"
 )
 

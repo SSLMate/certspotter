@@ -10,8 +10,8 @@ import (
 	"crypto"
 	"errors"
 
-	"github.com/google/certificate-transparency/go"
-	"github.com/google/certificate-transparency/go/client"
+	"src.agwa.name/ctwatch/ct"
+	"src.agwa.name/ctwatch/ct/client"
 )
 
 type ProcessCallback func(*Scanner, *ct.LogEntry)

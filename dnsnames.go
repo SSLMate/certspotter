@@ -8,8 +8,6 @@ import (
 	"encoding/binary"
 	"encoding/asn1"
 	"crypto/x509/pkix"
-	//"github.com/google/certificate-transparency/go/asn1"
-	//"github.com/google/certificate-transparency/go/x509/pkix"
 )
 
 var (
