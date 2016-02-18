@@ -11,8 +11,11 @@ import (
 	"sync"
 	"strings"
 	"path/filepath"
+	"time"
+	"strconv"
 
 	"src.agwa.name/ctwatch"
+	"src.agwa.name/ctwatch/ct"
 )
 
 var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries")
@@ -81,6 +84,22 @@ func defangLogUri (logUri string) string {
 	return strings.Replace(strings.Replace(logUri, "://", "_", 1), "/", "_", -1)
 }
 
+func saveEvidence (logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.SignedTreeHead) (string, string, error) {
+	now := strconv.FormatInt(time.Now().Unix(), 10)
+
+	firstFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".first")
+	if err := ctwatch.WriteSTHFile(firstFilename, firstSTH); err != nil {
+		return "", "", err
+	}
+
+	secondFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".second")
+	if err := ctwatch.WriteSTHFile(secondFilename, secondSTH); err != nil {
+		return "", "", err
+	}
+
+	return firstFilename, secondFilename, nil
+}
+
 func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 	stateDir = argStateDir
 
@@ -108,7 +127,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], stateDir, err)
 		os.Exit(3)
 	}
-	for _, subdir := range []string{"certs", "sths"} {
+	for _, subdir := range []string{"certs", "sths", "evidence"} {
 		path := filepath.Join(stateDir, subdir)
 		if err := os.Mkdir(path, 0777); err != nil && !os.IsExist(err) {
 			fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], path, err)
@@ -142,7 +161,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 		latestSTH, err := scanner.GetSTH()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error contacting log: %s: %s\n", os.Args[0], logUri, err)
+			fmt.Fprintf(os.Stderr, "%s: Error retrieving STH from log: %s: %s\n", os.Args[0], logUri, err)
 			exitCode = 1
 			continue
 		}
@@ -168,7 +187,12 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 					continue
 				}
 				if !valid {
-					fmt.Fprintf(os.Stderr, "%s: %s: Consistency proof failed!\n", os.Args[0], logUri)
+					firstFilename, secondFilename, err := saveEvidence(logUri, prevSTH, latestSTH)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "%s: %s: Consistency proof failed - the log has misbehaved!  Saving evidence of misbehavior failed: %s\n", os.Args[0], logUri, err)
+					} else {
+						fmt.Fprintf(os.Stderr, "%s: %s: Consistency proof failed - the log has misbehaved!  Evidence of misbehavior has been saved to '%s' and '%s'.\n", os.Args[0], logUri, firstFilename, secondFilename)
+					}
 					exitCode = 1
 					continue
 				}
@@ -184,7 +208,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 			rootHash := treeBuilder.Finish()
 			if !bytes.Equal(rootHash, latestSTH.SHA256RootHash[:]) {
-				fmt.Fprintf(os.Stderr, "%s: %s: Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s)\n", os.Args[0], logUri, rootHash, latestSTH.SHA256RootHash)
+				fmt.Fprintf(os.Stderr, "%s: %s: Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s).  If this error persists for an extended period, it should be construed as misbehavior by the log.\n", os.Args[0], logUri, rootHash, latestSTH.SHA256RootHash)
 				exitCode = 1
 				continue
 			}
