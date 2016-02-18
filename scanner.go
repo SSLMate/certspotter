@@ -7,6 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"crypto"
+	"errors"
 
 	"github.com/google/certificate-transparency/go"
 	"github.com/google/certificate-transparency/go/client"
@@ -43,6 +45,9 @@ func DefaultScannerOptions() *ScannerOptions {
 type Scanner struct {
 	// Base URI of CT log
 	LogUri				string
+
+	// Public key of the log
+	publicKey			crypto.PublicKey
 
 	// Client used to talk to the CT log instance
 	logClient			*client.LogClient
@@ -168,7 +173,15 @@ func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Verify STH signature
+	if s.publicKey != nil {
+		verifier, err := ct.NewSignatureVerifier(s.publicKey)
+		if err != nil {
+			return nil, err
+		}
+		if err := verifier.VerifySTHSignature(*latestSth); err != nil {
+			return nil, errors.New("STH signature is invalid: " + err.Error())
+		}
+	}
 	return latestSth, nil
 }
 
@@ -255,9 +268,10 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 
 // Creates a new Scanner instance using |client| to talk to the log, and taking
 // configuration options from |opts|.
-func NewScanner(logUri string, client *client.LogClient, opts ScannerOptions) *Scanner {
+func NewScanner(logUri string, publicKey crypto.PublicKey, client *client.LogClient, opts ScannerOptions) *Scanner {
 	var scanner Scanner
 	scanner.LogUri = logUri
+	scanner.publicKey = publicKey
 	scanner.logClient = client
 	scanner.opts = opts
 	return &scanner

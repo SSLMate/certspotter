@@ -7,7 +7,7 @@ import (
 	"os"
 	"bytes"
 	"os/user"
-	"bufio"
+	"encoding/json"
 	"sync"
 	"strings"
 	"path/filepath"
@@ -20,26 +20,14 @@ var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request a
 var numWorkers = flag.Int("num_workers", 2, "Number of concurrent matchers")
 var parallelFetch = flag.Int("parallel_fetch", 2, "Number of concurrent GetEntries fetches")
 var script = flag.String("script", "", "Script to execute when a matching certificate is found")
-var logsFilename = flag.String("logs", "", "File containing log URLs")
+var logsFilename = flag.String("logs", "", "JSON file containing log URLs")
+var underwater = flag.Bool("underwater", false, "Monitor certificates from distrusted CAs")
 var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certificates")
 var verbose = flag.Bool("verbose", false, "Be verbose")
 var allTime = flag.Bool("all_time", false, "Scan certs from all time, not just since last scan")
 var stateDir string
 
 var printMutex sync.Mutex
-
-var defaultLogs = []string{
-	"https://log.certly.io",
-	"https://ct1.digicert-ct.com/log",
-	"https://ct.googleapis.com/aviator",
-	"https://ct.googleapis.com/pilot",
-	"https://ct.googleapis.com/rocketeer",
-	"https://ct.izenpe.com",
-	"https://ct.ws.symantec.com",
-	"https://vega.ws.symantec.com",
-	"https://ctlog.api.venafi.com",
-	"https://ct.wosign.com",
-}
 
 func isRoot () bool {
 	return os.Geteuid() == 0
@@ -97,7 +85,7 @@ func defangLogUri (logUri string) string {
 func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 	stateDir = argStateDir
 
-	var logs []string
+	var logs []ctwatch.LogInfo
 	if *logsFilename != "" {
 		logFile, err := os.Open(*logsFilename)
 		if err != nil {
@@ -105,16 +93,16 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			os.Exit(3)
 		}
 		defer logFile.Close()
-		scanner := bufio.NewScanner(logFile)
-		for scanner.Scan() {
-			logs = append(logs, scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error reading logs file: %s: %s\n", os.Args[0], *logsFilename, err)
+		var logFileObj ctwatch.LogInfoFile
+		if err := json.NewDecoder(logFile).Decode(&logFileObj); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: Error decoding logs file: %s: %s\n", os.Args[0], *logsFilename, err)
 			os.Exit(3)
 		}
+		logs = logFileObj.Logs
+	} else if *underwater {
+		logs = ctwatch.UnderwaterLogs
 	} else {
-		logs = defaultLogs
+		logs = ctwatch.DefaultLogs
 	}
 
 	if err := os.Mkdir(stateDir, 0777); err != nil && !os.IsExist(err) {
@@ -131,7 +119,13 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 	exitCode := 0
 
-	for _, logUri := range logs {
+	for _, logInfo := range logs {
+		logUri := logInfo.FullURI()
+		logKey, err := logInfo.ParsedPublicKey()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s: Bad public key: %s\n", os.Args[0], logUri, err)
+			os.Exit(3)
+		}
 		stateFilename := filepath.Join(stateDir, "sths", defangLogUri(logUri))
 		prevSTH, err := ctwatch.ReadStateFile(stateFilename)
 		if err != nil {
@@ -146,7 +140,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			ParallelFetch: *parallelFetch,
 			Quiet:         !*verbose,
 		}
-		scanner := ctwatch.NewScanner(logUri, logClient, opts)
+		scanner := ctwatch.NewScanner(logUri, logKey, logClient, opts)
 
 		latestSTH, err := scanner.GetSTH()
 		if err != nil {
