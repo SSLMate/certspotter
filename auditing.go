@@ -26,7 +26,10 @@ func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead
 		// nature of the tree; i.e. that the first tree is a "prefix" of the
 		// second tree.  If the first tree is empty, then it's trivially a prefix
 		// of the second tree, so no proof is needed.
-		return len(proof) == 0, nil
+		if len(proof) != 0 {
+			return false, nil
+		}
+		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{}, size: 0}
 	}
 	// Guaranteed that 0 < first.TreeSize < second.TreeSize
 
