@@ -167,10 +167,10 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		}
 
 		var startIndex uint64
-		if *allTime {
-			startIndex = 0
-		} else if prevSTH != nil {
+		if prevSTH != nil {
 			startIndex = prevSTH.TreeSize
+		} else if *allTime {
+			startIndex = 0
 		} else {
 			startIndex = latestSTH.TreeSize
 		}
