@@ -137,7 +137,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 	/*
 	 * Exit code bits:
-	 *  1 = initialization/system error
+	 *  1 = initialization/configuration/system error
 	 *  2 = usage error
 	 *  4 = error communicating with log
 	 *  8 = log misbehavior
@@ -146,16 +146,19 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 	for _, logInfo := range logs {
 		logUri := logInfo.FullURI()
+		log.SetPrefix(os.Args[0] + ": " + logUri + ": ")
 		logKey, err := logInfo.ParsedPublicKey()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: Bad public key: %s\n", os.Args[0], logUri, err)
-			os.Exit(1)
+			log.Printf("Bad public key: %s\n", err)
+			exitCode |= 1
+			continue
 		}
 		stateFilename := filepath.Join(stateDir, "sths", defangLogUri(logUri))
 		prevSTH, err := ctwatch.ReadSTHFile(stateFilename)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error reading state file: %s: %s\n", os.Args[0], stateFilename, err)
-			os.Exit(1)
+			log.Printf("Error reading state file: %s: %s\n", stateFilename, err)
+			exitCode |= 1
+			continue
 		}
 
 		opts := ctwatch.ScannerOptions{
@@ -168,9 +171,19 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 		latestSTH, err := scanner.GetSTH()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error retrieving STH from log: %s: %s\n", os.Args[0], logUri, err)
+			log.Printf("Error retrieving STH from log: %s\n", err)
 			exitCode |= 4
 			continue
+		}
+
+		if *verbose {
+			if prevSTH != nil {
+				log.Printf("Existing log; scanning %d new entries since previous scan (previous size %d, previous root hash = %x)", latestSTH.TreeSize - prevSTH.TreeSize, prevSTH.TreeSize, prevSTH.SHA256RootHash)
+			} else if *allTime {
+				log.Printf("new log; scanning all %d entries in the log", latestSTH.TreeSize)
+			} else {
+				log.Printf("new log; not scanning existing entries because -all_time option not specified")
+			}
 		}
 
 		var startIndex uint64
@@ -189,16 +202,16 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 				var err error
 				valid, treeBuilder, err = scanner.CheckConsistency(prevSTH, latestSTH)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "%s: Error fetching consistency proof: %s: %s\n", os.Args[0], logUri, err)
+					log.Printf("Error fetching consistency proof: %s\n", err)
 					exitCode |= 4
 					continue
 				}
 				if !valid {
 					firstFilename, secondFilename, err := saveEvidence(logUri, prevSTH, latestSTH)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "%s: %s: Consistency proof failed - the log has misbehaved!  Saving evidence of misbehavior failed: %s\n", os.Args[0], logUri, err)
+						log.Printf("Consistency proof failed - the log has misbehaved!  Saving evidence of misbehavior failed: %s\n", err)
 					} else {
-						fmt.Fprintf(os.Stderr, "%s: %s: Consistency proof failed - the log has misbehaved!  Evidence of misbehavior has been saved to '%s' and '%s'.\n", os.Args[0], logUri, firstFilename, secondFilename)
+						log.Printf("Consistency proof failed - the log has misbehaved!  Evidence of misbehavior has been saved to '%s' and '%s'.\n", firstFilename, secondFilename)
 					}
 					exitCode |= 8
 					continue
@@ -208,22 +221,27 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			}
 
 			if err := scanner.Scan(int64(startIndex), int64(latestSTH.TreeSize), processCallback, treeBuilder); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: Error scanning log: %s: %s\n", os.Args[0], logUri, err)
+				log.Printf("Error scanning log: %s\n", err)
 				exitCode |= 4
 				continue
 			}
 
 			rootHash := treeBuilder.Finish()
 			if !bytes.Equal(rootHash, latestSTH.SHA256RootHash[:]) {
-				fmt.Fprintf(os.Stderr, "%s: %s: Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s).  If this error persists for an extended period, it should be construed as misbehavior by the log.\n", os.Args[0], logUri, rootHash, latestSTH.SHA256RootHash)
+				log.Printf("Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s).  If this error persists for an extended period, it should be construed as misbehavior by the log.\n", rootHash, latestSTH.SHA256RootHash)
 				exitCode |= 8
 				continue
 			}
 		}
 
+		if *verbose {
+			log.Printf("final log size = %d, final root hash = %x", latestSTH.TreeSize, latestSTH.SHA256RootHash)
+		}
+
 		if err := ctwatch.WriteSTHFile(stateFilename, latestSTH); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error writing state file: %s: %s\n", os.Args[0], stateFilename, err)
-			os.Exit(1)
+			log.Printf("Error writing state file: %s: %s\n", stateFilename, err)
+			exitCode |= 1
+			continue
 		}
 	}
 

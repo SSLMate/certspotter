@@ -78,7 +78,6 @@ func (s *Scanner) processerJob(id int, entries <-chan ct.LogEntry, processCert P
 		atomic.AddInt64(&s.certsProcessed, 1)
 		processCert(s, &entry)
 	}
-	s.Log(fmt.Sprintf("Processor %d finished", id))
 	wg.Done()
 }
 
@@ -132,7 +131,6 @@ func (s *Scanner) fetcherJob(id int, ranges <-chan fetchRange, entries chan<- ct
 	for r := range ranges {
 		s.fetch(r, entries, nil)
 	}
-	s.Log(fmt.Sprintf("Fetcher %d finished", id))
 	wg.Done()
 }
 */
