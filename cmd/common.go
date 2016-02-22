@@ -167,7 +167,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			ParallelFetch: *parallelFetch,
 			Quiet:         !*verbose,
 		}
-		scanner := ctwatch.NewScanner(logUri, logKey, opts)
+		scanner := ctwatch.NewScanner(logUri, logKey, &opts)
 
 		latestSTH, err := scanner.GetSTH()
 		if err != nil {

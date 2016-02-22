@@ -287,11 +287,11 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 
 // Creates a new Scanner instance using |client| to talk to the log, and taking
 // configuration options from |opts|.
-func NewScanner(logUri string, publicKey crypto.PublicKey, opts ScannerOptions) *Scanner {
+func NewScanner(logUri string, publicKey crypto.PublicKey, opts *ScannerOptions) *Scanner {
 	var scanner Scanner
 	scanner.LogUri = logUri
 	scanner.publicKey = publicKey
 	scanner.logClient = client.New(logUri)
-	scanner.opts = opts
+	scanner.opts = *opts
 	return &scanner
 }
