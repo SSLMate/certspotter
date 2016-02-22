@@ -108,13 +108,13 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		logFile, err := os.Open(*logsFilename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error opening logs file for reading: %s: %s\n", os.Args[0], *logsFilename, err)
-			os.Exit(3)
+			os.Exit(1)
 		}
 		defer logFile.Close()
 		var logFileObj ctwatch.LogInfoFile
 		if err := json.NewDecoder(logFile).Decode(&logFileObj); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error decoding logs file: %s: %s\n", os.Args[0], *logsFilename, err)
-			os.Exit(3)
+			os.Exit(1)
 		}
 		logs = logFileObj.Logs
 	} else if *underwater {
@@ -125,16 +125,23 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 	if err := os.Mkdir(stateDir, 0777); err != nil && !os.IsExist(err) {
 		fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], stateDir, err)
-		os.Exit(3)
+		os.Exit(1)
 	}
 	for _, subdir := range []string{"certs", "sths", "evidence"} {
 		path := filepath.Join(stateDir, subdir)
 		if err := os.Mkdir(path, 0777); err != nil && !os.IsExist(err) {
 			fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], path, err)
-			os.Exit(3)
+			os.Exit(1)
 		}
 	}
 
+	/*
+	 * Exit code bits:
+	 *  1 = initialization/system error
+	 *  2 = usage error
+	 *  4 = error communicating with log
+	 *  8 = log misbehavior
+	 */
 	exitCode := 0
 
 	for _, logInfo := range logs {
@@ -142,13 +149,13 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		logKey, err := logInfo.ParsedPublicKey()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s: Bad public key: %s\n", os.Args[0], logUri, err)
-			os.Exit(3)
+			os.Exit(1)
 		}
 		stateFilename := filepath.Join(stateDir, "sths", defangLogUri(logUri))
 		prevSTH, err := ctwatch.ReadSTHFile(stateFilename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error reading state file: %s: %s\n", os.Args[0], stateFilename, err)
-			os.Exit(3)
+			os.Exit(1)
 		}
 
 		opts := ctwatch.ScannerOptions{
@@ -162,7 +169,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		latestSTH, err := scanner.GetSTH()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error retrieving STH from log: %s: %s\n", os.Args[0], logUri, err)
-			exitCode = 1
+			exitCode |= 4
 			continue
 		}
 
@@ -183,7 +190,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 				valid, treeBuilder, err = scanner.CheckConsistency(prevSTH, latestSTH)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "%s: Error fetching consistency proof: %s: %s\n", os.Args[0], logUri, err)
-					exitCode = 1
+					exitCode |= 4
 					continue
 				}
 				if !valid {
@@ -193,7 +200,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 					} else {
 						fmt.Fprintf(os.Stderr, "%s: %s: Consistency proof failed - the log has misbehaved!  Evidence of misbehavior has been saved to '%s' and '%s'.\n", os.Args[0], logUri, firstFilename, secondFilename)
 					}
-					exitCode = 1
+					exitCode |= 8
 					continue
 				}
 			} else {
@@ -202,21 +209,21 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 
 			if err := scanner.Scan(int64(startIndex), int64(latestSTH.TreeSize), processCallback, treeBuilder); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: Error scanning log: %s: %s\n", os.Args[0], logUri, err)
-				exitCode = 1
+				exitCode |= 4
 				continue
 			}
 
 			rootHash := treeBuilder.Finish()
 			if !bytes.Equal(rootHash, latestSTH.SHA256RootHash[:]) {
 				fmt.Fprintf(os.Stderr, "%s: %s: Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s).  If this error persists for an extended period, it should be construed as misbehavior by the log.\n", os.Args[0], logUri, rootHash, latestSTH.SHA256RootHash)
-				exitCode = 1
+				exitCode |= 8
 				continue
 			}
 		}
 
 		if err := ctwatch.WriteSTHFile(stateFilename, latestSTH); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error writing state file: %s: %s\n", os.Args[0], stateFilename, err)
-			os.Exit(3)
+			os.Exit(1)
 		}
 	}
 

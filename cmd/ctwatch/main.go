@@ -100,7 +100,7 @@ func main() {
 		}
 		if err := scanner.Err(); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error reading standard input: %s\n", os.Args[0], err)
-			os.Exit(3)
+			os.Exit(1)
 		}
 		setWatchDomains(domains)
 	} else {
