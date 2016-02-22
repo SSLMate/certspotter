@@ -18,8 +18,14 @@ var watchDomainSuffixes []string
 
 func setWatchDomains (domains []string) {
 	for _, domain := range domains {
-		watchDomains = append(watchDomains, strings.ToLower(domain))
-		watchDomainSuffixes = append(watchDomainSuffixes, "." + strings.ToLower(domain))
+		if domain == "." { // "." as in root zone (matches everything)
+			watchDomains = []string{}
+			watchDomainSuffixes = []string{""}
+			break
+		} else {
+			watchDomains = append(watchDomains, strings.ToLower(domain))
+			watchDomainSuffixes = append(watchDomainSuffixes, "." + strings.ToLower(domain))
+		}
 	}
 }
 
@@ -97,8 +103,6 @@ func main() {
 			os.Exit(3)
 		}
 		setWatchDomains(domains)
-	} else if flag.NArg() == 1 && flag.Arg(0) == "." { // "." as in root zone
-		watchDomainSuffixes = []string{""}
 	} else {
 		setWatchDomains(flag.Args())
 	}
