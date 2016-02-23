@@ -177,12 +177,12 @@ func humanTime(seconds int) string {
 
 func (s Scanner) Log(msg string) {
 	if !s.opts.Quiet {
-		log.Print(s.LogUri + ": " + msg)
+		log.Print(msg)
 	}
 }
 
 func (s Scanner) Warn(msg string) {
-	log.Print(s.LogUri + ": " + msg)
+	log.Print(msg)
 }
 
 func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
