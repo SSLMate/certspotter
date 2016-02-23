@@ -1,7 +1,6 @@
 package ctwatch
 
 import (
-	"os"
 	"fmt"
 	"errors"
 	"bytes"
@@ -123,7 +122,11 @@ func parseSANExtension (value []byte) ([]string, error) {
 	if rest, err := asn1.Unmarshal(value, &seq); err != nil {
 		return nil, errors.New("failed to parse subjectAltName extension: " + err.Error())
 	} else if len(rest) != 0 {
-		fmt.Fprintf(os.Stderr, "Warning: trailing data after subjectAltName extension\n")
+		// Don't complain if the SAN is followed by exactly one zero byte,
+		// which is a common error.
+		if !(len(rest) == 1 && rest[0] == 0) {
+			return nil, fmt.Errorf("trailing data in subjectAltName extension: %v", rest)
+		}
 	}
 	if !seq.IsCompound || seq.Tag != 16 || seq.Class != 0 {
 		return nil, errors.New("failed to parse subjectAltName extension: bad SAN sequence")
@@ -153,7 +156,7 @@ func ExtractDNSNamesFromTBS (tbsBytes []byte) ([]string, error) {
 	if rest, err := asn1.Unmarshal(tbsBytes, &tbs); err != nil {
 		return nil, errors.New("failed to parse TBS: " + err.Error())
 	} else if len(rest) > 0 {
-		fmt.Fprintf(os.Stderr, "Warning: trailing data after TBS\n")
+		return nil, fmt.Errorf("trailing data after TBS: %v", rest)
 	}
 
 	// Extract Common Name from Subject
@@ -161,7 +164,7 @@ func ExtractDNSNamesFromTBS (tbsBytes []byte) ([]string, error) {
 	if rest, err := asn1.Unmarshal(tbs.Subject.FullBytes, &subject); err != nil {
 		return nil, errors.New("failed to parse certificate subject: " + err.Error())
 	} else if len(rest) != 0 {
-		fmt.Fprintf(os.Stderr, "Warning: trailing data after certificate subject\n")
+		return nil, fmt.Errorf("trailing data in certificate subject: %v", rest)
 	}
 	cns, err := getCNs(&subject)
 	if err != nil {
@@ -188,7 +191,7 @@ func ExtractDNSNames (certBytes []byte) ([]string, error) {
 	if rest, err := asn1.Unmarshal(certBytes, &cert); err != nil {
 		return nil, errors.New("failed to parse certificate: " + err.Error())
 	} else if len(rest) > 0 {
-		fmt.Fprintf(os.Stderr, "Warning: trailing data after certificate\n")
+		return nil, fmt.Errorf("trailing data after certificate: %v", rest)
 	}
 
 	return ExtractDNSNamesFromTBS(cert.TBSCertificate.FullBytes)
