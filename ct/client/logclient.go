@@ -6,7 +6,6 @@ package client
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,14 +39,14 @@ type LogClient struct {
 type getSTHResponse struct {
 	TreeSize          uint64 `json:"tree_size"`           // Number of certs in the current tree
 	Timestamp         uint64 `json:"timestamp"`           // Time that the tree was created
-	SHA256RootHash    string `json:"sha256_root_hash"`    // Root hash of the tree
-	TreeHeadSignature string `json:"tree_head_signature"` // Log signature for this STH
+	SHA256RootHash    []byte `json:"sha256_root_hash"`    // Root hash of the tree
+	TreeHeadSignature []byte `json:"tree_head_signature"` // Log signature for this STH
 }
 
 // base64LeafEntry respresents a Base64 encoded leaf entry
 type base64LeafEntry struct {
-	LeafInput string `json:"leaf_input"`
-	ExtraData string `json:"extra_data"`
+	LeafInput []byte `json:"leaf_input"`
+	ExtraData []byte `json:"extra_data"`
 }
 
 // getEntriesReponse respresents the JSON response to the CT get-entries method
@@ -57,7 +56,7 @@ type getEntriesResponse struct {
 
 // getConsistencyProofResponse represents the JSON response to the CT get-consistency-proof method
 type getConsistencyProofResponse struct {
-	Consistency []string `json:"consistency"`
+	Consistency [][]byte `json:"consistency"`
 }
 
 // New constructs a new LogClient instance.
@@ -116,20 +115,12 @@ func (c *LogClient) GetSTH() (sth *ct.SignedTreeHead, err error) {
 		Timestamp: resp.Timestamp,
 	}
 
-	rawRootHash, err := base64.StdEncoding.DecodeString(resp.SHA256RootHash)
-	if err != nil {
-		return nil, fmt.Errorf("invalid base64 encoding in sha256_root_hash: %v", err)
+	if len(resp.SHA256RootHash) != sha256.Size {
+		return nil, fmt.Errorf("sha256_root_hash is invalid length, expected %d got %d", sha256.Size, len(resp.SHA256RootHash))
 	}
-	if len(rawRootHash) != sha256.Size {
-		return nil, fmt.Errorf("sha256_root_hash is invalid length, expected %d got %d", sha256.Size, len(rawRootHash))
-	}
-	copy(sth.SHA256RootHash[:], rawRootHash)
+	copy(sth.SHA256RootHash[:], resp.SHA256RootHash)
 
-	rawSignature, err := base64.StdEncoding.DecodeString(resp.TreeHeadSignature)
-	if err != nil {
-		return nil, errors.New("invalid base64 encoding in tree_head_signature")
-	}
-	ds, err := ct.UnmarshalDigitallySigned(bytes.NewReader(rawSignature))
+	ds, err := ct.UnmarshalDigitallySigned(bytes.NewReader(resp.TreeHeadSignature))
 	if err != nil {
 		return nil, err
 	}
@@ -155,22 +146,20 @@ func (c *LogClient) GetEntries(start, end int64) ([]ct.LogEntry, error) {
 	}
 	entries := make([]ct.LogEntry, len(resp.Entries))
 	for index, entry := range resp.Entries {
-		leafBytes, err := base64.StdEncoding.DecodeString(entry.LeafInput)
-		leaf, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(leafBytes))
+		leaf, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(entry.LeafInput))
 		if err != nil {
 			return nil, err
 		}
-		entries[index].LeafBytes = leafBytes
+		entries[index].LeafBytes = entry.LeafInput
 		entries[index].Leaf = *leaf
-		chainBytes, err := base64.StdEncoding.DecodeString(entry.ExtraData)
 
 		var chain []ct.ASN1Cert
 		switch leaf.TimestampedEntry.EntryType {
 		case ct.X509LogEntryType:
-			chain, err = ct.UnmarshalX509ChainArray(chainBytes)
+			chain, err = ct.UnmarshalX509ChainArray(entry.ExtraData)
 
 		case ct.PrecertLogEntryType:
-			chain, err = ct.UnmarshalPrecertChainArray(chainBytes)
+			chain, err = ct.UnmarshalPrecertChainArray(entry.ExtraData)
 
 		default:
 			return nil, fmt.Errorf("saw unknown entry type: %v", leaf.TimestampedEntry.EntryType)
@@ -199,11 +188,7 @@ func (c *LogClient) GetConsistencyProof(first, second int64) (ct.ConsistencyProo
 		return nil, err
 	}
 	nodes := make([]ct.MerkleTreeNode, len(resp.Consistency))
-	for index, nodeString := range resp.Consistency {
-		nodeBytes, err := base64.StdEncoding.DecodeString(nodeString)
-		if err != nil {
-			return nil, err
-		}
+	for index, nodeBytes := range resp.Consistency {
 		nodes[index] = nodeBytes
 	}
 	return nodes, nil
