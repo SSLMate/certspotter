@@ -12,7 +12,15 @@ import (
 	"src.agwa.name/ctwatch/cmd"
 )
 
-var stateDir = flag.String("state_dir", cmd.DefaultStateDir("ctwatch"), "Directory for storing state")
+func DefaultStateDir () string {
+	if envVar := os.Getenv("CTWATCH_STATE_DIR"); envVar != "" {
+		return envVar
+	} else {
+		return cmd.DefaultStateDir("ctwatch")
+	}
+}
+
+var stateDir = flag.String("state_dir", DefaultStateDir(), "Directory for storing state")
 var watchDomains []string
 var watchDomainSuffixes []string
 
