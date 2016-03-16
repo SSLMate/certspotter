@@ -65,24 +65,16 @@ func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 	info := ctwatch.EntryInfo{
 		LogUri:		scanner.LogUri,
 		Entry:		entry,
+		IsPrecert:	ctwatch.IsPrecert(entry),
+		FullChain:	ctwatch.GetFullChain(entry),
 	}
 
-	// Extract DNS names
-	var dnsNames []string
-	dnsNames, info.ParseError = ctwatch.EntryDNSNames(entry)
+	info.CertInfo, info.ParseError = ctwatch.MakeCertInfo(entry)
 
-	if info.ParseError == nil {
+	if info.ParseError == nil && info.CertInfo.DNSNamesParseError == nil {
 		// Match DNS names
-		if !anyDnsNameMatches(dnsNames) {
+		if !anyDnsNameMatches(info.CertInfo.DNSNames) {
 			return
-		}
-
-		// Parse the certificate
-		info.ParsedCert, info.ParseError = ctwatch.ParseEntryCertificate(entry)
-		if info.ParsedCert != nil {
-			info.CertInfo = ctwatch.MakeCertInfo(info.ParsedCert)
-		} else {
-			info.CertInfo.DnsNames = dnsNames
 		}
 	}
 

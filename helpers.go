@@ -18,8 +18,6 @@ import (
 	"encoding/json"
 
 	"src.agwa.name/ctwatch/ct"
-	"src.agwa.name/ctwatch/ct/x509"
-	"src.agwa.name/ctwatch/ct/x509/pkix"
 )
 
 func ReadSTHFile (path string) (*ct.SignedTreeHead, error) {
@@ -48,72 +46,24 @@ func WriteSTHFile (path string, sth *ct.SignedTreeHead) error {
 	return ioutil.WriteFile(path, sthJson, 0666)
 }
 
-func EntryDNSNames (entry *ct.LogEntry) ([]string, error) {
-	switch entry.Leaf.TimestampedEntry.EntryType {
-	case ct.X509LogEntryType:
-		return ExtractDNSNames(entry.Leaf.TimestampedEntry.X509Entry)
-	case ct.PrecertLogEntryType:
-		return ExtractDNSNamesFromTBS(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
-	}
-	panic("EntryDNSNames: entry is neither precert nor x509")
+func IsPrecert (entry *ct.LogEntry) bool {
+	return entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType
 }
 
-func ParseEntryCertificate (entry *ct.LogEntry) (*x509.Certificate, error) {
-	if entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType {
-		return x509.ParseTBSCertificate(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
-	} else if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
-		return x509.ParseCertificate(entry.Leaf.TimestampedEntry.X509Entry)
-	} else {
-		panic("ParseEntryCertificate: entry is neither precert nor x509")
+func GetFullChain (entry *ct.LogEntry) [][]byte {
+	certs := make([][]byte, 0, len(entry.Chain) + 1)
+
+	if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
+		certs = append(certs, entry.Leaf.TimestampedEntry.X509Entry)
 	}
-}
-
-func appendDnArray (buf *bytes.Buffer, code string, values []string) {
-	for _, value := range values {
-		if buf.Len() != 0 {
-			buf.WriteString(", ")
-		}
-		buf.WriteString(code)
-		buf.WriteString("=")
-		buf.WriteString(value)
-	}
-}
-
-func appendDnValue (buf *bytes.Buffer, code string, value string) {
-	if value != "" {
-		appendDnArray(buf, code, []string{value})
-	}
-}
-
-func formatDN (name pkix.Name) (string) {
-	// C=US, ST=UT, L=Salt Lake City, O=The USERTRUST Network, OU=http://www.usertrust.com, CN=UTN-USERFirst-Hardware
-	var buf bytes.Buffer
-	appendDnArray(&buf, "C", name.Country)
-	appendDnArray(&buf, "ST", name.Province)
-	appendDnArray(&buf, "L", name.Locality)
-	appendDnArray(&buf, "O", name.Organization)
-	appendDnArray(&buf, "OU", name.OrganizationalUnit)
-	appendDnValue(&buf, "CN", name.CommonName)
-	return buf.String()
-}
-
-func allDNSNames (cert *x509.Certificate) []string {
-	dnsNames := []string{}
-
-	if cert.Subject.CommonName != "" {
-		dnsNames = append(dnsNames, cert.Subject.CommonName)
+	for _, cert := range entry.Chain {
+		certs = append(certs, cert)
 	}
 
-	for _, dnsName := range cert.DNSNames {
-		if dnsName != cert.Subject.CommonName {
-			dnsNames = append(dnsNames, dnsName)
-		}
-	}
-
-	return dnsNames
+	return certs
 }
 
-func formatSerial (serial *big.Int) string {
+func formatSerialNumber (serial *big.Int) string {
 	if serial != nil {
 		return fmt.Sprintf("%x", serial)
 	} else {
@@ -126,91 +76,154 @@ func sha256hex (data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func GetRawCert (entry *ct.LogEntry) []byte {
-	switch entry.Leaf.TimestampedEntry.EntryType {
-	case ct.X509LogEntryType:
-		return entry.Leaf.TimestampedEntry.X509Entry
-	case ct.PrecertLogEntryType:
-		return entry.Chain[0]
-	}
-	panic("GetRawCert: entry is neither precert nor x509")
-}
-
-func IsPrecert (entry *ct.LogEntry) bool {
-	switch entry.Leaf.TimestampedEntry.EntryType {
-	case ct.PrecertLogEntryType:
-		return true
-	case ct.X509LogEntryType:
-		return false
-	}
-	panic("IsPrecert: entry is neither precert nor x509")
-}
-
 type EntryInfo struct {
-	LogUri		string
-	Entry		*ct.LogEntry
-	ParsedCert	*x509.Certificate
-	ParseError	error
-	CertInfo	CertInfo
-	Filename	string
+	LogUri			string
+	Entry			*ct.LogEntry
+	IsPrecert		bool
+	FullChain		[][]byte	// first entry is logged X509 cert or pre-cert
+	CertInfo		*CertInfo
+	ParseError		error		// set iff CertInfo is nil
+	Filename		string
 }
 
 type CertInfo struct {
-	DnsNames	[]string
-	SubjectDn	string
-	IssuerDn	string
-	Serial		string
-	PubkeyHash	string
-	NotBefore	*time.Time
-	NotAfter	*time.Time
+	TBS			*TBSCertificate
+
+	DNSNames		[]string
+	DNSNamesParseError	error
+	Subject			RDNSequence
+	SubjectParseError	error
+	Issuer			RDNSequence
+	IssuerParseError	error
+	SerialNumber		*big.Int
+	SerialNumberParseError	error
+	Validity		*CertValidity
+	ValidityParseError	error
+	Constraints		*BasicConstraints
+	ConstraintsParseError	error
 }
 
-func MakeCertInfo (cert *x509.Certificate) CertInfo {
-	return CertInfo {
-		DnsNames:	allDNSNames(cert),
-		SubjectDn:	formatDN(cert.Subject),
-		IssuerDn:	formatDN(cert.Issuer),
-		Serial:		formatSerial(cert.SerialNumber),
-		PubkeyHash:	sha256hex(cert.RawSubjectPublicKeyInfo),
-		NotBefore:	&cert.NotBefore,
-		NotAfter:	&cert.NotAfter,
+func MakeCertInfoFromTBS (tbs *TBSCertificate) *CertInfo {
+	info := &CertInfo{TBS: tbs}
+
+	info.DNSNames, info.DNSNamesParseError = tbs.ParseDNSNames()
+	info.Subject, info.SubjectParseError = tbs.ParseSubject()
+	info.Issuer, info.IssuerParseError = tbs.ParseIssuer()
+	info.SerialNumber, info.SerialNumberParseError = tbs.ParseSerialNumber()
+	info.Validity, info.ValidityParseError = tbs.ParseValidity()
+	info.Constraints, info.ConstraintsParseError = tbs.ParseBasicConstraints()
+
+	return info
+}
+
+func MakeCertInfoFromRawTBS (tbsBytes []byte) (*CertInfo, error) {
+	tbs, err := ParseTBSCertificate(tbsBytes)
+	if err != nil {
+		return nil, err
+	}
+	return MakeCertInfoFromTBS(tbs), nil
+}
+
+func MakeCertInfoFromRawCert (certBytes []byte) (*CertInfo, error) {
+	cert, err := ParseCertificate(certBytes)
+	if err != nil {
+		return nil, err
+	}
+	return MakeCertInfoFromRawTBS(cert.GetRawTBSCertificate())
+}
+
+func MakeCertInfo (entry *ct.LogEntry) (*CertInfo, error) {
+	switch entry.Leaf.TimestampedEntry.EntryType {
+	case ct.X509LogEntryType:
+		return MakeCertInfoFromRawCert(entry.Leaf.TimestampedEntry.X509Entry)
+
+	case ct.PrecertLogEntryType:
+		return MakeCertInfoFromRawTBS(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
+
+	default:
+		return nil, fmt.Errorf("MakeCertInfoFromCTEntry: unknown CT entry type (neither X509 nor precert)")
 	}
 }
 
-func (info *CertInfo) dnsNamesFriendlyString () string {
-	if info.DnsNames != nil {
-		return strings.Join(info.DnsNames, ", ")
+func (info *CertInfo) dnsNamesString () string {
+	if info.DNSNamesParseError == nil {
+		return strings.Join(info.DNSNames, ", ")
 	} else {
-		return "*** UNKNOWN ***"
+		return ""
 	}
+}
+
+func (info *CertInfo) NotBefore () *time.Time {
+	if info.ValidityParseError == nil {
+		return &info.Validity.NotBefore
+	} else {
+		return nil
+	}
+}
+
+func (info *CertInfo) NotAfter () *time.Time {
+	if info.ValidityParseError == nil {
+		return &info.Validity.NotAfter
+	} else {
+		return nil
+	}
+}
+
+func (info *CertInfo) PubkeyHash () string {
+	return sha256hex(info.TBS.GetRawPublicKey())
 }
 
 func (info *CertInfo) Environ () []string {
-	var env []string
-	if info.DnsNames != nil   { env = append(env, "DNS_NAMES=" + strings.Join(info.DnsNames, ",")) }
-	if info.SubjectDn != ""   { env = append(env, "SUBJECT_DN=" + info.SubjectDn) }
-	if info.IssuerDn != ""    { env = append(env, "ISSUER_DN=" + info.IssuerDn) }
-	if info.Serial != ""      { env = append(env, "SERIAL=" + info.Serial) }
-	if info.PubkeyHash != ""  { env = append(env, "PUBKEY_HASH=" + info.PubkeyHash) }
-	if info.NotBefore != nil  { env = append(env, "NOT_BEFORE=" + strconv.FormatInt(info.NotBefore.Unix(), 10)) }
-	if info.NotAfter != nil   { env = append(env, "NOT_AFTER=" + strconv.FormatInt(info.NotAfter.Unix(), 10)) }
+	env := make([]string, 0, 10)
+
+	env = append(env, "PUBKEY_HASH=" + info.PubkeyHash())
+
+	if info.DNSNamesParseError != nil {
+		env = append(env, "DNS_NAMES_PARSE_ERROR=" + info.DNSNamesParseError.Error())
+	} else {
+		env = append(env, "DNS_NAMES=" + strings.Join(info.DNSNames, ","))
+	}
+
+	if info.SerialNumberParseError != nil {
+		env = append(env, "SERIAL_PARSE_ERROR=" + info.SerialNumberParseError.Error())
+	} else {
+		env = append(env, "SERIAL=" + formatSerialNumber(info.SerialNumber))
+	}
+
+	if info.ValidityParseError != nil {
+		env = append(env, "VALIDITY_PARSE_ERROR=" + info.ValidityParseError.Error())
+	} else {
+		env = append(env, "NOT_BEFORE=" + info.Validity.NotBefore.String())
+		env = append(env, "NOT_BEFORE_UNIXTIME=" + strconv.FormatInt(info.Validity.NotBefore.Unix(), 10))
+		env = append(env, "NOT_AFTER=" + info.Validity.NotAfter.String())
+		env = append(env, "NOT_AFTER_UNIXTIME=" + strconv.FormatInt(info.Validity.NotAfter.Unix(), 10))
+	}
+
+	if info.SubjectParseError != nil {
+		env = append(env, "SUBJECT_PARSE_ERROR=" + info.SubjectParseError.Error())
+	} else {
+		env = append(env, "SUBJECT_DN=" + info.Subject.String())
+	}
+
+	if info.IssuerParseError != nil {
+		env = append(env, "ISSUER_PARSE_ERROR=" + info.IssuerParseError.Error())
+	} else {
+		env = append(env, "ISSUER_DN=" + info.Issuer.String())
+	}
+
 	return env
 }
 
-func (info *EntryInfo) GetRawCert () []byte {
-	return GetRawCert(info.Entry)
-}
-
 func (info *EntryInfo) Fingerprint () string {
-	return sha256hex(info.GetRawCert())
-}
-
-func (info *EntryInfo) IsPrecert () bool {
-	return IsPrecert(info.Entry)
+	if len(info.FullChain) > 0 {
+		return sha256hex(info.FullChain[0])
+	} else {
+		return ""
+	}
 }
 
 func (info *EntryInfo) typeString () string {
-	if info.IsPrecert() {
+	if info.IsPrecert {
 		return "precert"
 	} else {
 		return "cert"
@@ -218,7 +231,7 @@ func (info *EntryInfo) typeString () string {
 }
 
 func (info *EntryInfo) typeFriendlyString () string {
-	if info.IsPrecert() {
+	if info.IsPrecert {
 		return "Pre-certificate"
 	} else {
 		return "Certificate"
@@ -237,7 +250,7 @@ func (info *EntryInfo) Environ () []string {
 	env := []string{
 		"FINGERPRINT=" + info.Fingerprint(),
 		"CERT_TYPE=" + info.typeString(),
-		"CERT_PARSEABLE=" + yesnoString(info.ParsedCert != nil),
+		"CERT_PARSEABLE=" + yesnoString(info.ParseError == nil),
 		"LOG_URI=" + info.LogUri,
 		"ENTRY_INDEX=" + strconv.FormatInt(info.Entry.Index, 10),
 	}
@@ -245,37 +258,44 @@ func (info *EntryInfo) Environ () []string {
 	if info.Filename != "" {
 		env = append(env, "CERT_FILENAME=" + info.Filename)
 	}
-	if info.ParseError != nil {
+	if info.ParseError == nil {
+		certEnv := info.CertInfo.Environ()
+		env = append(env, certEnv...)
+	} else {
 		env = append(env, "PARSE_ERROR=" + info.ParseError.Error())
 	}
 
-	certEnv := info.CertInfo.Environ()
-	env = append(env, certEnv...)
-
 	return env
+}
+
+func writeField (out io.Writer, name string, value interface{}, err error) {
+	if err == nil {
+		fmt.Fprintf(out, "\t%13s = %s\n", name, value)
+	} else {
+		fmt.Fprintf(out, "\t%13s = *** UNKNOWN (%s) ***\n", name, err)
+	}
 }
 
 func (info *EntryInfo) Write (out io.Writer) {
 	fingerprint := info.Fingerprint()
 	fmt.Fprintf(out, "%s:\n", fingerprint)
 	if info.ParseError != nil {
-		if info.ParsedCert != nil {
-			fmt.Fprintf(out, "\tParse Warning = *** %s ***\n", info.ParseError)
-		} else {
-			fmt.Fprintf(out, "\t  Parse Error = *** %s ***\n", info.ParseError)
-		}
+		writeField(out, "Parse Error", "*** " + info.ParseError.Error() + " ***", nil)
+	} else {
+		writeField(out, "DNS Names", info.CertInfo.dnsNamesString(), info.CertInfo.DNSNamesParseError)
+		writeField(out, "Pubkey", info.CertInfo.PubkeyHash(), nil)
+		writeField(out, "Subject", info.CertInfo.Subject, info.CertInfo.SubjectParseError)
+		writeField(out, "Issuer", info.CertInfo.Issuer, info.CertInfo.IssuerParseError)
+		writeField(out, "Serial", info.CertInfo.SerialNumber, info.CertInfo.SerialNumberParseError)
+		writeField(out, "Not Before", info.CertInfo.NotBefore(), info.CertInfo.ValidityParseError)
+		writeField(out, "Not After", info.CertInfo.NotAfter(), info.CertInfo.ValidityParseError)
 	}
-	fmt.Fprintf(out, "\t    DNS Names = %s\n", info.CertInfo.dnsNamesFriendlyString())
-	if info.CertInfo.PubkeyHash != "" { fmt.Fprintf(out, "\t       Pubkey = %s\n", info.CertInfo.PubkeyHash) }
-	if info.CertInfo.SubjectDn != ""  { fmt.Fprintf(out, "\t      Subject = %s\n", info.CertInfo.SubjectDn) }
-	if info.CertInfo.IssuerDn != ""   { fmt.Fprintf(out, "\t       Issuer = %s\n", info.CertInfo.IssuerDn) }
-	if info.CertInfo.Serial != ""     { fmt.Fprintf(out, "\t       Serial = %s\n", info.CertInfo.Serial) }
-	if info.CertInfo.NotBefore != nil { fmt.Fprintf(out, "\t   Not Before = %s\n", *info.CertInfo.NotBefore) }
-	if info.CertInfo.NotAfter != nil  { fmt.Fprintf(out, "\t    Not After = %s\n", *info.CertInfo.NotAfter) }
-	fmt.Fprintf(out, "\t         Type = %s\n", info.typeFriendlyString())
-	fmt.Fprintf(out, "\t    Log Entry = %d @ %s\n", info.Entry.Index, info.LogUri)
-	fmt.Fprintf(out, "\t       crt.sh = https://crt.sh/?q=%s\n", fingerprint)
-	if info.Filename != ""            { fmt.Fprintf(out, "\t     Filename = %s\n", info.Filename) }
+	writeField(out, "Type", info.typeFriendlyString(), nil)
+	writeField(out, "Log Entry", fmt.Sprintf("%d @ %s", info.Entry.Index, info.LogUri), nil)
+	writeField(out, "crt.sh", "https://crt.sh/?q=" + fingerprint, nil)
+	if info.Filename != "" {
+		writeField(out, "Filename", info.Filename, nil)
+	}
 }
 
 func (info *EntryInfo) InvokeHookScript (command string) error {
@@ -295,13 +315,17 @@ func (info *EntryInfo) InvokeHookScript (command string) error {
 	return nil
 }
 
-func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, string, error) {
-	fingerprint := sha256hex(GetRawCert(entry))
+func WriteCertRepository (repoPath string, isPrecert bool, certs [][]byte) (bool, string, error) {
+	if len(certs) == 0 {
+		return false, "", fmt.Errorf("Cannot write an empty certificate chain")
+	}
+
+	fingerprint := sha256hex(certs[0])
 	prefixPath := filepath.Join(repoPath, fingerprint[0:2])
 	var filenameSuffix string
-	if entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType {
+	if isPrecert {
 		filenameSuffix = ".precert.pem"
-	} else if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
+	} else {
 		filenameSuffix = ".cert.pem"
 	}
 	if err := os.Mkdir(prefixPath, 0777); err != nil && !os.IsExist(err) {
@@ -316,14 +340,8 @@ func WriteCertRepository (repoPath string, entry *ct.LogEntry) (bool, string, er
 			return false, path, fmt.Errorf("Failed to open %s for writing: %s", path, err)
 		}
 	}
-	if entry.Leaf.TimestampedEntry.EntryType == ct.X509LogEntryType {
-		if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: entry.Leaf.TimestampedEntry.X509Entry}); err != nil {
-			file.Close()
-			return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
-		}
-	}
-	for _, chainCert := range entry.Chain {
-		if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: chainCert}); err != nil {
+	for _, cert := range certs {
+		if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: cert}); err != nil {
 			file.Close()
 			return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
 		}

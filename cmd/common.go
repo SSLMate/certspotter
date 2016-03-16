@@ -59,7 +59,7 @@ func LogEntry (info *ctwatch.EntryInfo) {
 	if !*noSave {
 		var alreadyPresent bool
 		var err error
-		alreadyPresent, info.Filename, err = ctwatch.WriteCertRepository(filepath.Join(stateDir, "certs"), info.Entry)
+		alreadyPresent, info.Filename, err = ctwatch.WriteCertRepository(filepath.Join(stateDir, "certs"), info.IsPrecert, info.FullChain)
 		if err != nil {
 			log.Print(err)
 		}
