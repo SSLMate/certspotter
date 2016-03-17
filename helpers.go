@@ -132,7 +132,7 @@ func MakeCertInfoFromRawCert (certBytes []byte) (*CertInfo, error) {
 	return MakeCertInfoFromRawTBS(cert.GetRawTBSCertificate())
 }
 
-func MakeCertInfo (entry *ct.LogEntry) (*CertInfo, error) {
+func MakeCertInfoFromLogEntry (entry *ct.LogEntry) (*CertInfo, error) {
 	switch entry.Leaf.TimestampedEntry.EntryType {
 	case ct.X509LogEntryType:
 		return MakeCertInfoFromRawCert(entry.Leaf.TimestampedEntry.X509Entry)

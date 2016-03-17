@@ -69,7 +69,7 @@ func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 		FullChain:	ctwatch.GetFullChain(entry),
 	}
 
-	info.CertInfo, info.ParseError = ctwatch.MakeCertInfo(entry)
+	info.CertInfo, info.ParseError = ctwatch.MakeCertInfoFromLogEntry(entry)
 
 	if info.ParseError == nil && info.CertInfo.DNSNamesParseError == nil {
 		// Match DNS names
