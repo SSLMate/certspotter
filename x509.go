@@ -210,7 +210,7 @@ func (tbs *TBSCertificate) ParseIssuer () (RDNSequence, error) {
 }
 
 func (tbs *TBSCertificate) ParseDNSNames () ([]string, error) {
-	var dnsNames []string
+	dnsNames := []string{}
 
 	// Extract Common Name from Subject
 	subject, err := tbs.ParseSubject()
