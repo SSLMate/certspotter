@@ -141,12 +141,25 @@ func ParseTBSCertificate (tbsBytes []byte) (*TBSCertificate, error) {
 }
 
 func (tbs *TBSCertificate) ParseValidity () (*CertValidity, error) {
-	var validity CertValidity
-	if rest, err := asn1.Unmarshal(tbs.Validity.FullBytes, &validity); err != nil {
+	var rawValidity struct {
+		NotBefore	asn1.RawValue
+		NotAfter	asn1.RawValue
+	}
+	if rest, err := asn1.Unmarshal(tbs.Validity.FullBytes, &rawValidity); err != nil {
 		return nil, errors.New("failed to parse validity: " + err.Error())
 	} else if len(rest) > 0 {
 		return nil, fmt.Errorf("trailing data after validity: %v", rest)
 	}
+
+	var validity CertValidity
+	var err error
+	if validity.NotBefore, err = decodeASN1Time(&rawValidity.NotBefore); err != nil {
+		return nil, errors.New("failed to decode notBefore time: " + err.Error())
+	}
+	if validity.NotAfter, err = decodeASN1Time(&rawValidity.NotAfter); err != nil {
+		return nil, errors.New("failed to decode notAfter time: " + err.Error())
+	}
+
 	return &validity, nil
 }
 
