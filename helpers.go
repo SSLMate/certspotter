@@ -214,6 +214,16 @@ func (info *CertInfo) Environ () []string {
 	return env
 }
 
+func (info *EntryInfo) HasParseErrors () bool {
+	return info.ParseError != nil ||
+		info.CertInfo.DNSNamesParseError != nil ||
+		info.CertInfo.SubjectParseError != nil ||
+		info.CertInfo.IssuerParseError != nil ||
+		info.CertInfo.SerialNumberParseError != nil ||
+		info.CertInfo.ValidityParseError != nil ||
+		info.CertInfo.ConstraintsParseError != nil
+}
+
 func (info *EntryInfo) Fingerprint () string {
 	if len(info.FullChain) > 0 {
 		return sha256hex(info.FullChain[0])
