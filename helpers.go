@@ -71,9 +71,13 @@ func formatSerialNumber (serial *big.Int) string {
 	}
 }
 
-func sha256hex (data []byte) string {
+func sha256sum (data []byte) []byte {
 	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
+	return sum[:]
+}
+
+func sha256hex (data []byte) string {
+	return hex.EncodeToString(sha256sum(data))
 }
 
 type EntryInfo struct {
@@ -173,6 +177,10 @@ func (info *CertInfo) PubkeyHash () string {
 	return sha256hex(info.TBS.GetRawPublicKey())
 }
 
+func (info *CertInfo) PubkeyHashBytes () []byte {
+	return sha256sum(info.TBS.GetRawPublicKey())
+}
+
 func (info *CertInfo) Environ () []string {
 	env := make([]string, 0, 10)
 
@@ -229,6 +237,14 @@ func (info *EntryInfo) Fingerprint () string {
 		return sha256hex(info.FullChain[0])
 	} else {
 		return ""
+	}
+}
+
+func (info *EntryInfo) FingerprintBytes () []byte {
+	if len(info.FullChain) > 0 {
+		return sha256sum(info.FullChain[0])
+	} else {
+		return []byte{}
 	}
 }
 
