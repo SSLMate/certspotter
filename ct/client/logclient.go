@@ -84,7 +84,7 @@ func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Keep-Alive", "timeout=15, max=100")
+//	req.Header.Set("Keep-Alive", "timeout=15, max=100")
 	resp, err := c.httpClient.Do(req)
 	var body []byte
 	if resp != nil {
