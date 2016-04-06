@@ -46,6 +46,15 @@ func WriteSTHFile (path string, sth *ct.SignedTreeHead) error {
 	return ioutil.WriteFile(path, sthJson, 0666)
 }
 
+func WriteProofFile (path string, proof ct.ConsistencyProof) error {
+	proofJson, err := json.MarshalIndent(proof, "", "\t")
+	if err != nil {
+		return err
+	}
+	proofJson = append(proofJson, byte('\n'))
+	return ioutil.WriteFile(path, proofJson, 0666)
+}
+
 func IsPrecert (entry *ct.LogEntry) bool {
 	return entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType
 }

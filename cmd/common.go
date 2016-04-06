@@ -84,20 +84,25 @@ func defangLogUri (logUri string) string {
 	return strings.Replace(strings.Replace(logUri, "://", "_", 1), "/", "_", -1)
 }
 
-func saveEvidence (logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.SignedTreeHead) (string, string, error) {
+func saveEvidence (logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.SignedTreeHead, proof ct.ConsistencyProof) (string, string, string, error) {
 	now := strconv.FormatInt(time.Now().Unix(), 10)
 
 	firstFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".first")
 	if err := ctwatch.WriteSTHFile(firstFilename, firstSTH); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	secondFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".second")
 	if err := ctwatch.WriteSTHFile(secondFilename, secondSTH); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return firstFilename, secondFilename, nil
+	proofFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".proof")
+	if err := ctwatch.WriteProofFile(proofFilename, proof); err != nil {
+		return "", "", "", err
+	}
+
+	return firstFilename, secondFilename, proofFilename, nil
 }
 
 func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
@@ -200,18 +205,19 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			if prevSTH != nil {
 				var valid bool
 				var err error
-				valid, treeBuilder, err = scanner.CheckConsistency(prevSTH, latestSTH)
+				var proof ct.ConsistencyProof
+				valid, treeBuilder, proof, err = scanner.CheckConsistency(prevSTH, latestSTH)
 				if err != nil {
 					log.Printf("Error fetching consistency proof: %s\n", err)
 					exitCode |= 4
 					continue
 				}
 				if !valid {
-					firstFilename, secondFilename, err := saveEvidence(logUri, prevSTH, latestSTH)
+					firstFilename, secondFilename, proofFilename, err := saveEvidence(logUri, prevSTH, latestSTH, proof)
 					if err != nil {
 						log.Printf("Consistency proof failed - the log has misbehaved!  Saving evidence of misbehavior failed: %s\n", err)
 					} else {
-						log.Printf("Consistency proof failed - the log has misbehaved!  Evidence of misbehavior has been saved to '%s' and '%s'.\n", firstFilename, secondFilename)
+						log.Printf("Consistency proof failed - the log has misbehaved!  Evidence of misbehavior has been saved to '%s' and '%s' (with proof in '%s').\n", firstFilename, secondFilename, proofFilename)
 					}
 					exitCode |= 8
 					continue
