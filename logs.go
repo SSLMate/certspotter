@@ -79,12 +79,6 @@ var DefaultLogs = []LogInfo{
 		Url: "vega.ws.symantec.com",
 		MMD: 86400,
 	},
-	{
-		Description: "WoSign CT Log Server",
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1+wvK3VPN7yjQ7qLZWY8fWrlDCqmwuUm/gx9TnzwOrzi0yLcAdAfbkOcXG6DrZwV9sSNYLUdu6NiaX7rp6oBmw=="),
-		Url: "ct.wosign.com",
-		MMD: 86400,
-	},
 }
 
 // Logs which monitor certs from distrusted roots
