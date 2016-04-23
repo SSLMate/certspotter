@@ -102,6 +102,8 @@ type EntryInfo struct {
 type CertInfo struct {
 	TBS			*TBSCertificate
 
+	CommonNames		[]string
+	CommonNamesParseError	error
 	DNSNames		[]string
 	DNSNamesParseError	error
 	Subject			RDNSequence
@@ -119,6 +121,7 @@ type CertInfo struct {
 func MakeCertInfoFromTBS (tbs *TBSCertificate) *CertInfo {
 	info := &CertInfo{TBS: tbs}
 
+	info.CommonNames, info.CommonNamesParseError = tbs.ParseCommonNames()
 	info.DNSNames, info.DNSNamesParseError = tbs.ParseDNSNames()
 	info.Subject, info.SubjectParseError = tbs.ParseSubject()
 	info.Issuer, info.IssuerParseError = tbs.ParseIssuer()
@@ -155,6 +158,14 @@ func MakeCertInfoFromLogEntry (entry *ct.LogEntry) (*CertInfo, error) {
 
 	default:
 		return nil, fmt.Errorf("MakeCertInfoFromCTEntry: unknown CT entry type (neither X509 nor precert)")
+	}
+}
+
+func (info *CertInfo) commonNamesString () string {
+	if info.CommonNamesParseError == nil {
+		return strings.Join(info.CommonNames, ", ")
+	} else {
+		return ""
 	}
 }
 
@@ -195,6 +206,12 @@ func (info *CertInfo) Environ () []string {
 
 	env = append(env, "PUBKEY_HASH=" + info.PubkeyHash())
 
+	if info.CommonNamesParseError != nil {
+		env = append(env, "COMMON_NAMES_PARSE_ERROR=" + info.CommonNamesParseError.Error())
+	} else {
+		env = append(env, "COMMON_NAMES=" + strings.Join(info.CommonNames, ","))
+	}
+
 	if info.DNSNamesParseError != nil {
 		env = append(env, "DNS_NAMES_PARSE_ERROR=" + info.DNSNamesParseError.Error())
 	} else {
@@ -233,6 +250,7 @@ func (info *CertInfo) Environ () []string {
 
 func (info *EntryInfo) HasParseErrors () bool {
 	return info.ParseError != nil ||
+		info.CertInfo.CommonNamesParseError != nil ||
 		info.CertInfo.DNSNamesParseError != nil ||
 		info.CertInfo.SubjectParseError != nil ||
 		info.CertInfo.IssuerParseError != nil ||
@@ -317,6 +335,7 @@ func (info *EntryInfo) Write (out io.Writer) {
 	if info.ParseError != nil {
 		writeField(out, "Parse Error", "*** " + info.ParseError.Error() + " ***", nil)
 	} else {
+		writeField(out, "Common Name", info.CertInfo.commonNamesString(), info.CertInfo.CommonNamesParseError)
 		writeField(out, "DNS Names", info.CertInfo.dnsNamesString(), info.CertInfo.DNSNamesParseError)
 		writeField(out, "Pubkey", info.CertInfo.PubkeyHash(), nil)
 		writeField(out, "Subject", info.CertInfo.Subject, info.CertInfo.SubjectParseError)

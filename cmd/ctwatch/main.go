@@ -71,14 +71,17 @@ func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 
 	info.CertInfo, info.ParseError = ctwatch.MakeCertInfoFromLogEntry(entry)
 
-	if info.ParseError == nil && info.CertInfo.DNSNamesParseError == nil {
-		// Match DNS names
-		if !anyDnsNameMatches(info.CertInfo.DNSNames) {
-			return
-		}
+	// If there's any sort of parse error related to the identifiers, report
+	// the certificate because we can't say for sure it doesn't match a domain
+	// we care about (fail safe behavior).  Treat common names as DNS names
+	// because many TLS clients do.
+	if info.ParseError != nil ||
+			info.CertInfo.CommonNamesParseError != nil ||
+			info.CertInfo.DNSNamesParseError != nil ||
+			anyDnsNameMatches(info.CertInfo.CommonNames) ||
+			anyDnsNameMatches(info.CertInfo.DNSNames) {
+		cmd.LogEntry(&info)
 	}
-
-	cmd.LogEntry(&info)
 }
 
 func main() {

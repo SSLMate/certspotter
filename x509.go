@@ -222,10 +222,7 @@ func (tbs *TBSCertificate) ParseIssuer () (RDNSequence, error) {
 	return issuer, nil
 }
 
-func (tbs *TBSCertificate) ParseDNSNames () ([]string, error) {
-	dnsNames := []string{}
-
-	// Extract Common Name from Subject
+func (tbs *TBSCertificate) ParseCommonNames () ([]string, error) {
 	subject, err := tbs.ParseSubject()
 	if err != nil {
 		return nil, err
@@ -234,7 +231,12 @@ func (tbs *TBSCertificate) ParseDNSNames () ([]string, error) {
 	if err != nil {
 		return nil, errors.New("failed to process certificate subject: " + err.Error())
 	}
-	dnsNames = append(dnsNames, cns...)
+
+	return cns, nil
+}
+
+func (tbs *TBSCertificate) ParseDNSNames () ([]string, error) {
+	dnsNames := []string{}
 
 	// Extract DNS names from SubjectAlternativeName extension
 	for _, sanExt := range tbs.GetExtension(oidExtensionSubjectAltName) {
