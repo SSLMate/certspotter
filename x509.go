@@ -280,6 +280,15 @@ func (cert *Certificate) ParseTBSCertificate () (*TBSCertificate, error) {
 }
 
 
+func isAscii (bytes []byte) bool {
+	for _, b := range bytes {
+		if b > 127 {
+			return false
+		}
+	}
+	return true
+}
+
 func parseSANExtension (value []byte) ([]string, error) {
 	var dnsNames []string
 	var seq asn1.RawValue
@@ -306,6 +315,9 @@ func parseSANExtension (value []byte) ([]string, error) {
 		}
 		switch val.Tag {
 		case 2:
+			if !isAscii(val.Bytes) {
+				return nil, errors.New("failed to parse subjectAltName: DNS name contains non-ASCII characters")
+			}
 			dnsNames = append(dnsNames, string(val.Bytes))
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/asn1"
+	"unicode/utf8"
 )
 
 func stringFromByteSlice (chars []byte) string {
@@ -35,6 +36,9 @@ func decodeASN1String (value *asn1.RawValue) (string, error) {
 	if !value.IsCompound && value.Class == 0 {
 		if value.Tag == 12 {
 			// UTF8String
+			if !utf8.Valid(value.Bytes) {
+				return "", errors.New("Malformed UTF8String")
+			}
 			return string(value.Bytes), nil
 		} else if value.Tag == 19 || value.Tag == 22 || value.Tag == 20 {
 			// * PrintableString - subset of ASCII
