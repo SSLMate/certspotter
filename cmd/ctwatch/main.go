@@ -27,8 +27,16 @@ var watchDomains []string
 var watchDomainSuffixes []string
 
 func addWatchDomain (domain string) {
-	watchDomains = append(watchDomains, strings.ToLower(domain))
-	watchDomainSuffixes = append(watchDomainSuffixes, "." + strings.ToLower(domain))
+	domain = strings.ToLower(domain)
+
+	watchDomains = append(watchDomains, domain)
+	watchDomainSuffixes = append(watchDomainSuffixes, "." + domain)
+
+	if dot := strings.IndexRune(domain, '.'); dot != -1 {
+		// also look for wildcard names that could match
+		// TODO: support exotic wildcards (wildcards besides "*.<DOMAIN>") in case there are CAs that issue them (there are) and clients that support them (less clear)
+		watchDomains = append(watchDomains, "*" + domain[dot:])
+	}
 }
 
 func setWatchDomains (domains []string) error {
