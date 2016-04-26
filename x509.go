@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"encoding/asn1"
+	"unicode/utf8"
 	"math/big"
 	"time"
 )
@@ -279,16 +280,6 @@ func (cert *Certificate) ParseTBSCertificate () (*TBSCertificate, error) {
 	return ParseTBSCertificate(cert.GetRawTBSCertificate())
 }
 
-
-func isAscii (bytes []byte) bool {
-	for _, b := range bytes {
-		if b > 127 {
-			return false
-		}
-	}
-	return true
-}
-
 func parseSANExtension (value []byte) ([]string, error) {
 	var dnsNames []string
 	var seq asn1.RawValue
@@ -315,8 +306,10 @@ func parseSANExtension (value []byte) ([]string, error) {
 		}
 		switch val.Tag {
 		case 2:
-			if !isAscii(val.Bytes) {
-				return nil, errors.New("failed to parse subjectAltName: DNS name contains non-ASCII characters")
+			// This should be an IA5String (i.e. ASCII) with IDNs encoded in Punycode, but there are
+			// too many certs in the wild which have UTF-8 in their DNS SANs.
+			if !utf8.Valid(val.Bytes) {
+				return nil, errors.New("failed to parse subjectAltName: DNS name contains invalid UTF-8")
 			}
 			dnsNames = append(dnsNames, string(val.Bytes))
 		}
