@@ -114,8 +114,8 @@ type CertInfo struct {
 	SerialNumberParseError	error
 	Validity		*CertValidity
 	ValidityParseError	error
-	Constraints		*BasicConstraints
-	ConstraintsParseError	error
+	IsCA			*bool
+	IsCAParseError		error
 }
 
 func MakeCertInfoFromTBS (tbs *TBSCertificate) *CertInfo {
@@ -127,7 +127,7 @@ func MakeCertInfoFromTBS (tbs *TBSCertificate) *CertInfo {
 	info.Issuer, info.IssuerParseError = tbs.ParseIssuer()
 	info.SerialNumber, info.SerialNumberParseError = tbs.ParseSerialNumber()
 	info.Validity, info.ValidityParseError = tbs.ParseValidity()
-	info.Constraints, info.ConstraintsParseError = tbs.ParseBasicConstraints()
+	info.IsCA, info.IsCAParseError = tbs.ParseBasicConstraints()
 
 	return info
 }
@@ -256,7 +256,7 @@ func (info *EntryInfo) HasParseErrors () bool {
 		info.CertInfo.IssuerParseError != nil ||
 		info.CertInfo.SerialNumberParseError != nil ||
 		info.CertInfo.ValidityParseError != nil ||
-		info.CertInfo.ConstraintsParseError != nil
+		info.CertInfo.IsCAParseError != nil
 }
 
 func (info *EntryInfo) Fingerprint () string {

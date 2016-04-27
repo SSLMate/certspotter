@@ -29,7 +29,7 @@ type CertValidity struct {
 	NotAfter	time.Time
 }
 
-type BasicConstraints struct {
+type basicConstraints struct {
 	IsCA		bool	`asn1:"optional"`
 	MaxPathLen	int	`asn1:"optional,default:-1"`
 }
@@ -164,21 +164,39 @@ func (tbs *TBSCertificate) ParseValidity () (*CertValidity, error) {
 	return &validity, nil
 }
 
-func (tbs *TBSCertificate) ParseBasicConstraints () (*BasicConstraints, error) {
-	constraintExts := tbs.GetExtension(oidExtensionBasicConstraints)
-	if len(constraintExts) == 0 {
-		return nil, nil
-	} else if len(constraintExts) > 1 {
-		return nil, fmt.Errorf("Certificate has more than one Basic Constraints extension")
+func (tbs *TBSCertificate) ParseBasicConstraints () (*bool, error) {
+	isCA := false
+	isNotCA := false
+
+	// Some certs in the wild have multiple BasicConstraints extensions (is there anything
+	// that CAs haven't screwed up???), so we process all of them and only choke if they
+	// are contradictory (which has not been observed...yet).
+	for _, ext := range tbs.GetExtension(oidExtensionBasicConstraints) {
+		var constraints basicConstraints
+		if rest, err := asn1.Unmarshal(ext.Value, &constraints); err != nil {
+			return nil, errors.New("failed to parse Basic Constraints: " + err.Error())
+		} else if len(rest) > 0 {
+			return nil, fmt.Errorf("trailing data after Basic Constraints: %v", rest)
+		}
+
+		if constraints.IsCA {
+			isCA = true
+		} else {
+			isNotCA = true
+		}
 	}
 
-	var constraints BasicConstraints
-	if rest, err := asn1.Unmarshal(constraintExts[0].Value, &constraints); err != nil {
-		return nil, errors.New("failed to parse Basic Constraints: " + err.Error())
-	} else if len(rest) > 0 {
-		return nil, fmt.Errorf("trailing data after Basic Constraints: %v", rest)
+	if !isCA && !isNotCA {
+		return nil, nil
+	} else if isCA && !isNotCA {
+		trueValue := true
+		return &trueValue, nil
+	} else if !isCA && isNotCA {
+		falseValue := false
+		return &falseValue, nil
+	} else {
+		return nil, fmt.Errorf("Certificate has more than one Basic Constraints extension and they are contradictory")
 	}
-	return &constraints, nil
 }
 
 func (tbs *TBSCertificate) ParseSerialNumber () (*big.Int, error) {
