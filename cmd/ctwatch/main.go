@@ -26,6 +26,11 @@ var stateDir = flag.String("state_dir", DefaultStateDir(), "Directory for storin
 var watchDomains []string
 var watchDomainSuffixes []string
 
+func addWatchDomain (asciiDomain string) {
+	watchDomains = append(watchDomains, asciiDomain)
+	watchDomainSuffixes = append(watchDomainSuffixes, "." + asciiDomain)
+}
+
 func setWatchDomains (domains []string) error {
 	for _, domain := range domains {
 		if domain == "." { // "." as in root zone (matches everything)
@@ -38,15 +43,21 @@ func setWatchDomains (domains []string) error {
 				return fmt.Errorf("Invalid domain `%s': %s", domain, err)
 			}
 
-			watchDomains = append(watchDomains, asciiDomain)
-			watchDomainSuffixes = append(watchDomainSuffixes, "." + asciiDomain)
+			addWatchDomain(asciiDomain)
 
+			// Also monitor DNS names that _might_ match this domain (wildcards,
+			// label redactions, and unparseable labels).
+			// For example, if we're monitoring sub.example.com, also monitor:
+			//   *.example.com
+			//   ?.example.com
+			//   <invalid>.example.com
+			var parentDomain string
 			if dot := strings.IndexRune(asciiDomain, '.'); dot != -1 {
-				// also look for wildcard names that could match
-				// TODO: support exotic wildcards (wildcards besides "*.<DOMAIN>") in case there are CAs that issue them (there are) and clients that support them (less clear)
-				watchDomains = append(watchDomains, "*" + asciiDomain[dot:])
-				// TODO: optionally match ?.<DOMAIN> and <invalid>.<DOMAIN> also
+				parentDomain = asciiDomain[dot:]
 			}
+			addWatchDomain("*" + parentDomain)
+			addWatchDomain("?" + parentDomain)
+			addWatchDomain(ctwatch.InvalidDNSLabelPlaceholder + parentDomain)
 		}
 	}
 	return nil

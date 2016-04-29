@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/idna"
 )
 
-const invalidDNSLabelPlaceholder = "<invalid>"
+const InvalidDNSLabelPlaceholder = "<invalid>"
 
 /*
 const (
@@ -93,7 +93,7 @@ func sanitizeDNSName (value string) string {
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
 		if !isValidDNSLabel(label) {
-			labels[i] = invalidDNSLabelPlaceholder
+			labels[i] = InvalidDNSLabelPlaceholder
 		}
 	}
 	return strings.Join(labels, ".")
@@ -107,7 +107,7 @@ func sanitizeUnicodeDNSName (value string) string {
 		if asciiLabel, err := idna.ToASCII(label); err == nil && isValidDNSLabel(asciiLabel) {
 			labels[i] = asciiLabel
 		} else {
-			labels[i] = invalidDNSLabelPlaceholder
+			labels[i] = InvalidDNSLabelPlaceholder
 		}
 	}
 	return strings.Join(labels, ".")
