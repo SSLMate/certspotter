@@ -26,19 +26,6 @@ var stateDir = flag.String("state_dir", DefaultStateDir(), "Directory for storin
 var watchDomains []string
 var watchDomainSuffixes []string
 
-func addWatchDomain (domain string) {
-	domain = strings.ToLower(domain)
-
-	watchDomains = append(watchDomains, domain)
-	watchDomainSuffixes = append(watchDomainSuffixes, "." + domain)
-
-	if dot := strings.IndexRune(domain, '.'); dot != -1 {
-		// also look for wildcard names that could match
-		// TODO: support exotic wildcards (wildcards besides "*.<DOMAIN>") in case there are CAs that issue them (there are) and clients that support them (less clear)
-		watchDomains = append(watchDomains, "*" + domain[dot:])
-	}
-}
-
 func setWatchDomains (domains []string) error {
 	for _, domain := range domains {
 		if domain == "." { // "." as in root zone (matches everything)
@@ -46,22 +33,19 @@ func setWatchDomains (domains []string) error {
 			watchDomainSuffixes = []string{""}
 			break
 		} else {
-			addWatchDomain(domain)
-
-			asciiDomain, err := idna.ToASCII(domain)
+			asciiDomain, err := idna.ToASCII(strings.ToLower(domain))
 			if err != nil {
 				return fmt.Errorf("Invalid domain `%s': %s", domain, err)
 			}
-			if asciiDomain != domain {
-				addWatchDomain(asciiDomain)
-			}
 
-			unicodeDomain, err := idna.ToUnicode(domain)
-			if err != nil {
-				return fmt.Errorf("Invalid domain `%s': %s", domain, err)
-			}
-			if unicodeDomain != domain {
-				addWatchDomain(unicodeDomain)
+			watchDomains = append(watchDomains, asciiDomain)
+			watchDomainSuffixes = append(watchDomainSuffixes, "." + asciiDomain)
+
+			if dot := strings.IndexRune(asciiDomain, '.'); dot != -1 {
+				// also look for wildcard names that could match
+				// TODO: support exotic wildcards (wildcards besides "*.<DOMAIN>") in case there are CAs that issue them (there are) and clients that support them (less clear)
+				watchDomains = append(watchDomains, "*" + asciiDomain[dot:])
+				// TODO: optionally match ?.<DOMAIN> and <invalid>.<DOMAIN> also
 			}
 		}
 	}
@@ -69,14 +53,13 @@ func setWatchDomains (domains []string) error {
 }
 
 func dnsNameMatches (dnsName string) bool {
-	dnsNameLower := strings.ToLower(dnsName)
 	for _, domain := range watchDomains {
-		if dnsNameLower == domain {
+		if dnsName == domain {
 			return true
 		}
 	}
 	for _, domainSuffix := range watchDomainSuffixes {
-		if strings.HasSuffix(dnsNameLower, domainSuffix) {
+		if strings.HasSuffix(dnsName, domainSuffix) {
 			return true
 		}
 	}
@@ -104,13 +87,10 @@ func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 
 	// If there's any sort of parse error related to the identifiers, report
 	// the certificate because we can't say for sure it doesn't match a domain
-	// we care about (fail safe behavior).  Treat common names as DNS names
-	// because many TLS clients do.
+	// we care about (fail safe behavior).
 	if info.ParseError != nil ||
-			info.CertInfo.CommonNamesParseError != nil ||
-			info.CertInfo.DNSNamesParseError != nil ||
-			anyDnsNameMatches(info.CertInfo.CommonNames) ||
-			anyDnsNameMatches(info.CertInfo.DNSNames) {
+			info.CertInfo.IdentifiersParseError != nil ||
+			anyDnsNameMatches(info.CertInfo.Identifiers.DNSNames) {
 		cmd.LogEntry(&info)
 	}
 }

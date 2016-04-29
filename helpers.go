@@ -102,10 +102,8 @@ type EntryInfo struct {
 type CertInfo struct {
 	TBS			*TBSCertificate
 
-	CommonNames		[]string
-	CommonNamesParseError	error
-	DNSNames		[]string
-	DNSNamesParseError	error
+	Identifiers		*Identifiers
+	IdentifiersParseError	error
 	Subject			RDNSequence
 	SubjectParseError	error
 	Issuer			RDNSequence
@@ -121,8 +119,7 @@ type CertInfo struct {
 func MakeCertInfoFromTBS (tbs *TBSCertificate) *CertInfo {
 	info := &CertInfo{TBS: tbs}
 
-	info.CommonNames, info.CommonNamesParseError = tbs.ParseCommonNames()
-	info.DNSNames, info.DNSNamesParseError = tbs.ParseDNSNames()
+	info.Identifiers, info.IdentifiersParseError = tbs.ParseIdentifiers()
 	info.Subject, info.SubjectParseError = tbs.ParseSubject()
 	info.Issuer, info.IssuerParseError = tbs.ParseIssuer()
 	info.SerialNumber, info.SerialNumberParseError = tbs.ParseSerialNumber()
@@ -161,17 +158,24 @@ func MakeCertInfoFromLogEntry (entry *ct.LogEntry) (*CertInfo, error) {
 	}
 }
 
-func (info *CertInfo) commonNamesString () string {
-	if info.CommonNamesParseError == nil {
-		return strings.Join(info.CommonNames, ", ")
+func (info *CertInfo) dnsNamesString (sep string) string {
+	if info.IdentifiersParseError == nil {
+		return strings.Join(info.Identifiers.DNSNames, sep)
 	} else {
 		return ""
 	}
 }
 
-func (info *CertInfo) dnsNamesString () string {
-	if info.DNSNamesParseError == nil {
-		return strings.Join(info.DNSNames, ", ")
+func (info *CertInfo) ipAddrsString (sep string) string {
+	if info.IdentifiersParseError == nil {
+		str := ""
+		for _, ipAddr := range info.Identifiers.IPAddrs {
+			if str != "" {
+				str += sep
+			}
+			str += ipAddr.String()
+		}
+		return str
 	} else {
 		return ""
 	}
@@ -206,16 +210,11 @@ func (info *CertInfo) Environ () []string {
 
 	env = append(env, "PUBKEY_HASH=" + info.PubkeyHash())
 
-	if info.CommonNamesParseError != nil {
-		env = append(env, "COMMON_NAMES_PARSE_ERROR=" + info.CommonNamesParseError.Error())
+	if info.IdentifiersParseError != nil {
+		env = append(env, "IDENTIFIERS_PARSE_ERROR=" + info.IdentifiersParseError.Error())
 	} else {
-		env = append(env, "COMMON_NAMES=" + strings.Join(info.CommonNames, ","))
-	}
-
-	if info.DNSNamesParseError != nil {
-		env = append(env, "DNS_NAMES_PARSE_ERROR=" + info.DNSNamesParseError.Error())
-	} else {
-		env = append(env, "DNS_NAMES=" + strings.Join(info.DNSNames, ","))
+		env = append(env, "DNS_NAMES=" + info.dnsNamesString(","))
+		env = append(env, "IP_ADDRESSES=" + info.ipAddrsString(","))
 	}
 
 	if info.SerialNumberParseError != nil {
@@ -250,8 +249,7 @@ func (info *CertInfo) Environ () []string {
 
 func (info *EntryInfo) HasParseErrors () bool {
 	return info.ParseError != nil ||
-		info.CertInfo.CommonNamesParseError != nil ||
-		info.CertInfo.DNSNamesParseError != nil ||
+		info.CertInfo.IdentifiersParseError != nil ||
 		info.CertInfo.SubjectParseError != nil ||
 		info.CertInfo.IssuerParseError != nil ||
 		info.CertInfo.SerialNumberParseError != nil ||
@@ -335,8 +333,16 @@ func (info *EntryInfo) Write (out io.Writer) {
 	if info.ParseError != nil {
 		writeField(out, "Parse Error", "*** " + info.ParseError.Error() + " ***", nil)
 	} else {
-		writeField(out, "Common Name", info.CertInfo.commonNamesString(), info.CertInfo.CommonNamesParseError)
-		writeField(out, "DNS Names", info.CertInfo.dnsNamesString(), info.CertInfo.DNSNamesParseError)
+		if info.CertInfo.IdentifiersParseError != nil {
+			writeField(out, "Identifiers", nil, info.CertInfo.IdentifiersParseError)
+		} else {
+			for _, dnsName := range info.CertInfo.Identifiers.DNSNames {
+				writeField(out, "DNS Name", dnsName, nil)
+			}
+			for _, ipaddr := range info.CertInfo.Identifiers.IPAddrs {
+				writeField(out, "IP Address", ipaddr, nil)
+			}
+		}
 		writeField(out, "Pubkey", info.CertInfo.PubkeyHash(), nil)
 		writeField(out, "Subject", info.CertInfo.Subject, info.CertInfo.SubjectParseError)
 		writeField(out, "Issuer", info.CertInfo.Issuer, info.CertInfo.IssuerParseError)

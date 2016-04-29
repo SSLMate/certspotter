@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"encoding/asn1"
-	"unicode/utf8"
 	"math/big"
 	"time"
 )
@@ -37,6 +36,22 @@ type basicConstraints struct {
 type Extension struct {
 	Id		asn1.ObjectIdentifier
 	Critical	bool `asn1:"optional"`
+	Value		[]byte
+}
+
+const (
+	sanOtherName		= 0
+	sanRfc822Name		= 1
+	sanDNSName		= 2
+	sanX400Address		= 3
+	sanDirectoryName	= 4
+	sanEdiPartyName		= 5
+	sanURI			= 6
+	sanIPAddress		= 7
+	sanRegisteredID		= 8
+)
+type SubjectAltName struct {
+	Type		int
 	Value		[]byte
 }
 
@@ -122,7 +137,7 @@ func (rdns RDNSequence) String () string {
 		buf.WriteString("=")
 		valueString, err := decodeASN1String(&atv.Value)
 		if err == nil {
-			buf.WriteString(valueString)
+			buf.WriteString(valueString) // TODO: escape non-printable characters, '\', and ','
 		} else {
 			fmt.Fprintf(&buf, "%v", atv.Value.FullBytes)
 		}
@@ -241,7 +256,7 @@ func (tbs *TBSCertificate) ParseIssuer () (RDNSequence, error) {
 	return issuer, nil
 }
 
-func (tbs *TBSCertificate) ParseCommonNames () ([]string, error) {
+func (tbs *TBSCertificate) ParseSubjectCommonNames () ([]string, error) {
 	subject, err := tbs.ParseSubject()
 	if err != nil {
 		return nil, err
@@ -254,19 +269,18 @@ func (tbs *TBSCertificate) ParseCommonNames () ([]string, error) {
 	return cns, nil
 }
 
-func (tbs *TBSCertificate) ParseDNSNames () ([]string, error) {
-	dnsNames := []string{}
+func (tbs *TBSCertificate) ParseSubjectAltNames () ([]SubjectAltName, error) {
+	sans := []SubjectAltName{}
 
-	// Extract DNS names from SubjectAlternativeName extension
 	for _, sanExt := range tbs.GetExtension(oidExtensionSubjectAltName) {
-		dnsSans, err := parseSANExtension(sanExt.Value)
+		var err error
+		sans, err = parseSANExtension(sans, sanExt.Value)
 		if err != nil {
 			return nil, err
 		}
-		dnsNames = append(dnsNames, dnsSans...)
 	}
 
-	return dnsNames, nil
+	return sans, nil
 }
 
 func (tbs *TBSCertificate) GetExtension (id asn1.ObjectIdentifier) []Extension {
@@ -298,8 +312,7 @@ func (cert *Certificate) ParseTBSCertificate () (*TBSCertificate, error) {
 	return ParseTBSCertificate(cert.GetRawTBSCertificate())
 }
 
-func parseSANExtension (value []byte) ([]string, error) {
-	var dnsNames []string
+func parseSANExtension (sans []SubjectAltName, value []byte) ([]SubjectAltName, error) {
 	var seq asn1.RawValue
 	if rest, err := asn1.Unmarshal(value, &seq); err != nil {
 		return nil, errors.New("failed to parse subjectAltName extension: " + err.Error())
@@ -322,17 +335,9 @@ func parseSANExtension (value []byte) ([]string, error) {
 		if err != nil {
 			return nil, errors.New("failed to parse subjectAltName extension item: " + err.Error())
 		}
-		switch val.Tag {
-		case 2:
-			// This should be an IA5String (i.e. ASCII) with IDNs encoded in Punycode, but there are
-			// too many certs in the wild which have UTF-8 in their DNS SANs.
-			if !utf8.Valid(val.Bytes) {
-				return nil, errors.New("failed to parse subjectAltName: DNS name contains invalid UTF-8")
-			}
-			dnsNames = append(dnsNames, string(val.Bytes))
-		}
+		sans = append(sans, SubjectAltName{Type: val.Tag, Value: val.Bytes})
 	}
 
-	return dnsNames, nil
+	return sans, nil
 }
 
