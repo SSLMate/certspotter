@@ -73,10 +73,12 @@ func isValidDNSLabelChar (ch rune) bool {
 	return (ch >= 'A' && ch <= 'Z') ||
 	       (ch >= 'a' && ch <= 'z') ||
 	       (ch >= '0' && ch <= '9') ||
-	        ch == '-' || ch == '_' ||
-		ch == '*' || ch == '?';
+	        ch == '-' || ch == '_';
 }
 func isValidDNSLabel (label string) bool {
+	if label == "*" || label == "?" {
+		return true
+	}
 	for _, ch := range label {
 		if !isValidDNSLabelChar(ch) {
 			return false
