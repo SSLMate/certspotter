@@ -244,7 +244,7 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 	*/
 
 	// Start processor workers
-	jobs := make(chan ct.LogEntry, 100000)
+	jobs := make(chan ct.LogEntry, 100)
 	var processorWG sync.WaitGroup
 	for w := 0; w < s.opts.NumWorkers; w++ {
 		processorWG.Add(1)
