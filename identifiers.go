@@ -3,7 +3,6 @@ package ctwatch
 import (
 	"bytes"
 	"strings"
-	"fmt"
 	"net"
 	"unicode/utf8"
 	"golang.org/x/net/idna"
@@ -197,10 +196,16 @@ func (tbs *TBSCertificate) ParseIdentifiers () (*Identifiers, error) {
 		case sanDNSName:
 			ids.AddDnsSAN(san.Value)
 		case sanIPAddress:
-			if !(len(san.Value) == 4 || len(san.Value) == 16) {
-				return nil, fmt.Errorf("IP Address SAN has bogus length %d", len(san.Value))
+			if len(san.Value) == 4 || len(san.Value) == 16 {
+				ids.AddIPAddress(net.IP(san.Value))
 			}
-			ids.AddIPAddress(net.IP(san.Value))
+			// TODO: decide what to do with IP addresses with an invalid length.
+			// The two encoding errors I've observed in CT logs are:
+			//  1. encoding the IP address as a string
+			//  2. a value of 0x00000000FFFFFF00 (WTF?)
+			// IP addresses aren't a high priority so just ignore invalid ones for now.
+			// Hopefully no clients out there are dumb enough to process IP address
+			// SANs encoded as strings...
 		}
 	}
 
