@@ -87,9 +87,17 @@ func isValidDNSLabel (label string) bool {
 	return true
 }
 
+func trimTrailingDots (value string) string {
+	length := len(value)
+	for length > 0 && value[length - 1] == '.' {
+		length--
+	}
+	return value[0:length]
+}
+
 // Convert the DNS name to lower case and replace invalid labels with a placeholder
 func sanitizeDNSName (value string) string {
-	value = strings.ToLower(value)
+	value = strings.ToLower(trimTrailingDots(value))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
 		if !isValidDNSLabel(label) {
@@ -101,7 +109,7 @@ func sanitizeDNSName (value string) string {
 
 // Like sanitizeDNSName, but labels that are Unicode are converted to Punycode.
 func sanitizeUnicodeDNSName (value string) string {
-	value = strings.ToLower(value)
+	value = strings.ToLower(trimTrailingDots(value))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
 		if asciiLabel, err := idna.ToASCII(label); err == nil && isValidDNSLabel(asciiLabel) {

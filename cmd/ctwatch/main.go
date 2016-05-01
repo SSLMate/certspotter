@@ -22,6 +22,14 @@ func DefaultStateDir () string {
 	}
 }
 
+func trimTrailingDots (value string) string {
+	length := len(value)
+	for length > 0 && value[length - 1] == '.' {
+		length--
+	}
+	return value[0:length]
+}
+
 var stateDir = flag.String("state_dir", DefaultStateDir(), "Directory for storing state")
 var watchDomains []string
 var watchDomainSuffixes []string
@@ -38,7 +46,7 @@ func setWatchDomains (domains []string) error {
 			watchDomainSuffixes = []string{""}
 			break
 		} else {
-			asciiDomain, err := idna.ToASCII(strings.ToLower(domain))
+			asciiDomain, err := idna.ToASCII(strings.ToLower(trimTrailingDots(domain)))
 			if err != nil {
 				return fmt.Errorf("Invalid domain `%s': %s", domain, err)
 			}
