@@ -38,8 +38,8 @@ func NewIdentifiers () *Identifiers {
 	}
 }
 
-func parseIPAddrString (str string) net.IP { // TODO
-	return nil
+func parseIPAddrString (str string) net.IP {
+	return net.ParseIP(str)
 }
 
 func isASCIIString (value []byte) bool {
