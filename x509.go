@@ -7,6 +7,7 @@ import (
 	"encoding/asn1"
 	"math/big"
 	"time"
+	"net"
 )
 
 var (
@@ -144,6 +145,22 @@ func (rdns RDNSequence) String () string {
 	}
 
 	return buf.String()
+}
+
+func (san SubjectAltName) String () string {
+	switch san.Type {
+	case sanDNSName:
+		return "DNS:" + string(san.Value) // TODO: escape non-printable characters, '\', and ','
+	case sanIPAddress:
+		if len(san.Value) == 4 || len(san.Value) == 16 {
+			return "IP:" + net.IP(san.Value).String()
+		} else {
+			return fmt.Sprintf("IP:%v", san.Value)
+		}
+	default:
+		// TODO: support other types of SANs
+		return fmt.Sprintf("%d:%v", san.Type, san.Value)
+	}
 }
 
 func ParseTBSCertificate (tbsBytes []byte) (*TBSCertificate, error) {

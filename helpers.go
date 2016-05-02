@@ -108,6 +108,8 @@ type CertInfo struct {
 	SubjectParseError	error
 	Issuer			RDNSequence
 	IssuerParseError	error
+	SANs			[]SubjectAltName
+	SANsParseError		error
 	SerialNumber		*big.Int
 	SerialNumberParseError	error
 	Validity		*CertValidity
@@ -122,6 +124,7 @@ func MakeCertInfoFromTBS (tbs *TBSCertificate) *CertInfo {
 	info.Identifiers, info.IdentifiersParseError = tbs.ParseIdentifiers()
 	info.Subject, info.SubjectParseError = tbs.ParseSubject()
 	info.Issuer, info.IssuerParseError = tbs.ParseIssuer()
+	info.SANs, info.SANsParseError = tbs.ParseSubjectAltNames()
 	info.SerialNumber, info.SerialNumberParseError = tbs.ParseSerialNumber()
 	info.Validity, info.ValidityParseError = tbs.ParseValidity()
 	info.IsCA, info.IsCAParseError = tbs.ParseBasicConstraints()
@@ -244,6 +247,8 @@ func (info *CertInfo) Environ () []string {
 		env = append(env, "ISSUER_DN=" + info.Issuer.String())
 	}
 
+	// TODO: include SANs in environment
+
 	return env
 }
 
@@ -252,6 +257,7 @@ func (info *EntryInfo) HasParseErrors () bool {
 		info.CertInfo.IdentifiersParseError != nil ||
 		info.CertInfo.SubjectParseError != nil ||
 		info.CertInfo.IssuerParseError != nil ||
+		info.CertInfo.SANsParseError != nil ||
 		info.CertInfo.SerialNumberParseError != nil ||
 		info.CertInfo.ValidityParseError != nil ||
 		info.CertInfo.IsCAParseError != nil
@@ -345,6 +351,13 @@ func (info *EntryInfo) Write (out io.Writer) {
 		}
 		writeField(out, "Pubkey", info.CertInfo.PubkeyHash(), nil)
 		writeField(out, "Subject", info.CertInfo.Subject, info.CertInfo.SubjectParseError)
+		if info.CertInfo.SANsParseError != nil {
+			writeField(out, "Alt Names", nil, info.CertInfo.SANsParseError)
+		} else {
+			for _, san := range info.CertInfo.SANs {
+				writeField(out, "Alt Name", san.String(), nil)
+			}
+		}
 		writeField(out, "Issuer", info.CertInfo.Issuer, info.CertInfo.IssuerParseError)
 		writeField(out, "Serial", info.CertInfo.SerialNumber, info.CertInfo.SerialNumberParseError)
 		writeField(out, "Not Before", info.CertInfo.NotBefore(), info.CertInfo.ValidityParseError)
