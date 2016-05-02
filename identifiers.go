@@ -86,6 +86,26 @@ func isValidDNSLabel (label string) bool {
 	return true
 }
 
+func trimHttpPrefixString (value string) string {
+	if strings.HasPrefix(value, "http://") {
+		return value[7:]
+	} else if strings.HasPrefix(value, "https://") {
+		return value[8:]
+	} else {
+		return value
+	}
+}
+
+func trimHttpPrefixBytes (value []byte) []byte {
+	if bytes.HasPrefix(value, []byte("http://")) {
+		return value[7:]
+	} else if bytes.HasPrefix(value, []byte("https://")) {
+		return value[8:]
+	} else {
+		return value
+	}
+}
+
 func trimTrailingDots (value string) string {
 	length := len(value)
 	for length > 0 && value[length - 1] == '.' {
@@ -96,7 +116,7 @@ func trimTrailingDots (value string) string {
 
 // Convert the DNS name to lower case and replace invalid labels with a placeholder
 func sanitizeDNSName (value string) string {
-	value = strings.ToLower(trimTrailingDots(value))
+	value = strings.ToLower(trimTrailingDots(strings.TrimSpace(value)))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
 		if !isValidDNSLabel(label) {
@@ -108,7 +128,7 @@ func sanitizeDNSName (value string) string {
 
 // Like sanitizeDNSName, but labels that are Unicode are converted to Punycode.
 func sanitizeUnicodeDNSName (value string) string {
-	value = strings.ToLower(trimTrailingDots(value))
+	value = strings.ToLower(trimTrailingDots(strings.TrimSpace(value)))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
 		if asciiLabel, err := idna.ToASCII(label); err == nil && isValidDNSLabel(asciiLabel) {
@@ -120,7 +140,7 @@ func sanitizeUnicodeDNSName (value string) string {
 	return strings.Join(labels, ".")
 }
 
-func (ids *Identifiers) addDnsSANnonull (value []byte) {
+func (ids *Identifiers) addDnsSANfinal (value []byte) {
 	if ipaddr := parseIPAddrString(string(value)); ipaddr != nil {
 		// Stupid CAs put IP addresses in DNS SANs because stupid Microsoft
 		// used to not support IP address SANs.  Since there's no way for an IP
@@ -141,7 +161,25 @@ func (ids *Identifiers) addDnsSANnonull (value []byte) {
 	}
 }
 
+func (ids *Identifiers) addDnsSANnonull (value []byte) {
+	if slashIndex := bytes.IndexByte(value, '/'); slashIndex != -1 {
+		// If the value contains a slash, then this might be a URL,
+		// so process the part of the value up to the first slash,
+		// which should be the domain.  Even though no client should
+		// ever successfully validate such a DNS name, the domain owner
+		// might still want to know about it.
+		ids.addDnsSANfinal(value[0:slashIndex])
+	}
+	ids.addDnsSANfinal(value)
+}
+
 func (ids *Identifiers) AddDnsSAN (value []byte) {
+	// Trim http:// and https:// prefixes, which are all too common in the wild,
+	// so http://example.com becomes just example.com.  Even though clients
+	// should never successfully validate a DNS name like http://example.com,
+	// the owner of example.com might still want to know about it.
+	value = trimHttpPrefixBytes(value)
+
 	if nullIndex := bytes.IndexByte(value, 0); nullIndex != -1 {
 		// If the value contains a null byte, process the part of
 		// the value up to the first null byte in addition to the
@@ -152,7 +190,7 @@ func (ids *Identifiers) AddDnsSAN (value []byte) {
 	ids.addDnsSANnonull(value)
 }
 
-func (ids *Identifiers) addCNnonull (value string) {
+func (ids *Identifiers) addCNfinal (value string) {
 	if ipaddr := parseIPAddrString(value); ipaddr != nil {
 		ids.IPAddrs = append(ids.IPAddrs, ipaddr)
 	} else if !strings.ContainsRune(value, ' ') {
@@ -161,7 +199,25 @@ func (ids *Identifiers) addCNnonull (value string) {
 	}
 }
 
+func (ids *Identifiers) addCNnonull (value string) {
+	if slashIndex := strings.IndexRune(value, '/'); slashIndex != -1 {
+		// If the value contains a slash, then this might be a URL,
+		// so process the part of the value up to the first slash,
+		// which should be the domain.  Even though no client should
+		// ever successfully validate such a DNS name, the domain owner
+		// might still want to know about it.
+		ids.addCNfinal(value[0:slashIndex])
+	}
+	ids.addCNfinal(value)
+}
+
 func (ids *Identifiers) AddCN (value string) {
+	// Trim http:// and https:// prefixes, which are all too common in the wild,
+	// so http://example.com becomes just example.com.  Even though clients
+	// should never successfully validate a DNS name like http://example.com,
+	// the owner of example.com might still want to know about it.
+	value = trimHttpPrefixString(value)
+
 	if nullIndex := strings.IndexRune(value, 0); nullIndex != -1 {
 		// If the value contains a null byte, process the part of
 		// the value up to the first null byte in addition to the
