@@ -232,10 +232,28 @@ func (ids *Identifiers) AddIPAddress (value net.IP) {
 	ids.IPAddrs = append(ids.IPAddrs, value)
 }
 
-func (tbs *TBSCertificate) ParseIdentifiers () (*Identifiers, error) {
+func (ids *Identifiers) dnsNamesString (sep string) string {
+	return strings.Join(ids.DNSNames, sep)
+}
+
+func (ids *Identifiers) ipAddrsString (sep string) string {
+	str := ""
+	for _, ipAddr := range ids.IPAddrs {
+		if str != "" {
+			str += sep
+		}
+		str += ipAddr.String()
+	}
+	return str
+}
+
+func (cert *CertInfo) ParseIdentifiers () (*Identifiers, error) {
 	ids := NewIdentifiers()
 
-	cns, err := tbs.ParseSubjectCommonNames()
+	if cert.SubjectParseError != nil {
+		return nil, cert.SubjectParseError
+	}
+	cns, err := cert.Subject.ParseCNs()
 	if err != nil {
 		return nil, err
 	}
@@ -243,11 +261,10 @@ func (tbs *TBSCertificate) ParseIdentifiers () (*Identifiers, error) {
 		ids.AddCN(cn)
 	}
 
-	sans, err := tbs.ParseSubjectAltNames()
-	if err != nil {
-		return nil, err
+	if cert.SANsParseError != nil {
+		return nil, cert.SANsParseError
 	}
-	for _, san := range sans {
+	for _, san := range cert.SANs {
 		switch san.Type {
 		case sanDNSName:
 			ids.AddDnsSAN(san.Value)

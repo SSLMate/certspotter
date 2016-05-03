@@ -104,12 +104,15 @@ func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 
 	info.CertInfo, info.ParseError = ctwatch.MakeCertInfoFromLogEntry(entry)
 
-	// If there's any sort of parse error related to the identifiers, report
-	// the certificate because we can't say for sure it doesn't match a domain
-	// we care about (fail safe behavior).
-	if info.ParseError != nil ||
-			info.CertInfo.IdentifiersParseError != nil ||
-			anyDnsNameMatches(info.CertInfo.Identifiers.DNSNames) {
+	if info.CertInfo != nil {
+		info.Identifiers, info.IdentifiersParseError = info.CertInfo.ParseIdentifiers()
+	}
+
+	// Fail safe behavior: if info.Identifiers is nil (which is caused by a
+	// parse error), report the certificate because we can't say for sure it
+	// doesn't match a domain we care about.  We try very hard to make sure
+	// parsing identifiers always succeeds, so false alarms should be rare.
+	if info.Identifiers == nil || anyDnsNameMatches(info.Identifiers.DNSNames) {
 		cmd.LogEntry(&info)
 	}
 }

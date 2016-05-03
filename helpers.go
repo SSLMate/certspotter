@@ -96,14 +96,14 @@ type EntryInfo struct {
 	FullChain		[][]byte	// first entry is logged X509 cert or pre-cert
 	CertInfo		*CertInfo
 	ParseError		error		// set iff CertInfo is nil
+	Identifiers		*Identifiers
+	IdentifiersParseError	error
 	Filename		string
 }
 
 type CertInfo struct {
 	TBS			*TBSCertificate
 
-	Identifiers		*Identifiers
-	IdentifiersParseError	error
 	Subject			RDNSequence
 	SubjectParseError	error
 	Issuer			RDNSequence
@@ -121,7 +121,6 @@ type CertInfo struct {
 func MakeCertInfoFromTBS (tbs *TBSCertificate) *CertInfo {
 	info := &CertInfo{TBS: tbs}
 
-	info.Identifiers, info.IdentifiersParseError = tbs.ParseIdentifiers()
 	info.Subject, info.SubjectParseError = tbs.ParseSubject()
 	info.Issuer, info.IssuerParseError = tbs.ParseIssuer()
 	info.SANs, info.SANsParseError = tbs.ParseSubjectAltNames()
@@ -161,29 +160,6 @@ func MakeCertInfoFromLogEntry (entry *ct.LogEntry) (*CertInfo, error) {
 	}
 }
 
-func (info *CertInfo) dnsNamesString (sep string) string {
-	if info.IdentifiersParseError == nil {
-		return strings.Join(info.Identifiers.DNSNames, sep)
-	} else {
-		return ""
-	}
-}
-
-func (info *CertInfo) ipAddrsString (sep string) string {
-	if info.IdentifiersParseError == nil {
-		str := ""
-		for _, ipAddr := range info.Identifiers.IPAddrs {
-			if str != "" {
-				str += sep
-			}
-			str += ipAddr.String()
-		}
-		return str
-	} else {
-		return ""
-	}
-}
-
 func (info *CertInfo) NotBefore () *time.Time {
 	if info.ValidityParseError == nil {
 		return &info.Validity.NotBefore
@@ -212,13 +188,6 @@ func (info *CertInfo) Environ () []string {
 	env := make([]string, 0, 10)
 
 	env = append(env, "PUBKEY_HASH=" + info.PubkeyHash())
-
-	if info.IdentifiersParseError != nil {
-		env = append(env, "IDENTIFIERS_PARSE_ERROR=" + info.IdentifiersParseError.Error())
-	} else {
-		env = append(env, "DNS_NAMES=" + info.dnsNamesString(","))
-		env = append(env, "IP_ADDRESSES=" + info.ipAddrsString(","))
-	}
 
 	if info.SerialNumberParseError != nil {
 		env = append(env, "SERIAL_PARSE_ERROR=" + info.SerialNumberParseError.Error())
@@ -254,7 +223,7 @@ func (info *CertInfo) Environ () []string {
 
 func (info *EntryInfo) HasParseErrors () bool {
 	return info.ParseError != nil ||
-		info.CertInfo.IdentifiersParseError != nil ||
+		info.IdentifiersParseError != nil ||
 		info.CertInfo.SubjectParseError != nil ||
 		info.CertInfo.IssuerParseError != nil ||
 		info.CertInfo.SANsParseError != nil ||
@@ -315,11 +284,17 @@ func (info *EntryInfo) Environ () []string {
 	if info.Filename != "" {
 		env = append(env, "CERT_FILENAME=" + info.Filename)
 	}
-	if info.ParseError == nil {
+	if info.ParseError != nil {
+		env = append(env, "PARSE_ERROR=" + info.ParseError.Error())
+	} else if info.CertInfo != nil {
 		certEnv := info.CertInfo.Environ()
 		env = append(env, certEnv...)
-	} else {
-		env = append(env, "PARSE_ERROR=" + info.ParseError.Error())
+	}
+	if info.IdentifiersParseError != nil {
+		env = append(env, "IDENTIFIERS_PARSE_ERROR=" + info.IdentifiersParseError.Error())
+	} else if info.Identifiers != nil {
+		env = append(env, "DNS_NAMES=" + info.Identifiers.dnsNamesString(","))
+		env = append(env, "IP_ADDRESSES=" + info.Identifiers.ipAddrsString(","))
 	}
 
 	return env
@@ -336,19 +311,19 @@ func writeField (out io.Writer, name string, value interface{}, err error) {
 func (info *EntryInfo) Write (out io.Writer) {
 	fingerprint := info.Fingerprint()
 	fmt.Fprintf(out, "%s:\n", fingerprint)
+	if info.IdentifiersParseError != nil {
+		writeField(out, "Identifiers", nil, info.IdentifiersParseError)
+	} else if info.Identifiers != nil {
+		for _, dnsName := range info.Identifiers.DNSNames {
+			writeField(out, "DNS Name", dnsName, nil)
+		}
+		for _, ipaddr := range info.Identifiers.IPAddrs {
+			writeField(out, "IP Address", ipaddr, nil)
+		}
+	}
 	if info.ParseError != nil {
 		writeField(out, "Parse Error", "*** " + info.ParseError.Error() + " ***", nil)
-	} else {
-		if info.CertInfo.IdentifiersParseError != nil {
-			writeField(out, "Identifiers", nil, info.CertInfo.IdentifiersParseError)
-		} else {
-			for _, dnsName := range info.CertInfo.Identifiers.DNSNames {
-				writeField(out, "DNS Name", dnsName, nil)
-			}
-			for _, ipaddr := range info.CertInfo.Identifiers.IPAddrs {
-				writeField(out, "IP Address", ipaddr, nil)
-			}
-		}
+	} else if info.CertInfo != nil {
 		writeField(out, "Pubkey", info.CertInfo.PubkeyHash(), nil)
 		writeField(out, "Subject", info.CertInfo.Subject, info.CertInfo.SubjectParseError)
 		if info.CertInfo.SANsParseError != nil {

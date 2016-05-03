@@ -28,6 +28,9 @@ func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
 	}
 
 	info.CertInfo, info.ParseError = ctwatch.MakeCertInfoFromLogEntry(entry)
+	if info.CertInfo != nil {
+		info.Identifiers, info.IdentifiersParseError = info.CertInfo.ParseIdentifiers()
+	}
 
 	if info.HasParseErrors() {
 		cmd.LogEntry(&info)
