@@ -13,9 +13,9 @@ import (
 	"flag"
 	"os"
 
-	"src.agwa.name/certspotter"
-	"src.agwa.name/certspotter/ct"
-	"src.agwa.name/certspotter/cmd"
+	"software.sslmate.com/src/certspotter"
+	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cmd"
 )
 
 func DefaultStateDir () string {

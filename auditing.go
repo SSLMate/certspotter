@@ -10,7 +10,7 @@
 package certspotter
 
 import (
-	"src.agwa.name/certspotter/ct"
+	"software.sslmate.com/src/certspotter/ct"
 	"bytes"
 	"crypto/sha256"
 )

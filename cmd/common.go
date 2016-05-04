@@ -23,8 +23,8 @@ import (
 	"time"
 	"strconv"
 
-	"src.agwa.name/certspotter"
-	"src.agwa.name/certspotter/ct"
+	"software.sslmate.com/src/certspotter"
+	"software.sslmate.com/src/certspotter/ct"
 )
 
 var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries")

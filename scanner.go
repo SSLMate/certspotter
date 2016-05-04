@@ -19,8 +19,8 @@ import (
 	"crypto"
 	"errors"
 
-	"src.agwa.name/certspotter/ct"
-	"src.agwa.name/certspotter/ct/client"
+	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/ct/client"
 )
 
 type ProcessCallback func(*Scanner, *ct.LogEntry)

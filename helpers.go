@@ -26,7 +26,7 @@ import (
 	"encoding/pem"
 	"encoding/json"
 
-	"src.agwa.name/certspotter/ct"
+	"software.sslmate.com/src/certspotter/ct"
 )
 
 func ReadSTHFile (path string) (*ct.SignedTreeHead, error) {

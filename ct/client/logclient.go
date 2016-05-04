@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"time"
 
-	"src.agwa.name/certspotter/ct"
+	"software.sslmate.com/src/certspotter/ct"
 	"github.com/mreiferson/go-httpclient"
 )
 
