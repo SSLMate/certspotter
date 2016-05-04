@@ -1,4 +1,4 @@
-package ctwatch
+package certspotter
 
 import (
 //	"container/list"
@@ -10,8 +10,8 @@ import (
 	"crypto"
 	"errors"
 
-	"src.agwa.name/ctwatch/ct"
-	"src.agwa.name/ctwatch/ct/client"
+	"src.agwa.name/certspotter/ct"
+	"src.agwa.name/certspotter/ct/client"
 )
 
 type ProcessCallback func(*Scanner, *ct.LogEntry)

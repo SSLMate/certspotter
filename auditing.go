@@ -1,7 +1,7 @@
-package ctwatch
+package certspotter
 
 import (
-	"src.agwa.name/ctwatch/ct"
+	"src.agwa.name/certspotter/ct"
 	"bytes"
 	"crypto/sha256"
 )

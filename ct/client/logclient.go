@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"time"
 
-	"src.agwa.name/ctwatch/ct"
+	"src.agwa.name/certspotter/ct"
 	"github.com/mreiferson/go-httpclient"
 )
 

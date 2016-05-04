@@ -4,9 +4,9 @@ import (
 	"flag"
 	"os"
 
-	"src.agwa.name/ctwatch"
-	"src.agwa.name/ctwatch/ct"
-	"src.agwa.name/ctwatch/cmd"
+	"src.agwa.name/certspotter"
+	"src.agwa.name/certspotter/ct"
+	"src.agwa.name/certspotter/cmd"
 )
 
 func DefaultStateDir () string {
@@ -19,15 +19,15 @@ func DefaultStateDir () string {
 
 var stateDir = flag.String("state_dir", DefaultStateDir(), "Directory for storing state")
 
-func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
-	info := ctwatch.EntryInfo{
+func processEntry (scanner *certspotter.Scanner, entry *ct.LogEntry) {
+	info := certspotter.EntryInfo{
 		LogUri:		scanner.LogUri,
 		Entry:		entry,
-		IsPrecert:	ctwatch.IsPrecert(entry),
-		FullChain:	ctwatch.GetFullChain(entry),
+		IsPrecert:	certspotter.IsPrecert(entry),
+		FullChain:	certspotter.GetFullChain(entry),
 	}
 
-	info.CertInfo, info.ParseError = ctwatch.MakeCertInfoFromLogEntry(entry)
+	info.CertInfo, info.ParseError = certspotter.MakeCertInfoFromLogEntry(entry)
 	if info.CertInfo != nil {
 		info.Identifiers, info.IdentifiersParseError = info.CertInfo.ParseIdentifiers()
 	}

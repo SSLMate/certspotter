@@ -9,16 +9,16 @@ import (
 
 	"golang.org/x/net/idna"
 
-	"src.agwa.name/ctwatch"
-	"src.agwa.name/ctwatch/ct"
-	"src.agwa.name/ctwatch/cmd"
+	"src.agwa.name/certspotter"
+	"src.agwa.name/certspotter/ct"
+	"src.agwa.name/certspotter/cmd"
 )
 
 func DefaultStateDir () string {
 	if envVar := os.Getenv("CTWATCH_STATE_DIR"); envVar != "" {
 		return envVar
 	} else {
-		return cmd.DefaultStateDir("ctwatch")
+		return cmd.DefaultStateDir("certspotter")
 	}
 }
 
@@ -66,7 +66,7 @@ func setWatchDomains (domains []string) error {
 			}
 			addWatchDomain("*" + parentDomain)
 			addWatchDomain("?" + parentDomain)
-			addWatchDomain(ctwatch.UnparsableDNSLabelPlaceholder + parentDomain)
+			addWatchDomain(certspotter.UnparsableDNSLabelPlaceholder + parentDomain)
 		}
 	}
 	return nil
@@ -95,15 +95,15 @@ func anyDnsNameMatches (dnsNames []string) bool {
 	return false
 }
 
-func processEntry (scanner *ctwatch.Scanner, entry *ct.LogEntry) {
-	info := ctwatch.EntryInfo{
+func processEntry (scanner *certspotter.Scanner, entry *ct.LogEntry) {
+	info := certspotter.EntryInfo{
 		LogUri:		scanner.LogUri,
 		Entry:		entry,
-		IsPrecert:	ctwatch.IsPrecert(entry),
-		FullChain:	ctwatch.GetFullChain(entry),
+		IsPrecert:	certspotter.IsPrecert(entry),
+		FullChain:	certspotter.GetFullChain(entry),
 	}
 
-	info.CertInfo, info.ParseError = ctwatch.MakeCertInfoFromLogEntry(entry)
+	info.CertInfo, info.ParseError = certspotter.MakeCertInfoFromLogEntry(entry)
 
 	if info.CertInfo != nil {
 		info.Identifiers, info.IdentifiersParseError = info.CertInfo.ParseIdentifiers()

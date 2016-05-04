@@ -1,4 +1,4 @@
-package ctwatch
+package certspotter
 
 import (
 	"bytes"

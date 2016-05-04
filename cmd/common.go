@@ -14,8 +14,8 @@ import (
 	"time"
 	"strconv"
 
-	"src.agwa.name/ctwatch"
-	"src.agwa.name/ctwatch/ct"
+	"src.agwa.name/certspotter"
+	"src.agwa.name/certspotter/ct"
 )
 
 var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries")
@@ -55,11 +55,11 @@ func DefaultStateDir (programName string) string {
 	}
 }
 
-func LogEntry (info *ctwatch.EntryInfo) {
+func LogEntry (info *certspotter.EntryInfo) {
 	if !*noSave {
 		var alreadyPresent bool
 		var err error
-		alreadyPresent, info.Filename, err = ctwatch.WriteCertRepository(filepath.Join(stateDir, "certs"), info.IsPrecert, info.FullChain)
+		alreadyPresent, info.Filename, err = certspotter.WriteCertRepository(filepath.Join(stateDir, "certs"), info.IsPrecert, info.FullChain)
 		if err != nil {
 			log.Print(err)
 		}
@@ -88,27 +88,27 @@ func saveEvidence (logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.Sig
 	now := strconv.FormatInt(time.Now().Unix(), 10)
 
 	firstFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".first")
-	if err := ctwatch.WriteSTHFile(firstFilename, firstSTH); err != nil {
+	if err := certspotter.WriteSTHFile(firstFilename, firstSTH); err != nil {
 		return "", "", "", err
 	}
 
 	secondFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".second")
-	if err := ctwatch.WriteSTHFile(secondFilename, secondSTH); err != nil {
+	if err := certspotter.WriteSTHFile(secondFilename, secondSTH); err != nil {
 		return "", "", "", err
 	}
 
 	proofFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".proof")
-	if err := ctwatch.WriteProofFile(proofFilename, proof); err != nil {
+	if err := certspotter.WriteProofFile(proofFilename, proof); err != nil {
 		return "", "", "", err
 	}
 
 	return firstFilename, secondFilename, proofFilename, nil
 }
 
-func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
+func Main (argStateDir string, processCallback certspotter.ProcessCallback) {
 	stateDir = argStateDir
 
-	var logs []ctwatch.LogInfo
+	var logs []certspotter.LogInfo
 	if *logsFilename != "" {
 		logFile, err := os.Open(*logsFilename)
 		if err != nil {
@@ -116,16 +116,16 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			os.Exit(1)
 		}
 		defer logFile.Close()
-		var logFileObj ctwatch.LogInfoFile
+		var logFileObj certspotter.LogInfoFile
 		if err := json.NewDecoder(logFile).Decode(&logFileObj); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error decoding logs file: %s: %s\n", os.Args[0], *logsFilename, err)
 			os.Exit(1)
 		}
 		logs = logFileObj.Logs
 	} else if *underwater {
-		logs = ctwatch.UnderwaterLogs
+		logs = certspotter.UnderwaterLogs
 	} else {
-		logs = ctwatch.DefaultLogs
+		logs = certspotter.DefaultLogs
 	}
 
 	if err := os.Mkdir(stateDir, 0777); err != nil && !os.IsExist(err) {
@@ -159,20 +159,20 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			continue
 		}
 		stateFilename := filepath.Join(stateDir, "sths", defangLogUri(logUri))
-		prevSTH, err := ctwatch.ReadSTHFile(stateFilename)
+		prevSTH, err := certspotter.ReadSTHFile(stateFilename)
 		if err != nil {
 			log.Printf("Error reading state file: %s: %s\n", stateFilename, err)
 			exitCode |= 1
 			continue
 		}
 
-		opts := ctwatch.ScannerOptions{
+		opts := certspotter.ScannerOptions{
 			BatchSize:     *batchSize,
 			NumWorkers:    *numWorkers,
 			ParallelFetch: *parallelFetch,
 			Quiet:         !*verbose,
 		}
-		scanner := ctwatch.NewScanner(logUri, logKey, &opts)
+		scanner := certspotter.NewScanner(logUri, logKey, &opts)
 
 		latestSTH, err := scanner.GetSTH()
 		if err != nil {
@@ -201,7 +201,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 		}
 
 		if latestSTH.TreeSize > startIndex {
-			var treeBuilder *ctwatch.MerkleTreeBuilder
+			var treeBuilder *certspotter.MerkleTreeBuilder
 			if prevSTH != nil {
 				var valid bool
 				var err error
@@ -223,7 +223,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 					continue
 				}
 			} else {
-				treeBuilder = &ctwatch.MerkleTreeBuilder{}
+				treeBuilder = &certspotter.MerkleTreeBuilder{}
 			}
 
 			if err := scanner.Scan(int64(startIndex), int64(latestSTH.TreeSize), processCallback, treeBuilder); err != nil {
@@ -244,7 +244,7 @@ func Main (argStateDir string, processCallback ctwatch.ProcessCallback) {
 			log.Printf("final log size = %d, final root hash = %x", latestSTH.TreeSize, latestSTH.SHA256RootHash)
 		}
 
-		if err := ctwatch.WriteSTHFile(stateFilename, latestSTH); err != nil {
+		if err := certspotter.WriteSTHFile(stateFilename, latestSTH); err != nil {
 			log.Printf("Error writing state file: %s: %s\n", stateFilename, err)
 			exitCode |= 1
 			continue

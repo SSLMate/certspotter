@@ -1,4 +1,4 @@
-package ctwatch
+package certspotter
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ import (
 	"encoding/pem"
 	"encoding/json"
 
-	"src.agwa.name/ctwatch/ct"
+	"src.agwa.name/certspotter/ct"
 )
 
 func ReadSTHFile (path string) (*ct.SignedTreeHead, error) {
