@@ -58,14 +58,15 @@ func setWatchDomains (domains []string) error {
 			// For example, if we're monitoring sub.example.com, also monitor:
 			//   *.example.com
 			//   ?.example.com
-			//   <invalid>.example.com
+			//   <unparsable>.example.com
+			// TODO: support for wildcards that are not the entire label (e.g. ac-*.fr)
 			var parentDomain string
 			if dot := strings.IndexRune(asciiDomain, '.'); dot != -1 {
 				parentDomain = asciiDomain[dot:]
 			}
 			addWatchDomain("*" + parentDomain)
 			addWatchDomain("?" + parentDomain)
-			addWatchDomain(ctwatch.InvalidDNSLabelPlaceholder + parentDomain)
+			addWatchDomain(ctwatch.UnparsableDNSLabelPlaceholder + parentDomain)
 		}
 	}
 	return nil

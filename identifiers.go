@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/idna"
 )
 
-const InvalidDNSLabelPlaceholder = "<invalid>"
+const UnparsableDNSLabelPlaceholder = "<unparsable>"
 
 /*
 const (
@@ -61,25 +61,14 @@ func latin1ToUTF8 (value []byte) string {
 	return string(runes)
 }
 
-// Validate a DNS label.  We are less strict than we could be,
-// because the main purpose of this is to prevent nasty characters
-// from getting through that could cause headaches later (e.g. NUL,
-// control characters).  In particular, we allow '_' (since it's
-// quite common in hostnames despite being prohibited), '*' (since
-// it's used to represent wildcards), and '?' (since it's used
-// in CT to represent redacted labels).
-func isValidDNSLabelChar (ch rune) bool {
-	return (ch >= 'A' && ch <= 'Z') ||
-	       (ch >= 'a' && ch <= 'z') ||
-	       (ch >= '0' && ch <= '9') ||
-	        ch == '-' || ch == '_';
+// Make sure the DNS label doesn't have any weird characters that
+// could cause trouble during later processing.
+func isSaneDNSLabelChar (ch rune) bool {
+	return ch == '\t' || (ch >= 32 && ch <= 126)
 }
-func isValidDNSLabel (label string) bool {
-	if label == "*" || label == "?" {
-		return true
-	}
+func isSaneDNSLabel (label string) bool {
 	for _, ch := range label {
-		if !isValidDNSLabelChar(ch) {
+		if !isSaneDNSLabelChar(ch) {
 			return false
 		}
 	}
@@ -114,13 +103,17 @@ func trimTrailingDots (value string) string {
 	return value[0:length]
 }
 
-// Convert the DNS name to lower case and replace invalid labels with a placeholder
+// Try to canonicalize/sanitize the DNS name:
+//  1. Trim leading and trailing whitespace
+//  2. Trim trailing dots
+//  3. Convert to lower case
+//  4. Replace totally nonsensical labels (e.g. having non-printable characters) with a placeholder
 func sanitizeDNSName (value string) string {
 	value = strings.ToLower(trimTrailingDots(strings.TrimSpace(value)))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
-		if !isValidDNSLabel(label) {
-			labels[i] = InvalidDNSLabelPlaceholder
+		if !isSaneDNSLabel(label) {
+			labels[i] = UnparsableDNSLabelPlaceholder
 		}
 	}
 	return strings.Join(labels, ".")
@@ -131,10 +124,10 @@ func sanitizeUnicodeDNSName (value string) string {
 	value = strings.ToLower(trimTrailingDots(strings.TrimSpace(value)))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
-		if asciiLabel, err := idna.ToASCII(label); err == nil && isValidDNSLabel(asciiLabel) {
+		if asciiLabel, err := idna.ToASCII(label); err == nil && isSaneDNSLabel(asciiLabel) {
 			labels[i] = asciiLabel
 		} else {
-			labels[i] = InvalidDNSLabelPlaceholder
+			labels[i] = UnparsableDNSLabelPlaceholder
 		}
 	}
 	return strings.Join(labels, ".")
