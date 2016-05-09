@@ -334,21 +334,11 @@ func (info *EntryInfo) Write (out io.Writer) {
 		writeField(out, "Parse Error", "*** " + info.ParseError.Error() + " ***", nil)
 	} else if info.CertInfo != nil {
 		writeField(out, "Pubkey", info.CertInfo.PubkeyHash(), nil)
-		writeField(out, "Subject", info.CertInfo.Subject, info.CertInfo.SubjectParseError)
-		if info.CertInfo.SANsParseError != nil {
-			writeField(out, "Alt Names", nil, info.CertInfo.SANsParseError)
-		} else {
-			for _, san := range info.CertInfo.SANs {
-				writeField(out, "Alt Name", san.String(), nil)
-			}
-		}
 		writeField(out, "Issuer", info.CertInfo.Issuer, info.CertInfo.IssuerParseError)
-		writeField(out, "Serial", info.CertInfo.SerialNumber, info.CertInfo.SerialNumberParseError)
 		writeField(out, "Not Before", info.CertInfo.NotBefore(), info.CertInfo.ValidityParseError)
 		writeField(out, "Not After", info.CertInfo.NotAfter(), info.CertInfo.ValidityParseError)
 	}
-	writeField(out, "Type", info.typeFriendlyString(), nil)
-	writeField(out, "Log Entry", fmt.Sprintf("%d @ %s", info.Entry.Index, info.LogUri), nil)
+	writeField(out, "Log Entry", fmt.Sprintf("%d @ %s (%s)", info.Entry.Index, info.LogUri, info.typeFriendlyString()), nil)
 	writeField(out, "crt.sh", "https://crt.sh/?q=" + fingerprint, nil)
 	if info.Filename != "" {
 		writeField(out, "Filename", info.Filename, nil)
