@@ -77,9 +77,12 @@ func ValidatePrecert (precertBytes []byte, tbsBytes []byte) error {
 			if !precertExt.Critical {
 				return errors.New("pre-cert poison extension is not critical")
 			}
+			/* CAs can't even get this right, and Google's logs don't check.  Fortunately,
+			   it's not that important.
 			if !bytes.Equal(precertExt.Value, []byte{0x05, 0x00}) {
 				return errors.New("pre-cert poison extension contains incorrect value")
 			}
+			*/
 			precertHasPoison = true
 			continue
 		}
