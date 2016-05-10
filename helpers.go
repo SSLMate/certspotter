@@ -399,3 +399,21 @@ func WriteCertRepository (repoPath string, isPrecert bool, certs [][]byte) (bool
 
 	return false, path, nil
 }
+
+func MatchWildcard (pattern string, dnsName string) bool {
+	for len(pattern) > 0 {
+		if pattern[0] == '*' {
+			if len(dnsName) > 0 && dnsName[0] != '.' && MatchWildcard(pattern, dnsName[1:]) {
+				return true
+			}
+			pattern = pattern[1:]
+		} else {
+			if len(dnsName) == 0 || pattern[0] != dnsName[0] {
+				return false
+			}
+			pattern = pattern[1:]
+			dnsName = dnsName[1:]
+		}
+	}
+	return len(dnsName) == 0
+}
