@@ -67,7 +67,7 @@ func dnsLabelMatches (certLabel string, watchLabel string) bool {
 	return certLabel == "*" ||
 	       certLabel == "?" ||
 	       certLabel == certspotter.UnparsableDNSLabelPlaceholder ||
-	       certspotter.MatchWildcard(certLabel, watchLabel)
+	       certspotter.MatchesWildcard(watchLabel, certLabel)
 }
 
 func dnsNameMatches (dnsName []string, watchDomain []string) bool {
