@@ -24,7 +24,7 @@ import (
 )
 
 func DefaultStateDir () string {
-	if envVar := os.Getenv("CTWATCH_STATE_DIR"); envVar != "" {
+	if envVar := os.Getenv("CERTSPOTTER_STATE_DIR"); envVar != "" {
 		return envVar
 	} else {
 		return cmd.DefaultStateDir("certspotter")
