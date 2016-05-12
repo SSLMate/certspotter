@@ -64,6 +64,14 @@ func DefaultStateDir (programName string) string {
 	}
 }
 
+func DefaultConfigDir (programName string) string {
+	if isRoot() {
+		return filepath.Join("/etc", programName)
+	} else {
+		return filepath.Join(homedir(), "." + programName)
+	}
+}
+
 func LogEntry (info *certspotter.EntryInfo) {
 	if !*noSave {
 		var alreadyPresent bool
