@@ -142,6 +142,12 @@ func sanitizeUnicodeDNSName (value string) string {
 	return strings.Join(labels, ".")
 }
 
+func (ids *Identifiers) appendDNSName (dnsName string) {
+	if dnsName != "" {
+		ids.DNSNames = append(ids.DNSNames, dnsName)
+	}
+}
+
 func (ids *Identifiers) addDnsSANfinal (value []byte) {
 	if ipaddr := parseIPAddrString(string(value)); ipaddr != nil {
 		// Stupid CAs put IP addresses in DNS SANs because stupid Microsoft
@@ -150,16 +156,16 @@ func (ids *Identifiers) addDnsSANfinal (value []byte) {
 		// and not try to process it as a DNS name.
 		ids.IPAddrs = append(ids.IPAddrs, ipaddr)
 	} else if isASCIIString(value) {
-		ids.DNSNames = append(ids.DNSNames, sanitizeDNSName(string(value)))
+		ids.appendDNSName(sanitizeDNSName(string(value)))
 	} else {
 		// DNS SANs are supposed to be IA5Strings (i.e. ASCII) but CAs can't follow
 		// simple rules.  Unfortunately, we have no idea what the encoding really is
 		// in this case, so interpret it as both UTF-8 (if it's valid UTF-8)
 		// and Latin-1.
 		if isUTF8String(value) {
-			ids.DNSNames = append(ids.DNSNames, sanitizeUnicodeDNSName(string(value)))
+			ids.appendDNSName(sanitizeUnicodeDNSName(string(value)))
 		}
-		ids.DNSNames = append(ids.DNSNames, sanitizeUnicodeDNSName(latin1ToUTF8(value)))
+		ids.appendDNSName(sanitizeUnicodeDNSName(latin1ToUTF8(value)))
 	}
 }
 
@@ -197,7 +203,7 @@ func (ids *Identifiers) addCNfinal (value string) {
 		ids.IPAddrs = append(ids.IPAddrs, ipaddr)
 	} else if !strings.ContainsRune(value, ' ') {
 		// If the CN contains a space it's clearly not a DNS name, so ignore it.
-		ids.DNSNames = append(ids.DNSNames, sanitizeUnicodeDNSName(value))
+		ids.appendDNSName(sanitizeUnicodeDNSName(value))
 	}
 }
 
