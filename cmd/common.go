@@ -122,7 +122,7 @@ func saveEvidence (logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.Sig
 	return firstFilename, secondFilename, proofFilename, nil
 }
 
-func Main (argStateDir string, processCallback certspotter.ProcessCallback) {
+func Main (argStateDir string, processCallback certspotter.ProcessCallback) int {
 	stateDir = argStateDir
 
 	var logs []certspotter.LogInfo
@@ -130,13 +130,13 @@ func Main (argStateDir string, processCallback certspotter.ProcessCallback) {
 		logFile, err := os.Open(*logsFilename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error opening logs file for reading: %s: %s\n", os.Args[0], *logsFilename, err)
-			os.Exit(1)
+			return 1
 		}
 		defer logFile.Close()
 		var logFileObj certspotter.LogInfoFile
 		if err := json.NewDecoder(logFile).Decode(&logFileObj); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error decoding logs file: %s: %s\n", os.Args[0], *logsFilename, err)
-			os.Exit(1)
+			return 1
 		}
 		logs = logFileObj.Logs
 	} else if *underwater {
@@ -147,13 +147,13 @@ func Main (argStateDir string, processCallback certspotter.ProcessCallback) {
 
 	if err := os.Mkdir(stateDir, 0777); err != nil && !os.IsExist(err) {
 		fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], stateDir, err)
-		os.Exit(1)
+		return 1
 	}
 	for _, subdir := range []string{"certs", "sths", "evidence"} {
 		path := filepath.Join(stateDir, subdir)
 		if err := os.Mkdir(path, 0777); err != nil && !os.IsExist(err) {
 			fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], path, err)
-			os.Exit(1)
+			return 1
 		}
 	}
 
@@ -268,5 +268,5 @@ func Main (argStateDir string, processCallback certspotter.ProcessCallback) {
 		}
 	}
 
-	os.Exit(exitCode)
+	return exitCode
 }

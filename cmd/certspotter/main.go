@@ -190,5 +190,5 @@ func main() {
 		}
 	}
 
-	cmd.Main(*stateDir, processEntry)
+	os.Exit(cmd.Main(*stateDir, processEntry))
 }
