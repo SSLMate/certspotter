@@ -30,7 +30,11 @@ func (info *LogInfo) FullURI () string {
 }
 
 func (info *LogInfo) ParsedPublicKey () (crypto.PublicKey, error) {
-	return x509.ParsePKIXPublicKey(info.Key)
+	if info.Key != nil {
+		return x509.ParsePKIXPublicKey(info.Key)
+	} else {
+		return nil, nil
+	}
 }
 
 var DefaultLogs = []LogInfo{
