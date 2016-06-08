@@ -106,6 +106,9 @@ func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
 	if err != nil {
 		return err
 	}
+	if resp.StatusCode / 100 != 2 {
+		return fmt.Errorf("GET %s: %s (%s)", uri, resp.Status, string(body))
+	}
 	if err = json.Unmarshal(body, &res); err != nil {
 		return err
 	}
