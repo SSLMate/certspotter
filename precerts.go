@@ -131,7 +131,9 @@ func ReconstructPrecertTBS (tbs *TBSCertificate) (*TBSCertificate, error) {
 	}
 
 	for _, ext := range tbs.Extensions {
-		if !ext.Id.Equal(oidExtensionSCT) {
+		switch {
+		case ext.Id.Equal(oidExtensionSCT):
+		default:
 			precertTBS.Extensions = append(precertTBS.Extensions, ext)
 		}
 	}
