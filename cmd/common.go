@@ -29,7 +29,6 @@ import (
 
 var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries")
 var numWorkers = flag.Int("num_workers", 2, "Number of concurrent matchers")
-var parallelFetch = flag.Int("parallel_fetch", 2, "Number of concurrent GetEntries fetches")
 var script = flag.String("script", "", "Script to execute when a matching certificate is found")
 var logsFilename = flag.String("logs", "", "JSON file containing log URLs")
 var underwater = flag.Bool("underwater", false, "Monitor certificates from distrusted CAs instead of trusted CAs")
@@ -186,7 +185,6 @@ func Main (argStateDir string, processCallback certspotter.ProcessCallback) int 
 		opts := certspotter.ScannerOptions{
 			BatchSize:     *batchSize,
 			NumWorkers:    *numWorkers,
-			ParallelFetch: *parallelFetch,
 			Quiet:         !*verbose,
 		}
 		scanner := certspotter.NewScanner(logUri, logKey, &opts)

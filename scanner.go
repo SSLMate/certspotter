@@ -6,6 +6,9 @@
 //
 // This software is distributed WITHOUT A WARRANTY OF ANY KIND.
 // See the Mozilla Public License for details.
+//
+// This file contains code from https://github.com/google/certificate-transparency/tree/master/go
+// See ct/AUTHORS and ct/LICENSE for copyright and license information.
 
 package certspotter
 
@@ -38,9 +41,6 @@ type ScannerOptions struct {
 	// Number of concurrent proecssors to run
 	NumWorkers int
 
-	// Number of concurrent fethers to run
-	ParallelFetch int
-
 	// Don't print any status messages to stdout
 	Quiet bool
 }
@@ -50,7 +50,6 @@ func DefaultScannerOptions() *ScannerOptions {
 	return &ScannerOptions{
 		BatchSize:     1000,
 		NumWorkers:    1,
-		ParallelFetch: 1,
 		Quiet:         false,
 	}
 }
@@ -260,26 +259,6 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 		go s.processerJob(w, jobs, processCert, &processorWG)
 	}
 
-	// Start fetcher workers
-	/* parallel fetcher - disabled for now because it complicates tree building
-	var ranges list.List
-	for start := startIndex; start < int64(endIndex); {
-		end := min(start+int64(s.opts.BatchSize), int64(endIndex)) - 1
-		ranges.PushBack(fetchRange{start, end})
-		start = end + 1
-	}
-	var fetcherWG sync.WaitGroup
-	fetches := make(chan fetchRange, 1000)
-	for w := 0; w < s.opts.ParallelFetch; w++ {
-		fetcherWG.Add(1)
-		go s.fetcherJob(w, fetches, jobs, &fetcherWG)
-	}
-	for r := ranges.Front(); r != nil; r = r.Next() {
-		fetches <- r.Value.(fetchRange)
-	}
-	close(fetches)
-	fetcherWG.Wait()
-	*/
 	for start := startIndex; start < int64(endIndex); {
 		end := min(start+int64(s.opts.BatchSize), int64(endIndex)) - 1
 		if err := s.fetch(fetchRange{start, end}, jobs, treeBuilder); err != nil {
