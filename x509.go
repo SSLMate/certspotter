@@ -177,7 +177,7 @@ func ParseTBSCertificate (tbsBytes []byte) (*TBSCertificate, error) {
 	if rest, err := asn1.Unmarshal(tbsBytes, &tbs); err != nil {
 		return nil, errors.New("failed to parse TBS: " + err.Error())
 	} else if len(rest) > 0 {
-		return nil, fmt.Errorf("trailing data after TBS: %v", rest)
+		return nil, fmt.Errorf("trailing data after TBS: %v", rest) // XXX: too strict?
 	}
 	return &tbs, nil
 }
@@ -267,7 +267,7 @@ func (tbs *TBSCertificate) ParseSubject () (RDNSequence, error) {
 	if rest, err := asn1.Unmarshal(tbs.GetRawSubject(), &subject); err != nil {
 		return nil, errors.New("failed to parse certificate subject: " + err.Error())
 	} else if len(rest) != 0 {
-		return nil, fmt.Errorf("trailing data in certificate subject: %v", rest)
+		return nil, fmt.Errorf("trailing data in certificate subject: %v", rest) // XXX: too strict?
 	}
 	return subject, nil
 }
@@ -277,7 +277,7 @@ func (tbs *TBSCertificate) ParseIssuer () (RDNSequence, error) {
 	if rest, err := asn1.Unmarshal(tbs.GetRawIssuer(), &issuer); err != nil {
 		return nil, errors.New("failed to parse certificate issuer: " + err.Error())
 	} else if len(rest) != 0 {
-		return nil, fmt.Errorf("trailing data in certificate issuer: %v", rest)
+		return nil, fmt.Errorf("trailing data in certificate issuer: %v", rest) // XXX: too strict?
 	}
 	return issuer, nil
 }
@@ -325,7 +325,7 @@ func ParseCertificate (certBytes []byte) (*Certificate, error) {
 	if rest, err := asn1.Unmarshal(certBytes, &cert); err != nil {
 		return nil, errors.New("failed to parse certificate: " + err.Error())
 	} else if len(rest) > 0 {
-		return nil, fmt.Errorf("trailing data after certificate: %v", rest)
+		return nil, fmt.Errorf("trailing data after certificate: %v", rest) // XXX: too strict?
 	}
 	return &cert, nil
 }
@@ -346,11 +346,11 @@ func parseSANExtension (sans []SubjectAltName, value []byte) ([]SubjectAltName, 
 		// Don't complain if the SAN is followed by exactly one zero byte,
 		// which is a common error.
 		if !(len(rest) == 1 && rest[0] == 0) {
-			return nil, fmt.Errorf("trailing data in subjectAltName extension: %v", rest)
+			return nil, fmt.Errorf("trailing data in subjectAltName extension: %v", rest) // XXX: too strict?
 		}
 	}
 	if !seq.IsCompound || seq.Tag != 16 || seq.Class != 0 {
-		return nil, errors.New("failed to parse subjectAltName extension: bad SAN sequence")
+		return nil, errors.New("failed to parse subjectAltName extension: bad SAN sequence") // XXX: too strict?
 	}
 
 	rest := seq.Bytes
