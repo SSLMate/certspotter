@@ -63,12 +63,6 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 	},
 	{
-		// 7461b4a09cfb3d41d75159575b2e7649a445a8d27709b0cc564a6482b7eb41a3
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJ2Q5DC3cUBj4IQCiDu0s6j51up+TZAkAEcQRF6tczw90rLWXkJMAW7jr9yc92bIKgV8vDXU4lDeZHvYHduDuvg=="),
-		Url: "ct.izenpe.com",
-		MMD: 86400,
-	},
-	{
 		// ddeb1d2b7a0d4fa6208b81ad8168707e2e8e9d01d55c888d3d11c4cdb6ecbecc
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEluqsHEYMG1XcDfy1lCdGV0JwOmkY4r87xNuroPS2bMBTP01CEDPwWJePa75y9CrsHEKqAy8afig1dpkIPSEUhg=="),
 		Url: "ct.ws.symantec.com",
@@ -84,6 +78,12 @@ var DefaultLogs = []LogInfo{
 		// bc78e1dfc5f63c684649334da10fa15f0979692009c081b4f3f6917f3ed9b8a5
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6pWeAv/u8TNtS4e8zf0ZF2L/lNPQWQc/Ai0ckP7IRzA78d0NuBEMXR2G3avTK0Zm+25ltzv9WWis36b4ztIYTQ=="),
 		Url: "vega.ws.symantec.com",
+		MMD: 86400,
+	},
+	{
+		// a577ac9ced7548dd8f025b67a241089df86e0f476ec203c2ecbedb185f282638
+		Key: mustDecodeBase64("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv7UIYZopMgTTJWPp2IXhhuAf1l6a9zM7gBvntj5fLaFm9pVKhKYhVnno94XuXeN8EsDgiSIJIj66FpUGvai5samyetZhLocRuXhAiXXbDNyQ4KR51tVebtEq2zT0mT9liTtGwiksFQccyUsaVPhsHq9gJ2IKZdWauVA2Fm5x9h8B9xKn/L/2IaMpkIYtd967TNTP/dLPgixN1PLCLaypvurDGSVDsuWabA3FHKWL9z8wr7kBkbdpEhLlg2H+NAC+9nGKx+tQkuhZ/hWR65aX+CNUPy2OB9/u2rNPyDydb988LENXoUcMkQT0dU3aiYGkFAY0uZjD2vH97TM20xYtNQIDAQAB"),
+		Url: "ctserver.cnnic.cn",
 		MMD: 86400,
 	},
 }
