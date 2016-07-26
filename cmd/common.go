@@ -39,10 +39,6 @@ var stateDir string
 
 var printMutex sync.Mutex
 
-func isRoot () bool {
-	return os.Geteuid() == 0
-}
-
 func homedir () string {
 	home := os.Getenv("HOME")
 	if home != "" {
@@ -56,19 +52,11 @@ func homedir () string {
 }
 
 func DefaultStateDir (programName string) string {
-	if isRoot() {
-		return filepath.Join("/var/lib", programName)
-	} else {
-		return filepath.Join(homedir(), "." + programName)
-	}
+	return filepath.Join(homedir(), "." + programName)
 }
 
 func DefaultConfigDir (programName string) string {
-	if isRoot() {
-		return filepath.Join("/etc", programName)
-	} else {
-		return filepath.Join(homedir(), "." + programName)
-	}
+	return filepath.Join(homedir(), "." + programName)
 }
 
 func LogEntry (info *certspotter.EntryInfo) {
