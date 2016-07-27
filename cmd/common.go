@@ -27,10 +27,10 @@ import (
 	"software.sslmate.com/src/certspotter/ct"
 )
 
-var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries")
-var numWorkers = flag.Int("num_workers", 2, "Number of concurrent matchers")
+var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries (advanced)")
+var numWorkers = flag.Int("num_workers", 2, "Number of concurrent matchers (advanced)")
 var script = flag.String("script", "", "Script to execute when a matching certificate is found")
-var logsFilename = flag.String("logs", "", "JSON file containing log URLs")
+var logsFilename = flag.String("logs", "", "JSON file containing log information")
 var underwater = flag.Bool("underwater", false, "Monitor certificates from distrusted CAs instead of trusted CAs")
 var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certificates")
 var verbose = flag.Bool("verbose", false, "Be verbose")
