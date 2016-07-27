@@ -3,21 +3,16 @@ package ct
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"math/big"
 )
-
-var allowVerificationWithNonCompliantKeys = flag.Bool("allow_verification_with_non_compliant_keys", false,
-	"Allow a SignatureVerifier to use keys which are technically non-compliant with RFC6962.")
 
 // PublicKeyFromPEM parses a PEM formatted block and returns the public key contained within and any remaining unread bytes, or an error.
 func PublicKeyFromPEM(b []byte) (crypto.PublicKey, SHA256Hash, []byte, error) {
@@ -38,23 +33,7 @@ type SignatureVerifier struct {
 func NewSignatureVerifier(pk crypto.PublicKey) (*SignatureVerifier, error) {
 	switch pkType := pk.(type) {
 	case *rsa.PublicKey:
-		if pkType.N.BitLen() < 2048 {
-			e := fmt.Errorf("public key is RSA with < 2048 bits (size:%d)", pkType.N.BitLen())
-			if !(*allowVerificationWithNonCompliantKeys) {
-				return nil, e
-			}
-			log.Printf("WARNING: %v", e)
-		}
 	case *ecdsa.PublicKey:
-		params := *(pkType.Params())
-		if params != *elliptic.P256().Params() {
-			e := fmt.Errorf("public is ECDSA, but not on the P256 curve")
-			if !(*allowVerificationWithNonCompliantKeys) {
-				return nil, e
-			}
-			log.Printf("WARNING: %v", e)
-
-		}
 	default:
 		return nil, fmt.Errorf("Unsupported public key type %v", pkType)
 	}
