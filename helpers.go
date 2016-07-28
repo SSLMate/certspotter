@@ -354,9 +354,9 @@ func (info *EntryInfo) InvokeHookScript(command string) error {
 	cmd.Stderr = &stderrBuffer
 	if err := cmd.Run(); err != nil {
 		if _, isExitError := err.(*exec.ExitError); isExitError {
-			fmt.Errorf("Script failed: %s: %s", command, strings.TrimSpace(stderrBuffer.String()))
+			return fmt.Errorf("Script failed: %s: %s", command, strings.TrimSpace(stderrBuffer.String()))
 		} else {
-			fmt.Errorf("Failed to execute script: %s: %s", command, err)
+			return fmt.Errorf("Failed to execute script: %s: %s", command, err)
 		}
 	}
 	return nil
