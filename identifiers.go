@@ -147,6 +147,9 @@ func (ids *Identifiers) appendDNSName(dnsName string) {
 		ids.DNSNames = append(ids.DNSNames, dnsName)
 	}
 }
+func (ids *Identifiers) appendIPAddress(ipaddr net.IP) {
+	ids.IPAddrs = append(ids.IPAddrs, ipaddr)
+}
 
 func (ids *Identifiers) addDnsSANfinal(value []byte) {
 	if ipaddr := parseIPAddrString(string(value)); ipaddr != nil {
@@ -154,7 +157,7 @@ func (ids *Identifiers) addDnsSANfinal(value []byte) {
 		// used to not support IP address SANs.  Since there's no way for an IP
 		// address to also be a valid DNS name, just treat it like an IP address
 		// and not try to process it as a DNS name.
-		ids.IPAddrs = append(ids.IPAddrs, ipaddr)
+		ids.appendIPAddress(ipaddr)
 	} else if isASCIIString(value) {
 		ids.appendDNSName(sanitizeDNSName(string(value)))
 	} else {
@@ -200,7 +203,7 @@ func (ids *Identifiers) AddDnsSAN(value []byte) {
 
 func (ids *Identifiers) addCNfinal(value string) {
 	if ipaddr := parseIPAddrString(value); ipaddr != nil {
-		ids.IPAddrs = append(ids.IPAddrs, ipaddr)
+		ids.appendIPAddress(ipaddr)
 	} else if !strings.ContainsRune(value, ' ') {
 		// If the CN contains a space it's clearly not a DNS name, so ignore it.
 		ids.appendDNSName(sanitizeUnicodeDNSName(value))
@@ -237,7 +240,7 @@ func (ids *Identifiers) AddCN(value string) {
 }
 
 func (ids *Identifiers) AddIPAddress(value net.IP) {
-	ids.IPAddrs = append(ids.IPAddrs, value)
+	ids.appendIPAddress(value)
 }
 
 func (ids *Identifiers) dnsNamesString(sep string) string {
