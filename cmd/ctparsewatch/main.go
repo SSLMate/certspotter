@@ -14,11 +14,11 @@ import (
 	"os"
 
 	"software.sslmate.com/src/certspotter"
-	"software.sslmate.com/src/certspotter/ct"
 	"software.sslmate.com/src/certspotter/cmd"
+	"software.sslmate.com/src/certspotter/ct"
 )
 
-func DefaultStateDir () string {
+func DefaultStateDir() string {
 	if envVar := os.Getenv("CTPARSEWATCH_STATE_DIR"); envVar != "" {
 		return envVar
 	} else {
@@ -28,12 +28,12 @@ func DefaultStateDir () string {
 
 var stateDir = flag.String("state_dir", DefaultStateDir(), "Directory for storing state")
 
-func processEntry (scanner *certspotter.Scanner, entry *ct.LogEntry) {
+func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
 	info := certspotter.EntryInfo{
-		LogUri:		scanner.LogUri,
-		Entry:		entry,
-		IsPrecert:	certspotter.IsPrecert(entry),
-		FullChain:	certspotter.GetFullChain(entry),
+		LogUri:    scanner.LogUri,
+		Entry:     entry,
+		IsPrecert: certspotter.IsPrecert(entry),
+		FullChain: certspotter.GetFullChain(entry),
 	}
 
 	info.CertInfo, info.ParseError = certspotter.MakeCertInfoFromLogEntry(entry)

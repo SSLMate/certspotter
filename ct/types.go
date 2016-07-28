@@ -232,9 +232,9 @@ func (d *DigitallySigned) UnmarshalJSON(b []byte) error {
 
 // LogEntry represents the contents of an entry in a CT log, see section 3.1.
 type LogEntry struct {
-	Index    int64
-	Leaf     MerkleTreeLeaf
-	Chain    []ASN1Cert
+	Index     int64
+	Leaf      MerkleTreeLeaf
+	Chain     []ASN1Cert
 	LeafBytes []byte
 }
 

@@ -13,15 +13,15 @@ import (
 	"net/http"
 	"time"
 
-	"software.sslmate.com/src/certspotter/ct"
 	"github.com/mreiferson/go-httpclient"
+	"software.sslmate.com/src/certspotter/ct"
 )
 
 // URI paths for CT Log endpoints
 const (
-	GetSTHPath		= "/ct/v1/get-sth"
-	GetEntriesPath		= "/ct/v1/get-entries"
-	GetSTHConsistencyPath	= "/ct/v1/get-sth-consistency"
+	GetSTHPath            = "/ct/v1/get-sth"
+	GetEntriesPath        = "/ct/v1/get-entries"
+	GetSTHConsistencyPath = "/ct/v1/get-sth-consistency"
 )
 
 // LogClient represents a client for a given CT Log instance
@@ -84,7 +84,7 @@ func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
 	if err != nil {
 		return err
 	}
-//	req.Header.Set("Keep-Alive", "timeout=15, max=100")
+	//	req.Header.Set("Keep-Alive", "timeout=15, max=100")
 	resp, err := c.httpClient.Do(req)
 	var body []byte
 	if resp != nil {
@@ -97,7 +97,7 @@ func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode / 100 != 2 {
+	if resp.StatusCode/100 != 2 {
 		return fmt.Errorf("GET %s: %s (%s)", uri, resp.Status, string(body))
 	}
 	if err = json.Unmarshal(body, &res); err != nil {

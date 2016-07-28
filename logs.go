@@ -10,26 +10,26 @@
 package certspotter
 
 import (
-	"encoding/base64"
 	"crypto"
 	"crypto/x509"
+	"encoding/base64"
 )
 
 type LogInfoFile struct {
-	Logs		[]LogInfo	`json:"logs"`
+	Logs []LogInfo `json:"logs"`
 }
 type LogInfo struct {
-	Description	string		`json:"description"`
-	Key		[]byte		`json:"key"`
-	Url		string		`json:"url"`
-	MMD		int		`json:"maximum_merge_delay"`
+	Description string `json:"description"`
+	Key         []byte `json:"key"`
+	Url         string `json:"url"`
+	MMD         int    `json:"maximum_merge_delay"`
 }
 
-func (info *LogInfo) FullURI () string {
+func (info *LogInfo) FullURI() string {
 	return "https://" + info.Url
 }
 
-func (info *LogInfo) ParsedPublicKey () (crypto.PublicKey, error) {
+func (info *LogInfo) ParsedPublicKey() (crypto.PublicKey, error) {
 	if info.Key != nil {
 		return x509.ParsePKIXPublicKey(info.Key)
 	} else {
@@ -92,13 +92,13 @@ var DefaultLogs = []LogInfo{
 var UnderwaterLogs = []LogInfo{
 	{
 		Description: "Google 'Submariner' log",
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOfifIGLUV1Voou9JLfA5LZreRLSUMOCeeic8q3Dw0fpRkGMWV0Gtq20fgHQweQJeLVmEByQj9p81uIW4QkWkTw=="),
-		Url: "ct.googleapis.com/submariner",
-		MMD: 86400,
+		Key:         mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEOfifIGLUV1Voou9JLfA5LZreRLSUMOCeeic8q3Dw0fpRkGMWV0Gtq20fgHQweQJeLVmEByQj9p81uIW4QkWkTw=="),
+		Url:         "ct.googleapis.com/submariner",
+		MMD:         86400,
 	},
 }
 
-func mustDecodeBase64 (str string) []byte {
+func mustDecodeBase64(str string) []byte {
 	bytes, err := base64.StdEncoding.DecodeString(str)
 	if err != nil {
 		panic("MustDecodeBase64: " + err.Error())

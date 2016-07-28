@@ -10,14 +10,14 @@
 package certspotter
 
 import (
-	"errors"
 	"bytes"
-	"encoding/binary"
 	"encoding/asn1"
+	"encoding/binary"
+	"errors"
 	"unicode/utf8"
 )
 
-func stringFromByteSlice (chars []byte) string {
+func stringFromByteSlice(chars []byte) string {
 	runes := make([]rune, len(chars))
 	for i, ch := range chars {
 		runes[i] = rune(ch)
@@ -25,7 +25,7 @@ func stringFromByteSlice (chars []byte) string {
 	return string(runes)
 }
 
-func stringFromUint16Slice (chars []uint16) string {
+func stringFromUint16Slice(chars []uint16) string {
 	runes := make([]rune, len(chars))
 	for i, ch := range chars {
 		runes[i] = rune(ch)
@@ -33,7 +33,7 @@ func stringFromUint16Slice (chars []uint16) string {
 	return string(runes)
 }
 
-func stringFromUint32Slice (chars []uint32) string {
+func stringFromUint32Slice(chars []uint32) string {
 	runes := make([]rune, len(chars))
 	for i, ch := range chars {
 		runes[i] = rune(ch)
@@ -41,7 +41,7 @@ func stringFromUint32Slice (chars []uint32) string {
 	return string(runes)
 }
 
-func decodeASN1String (value *asn1.RawValue) (string, error) {
+func decodeASN1String(value *asn1.RawValue) (string, error) {
 	if !value.IsCompound && value.Class == 0 {
 		if value.Tag == 12 {
 			// UTF8String
@@ -59,14 +59,14 @@ func decodeASN1String (value *asn1.RawValue) (string, error) {
 			return stringFromByteSlice(value.Bytes), nil
 		} else if value.Tag == 30 {
 			// BMPString - Unicode, encoded in big-endian format using two octets
-			runes := make([]uint16, len(value.Bytes) / 2)
+			runes := make([]uint16, len(value.Bytes)/2)
 			if err := binary.Read(bytes.NewReader(value.Bytes), binary.BigEndian, runes); err != nil {
 				return "", errors.New("Malformed BMPString: " + err.Error())
 			}
 			return stringFromUint16Slice(runes), nil
 		} else if value.Tag == 28 {
 			// UniversalString - Unicode, encoded in big-endian format using four octets
-			runes := make([]uint32, len(value.Bytes) / 4)
+			runes := make([]uint32, len(value.Bytes)/4)
 			if err := binary.Read(bytes.NewReader(value.Bytes), binary.BigEndian, runes); err != nil {
 				return "", errors.New("Malformed UniversalString: " + err.Error())
 			}
@@ -75,4 +75,3 @@ func decodeASN1String (value *asn1.RawValue) (string, error) {
 	}
 	return "", errors.New("Not a string")
 }
-

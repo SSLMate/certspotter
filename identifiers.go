@@ -11,10 +11,10 @@ package certspotter
 
 import (
 	"bytes"
-	"strings"
-	"net"
-	"unicode/utf8"
 	"golang.org/x/net/idna"
+	"net"
+	"strings"
+	"unicode/utf8"
 )
 
 const UnparsableDNSLabelPlaceholder = "<unparsable>"
@@ -34,24 +34,24 @@ type UnknownIdentifier struct {
 */
 
 type Identifiers struct {
-	DNSNames		[]string	// stored as ASCII, with IDNs in Punycode
-	IPAddrs			[]net.IP
+	DNSNames []string // stored as ASCII, with IDNs in Punycode
+	IPAddrs  []net.IP
 	//Unknowns		[]UnknownIdentifier
 }
 
-func NewIdentifiers () *Identifiers {
+func NewIdentifiers() *Identifiers {
 	return &Identifiers{
-		DNSNames:	[]string{},
-		IPAddrs:	[]net.IP{},
+		DNSNames: []string{},
+		IPAddrs:  []net.IP{},
 		//Unknowns:	[]UnknownIdentifier{},
 	}
 }
 
-func parseIPAddrString (str string) net.IP {
+func parseIPAddrString(str string) net.IP {
 	return net.ParseIP(str)
 }
 
-func isASCIIString (value []byte) bool {
+func isASCIIString(value []byte) bool {
 	for _, b := range value {
 		if b > 127 {
 			return false
@@ -59,10 +59,10 @@ func isASCIIString (value []byte) bool {
 	}
 	return true
 }
-func isUTF8String (value []byte) bool {
+func isUTF8String(value []byte) bool {
 	return utf8.Valid(value)
 }
-func latin1ToUTF8 (value []byte) string {
+func latin1ToUTF8(value []byte) string {
 	runes := make([]rune, len(value))
 	for i, b := range value {
 		runes[i] = rune(b)
@@ -72,10 +72,10 @@ func latin1ToUTF8 (value []byte) string {
 
 // Make sure the DNS label doesn't have any weird characters that
 // could cause trouble during later processing.
-func isSaneDNSLabelChar (ch rune) bool {
+func isSaneDNSLabelChar(ch rune) bool {
 	return ch == '\t' || (ch >= 32 && ch <= 126)
 }
-func isSaneDNSLabel (label string) bool {
+func isSaneDNSLabel(label string) bool {
 	for _, ch := range label {
 		if !isSaneDNSLabelChar(ch) {
 			return false
@@ -84,7 +84,7 @@ func isSaneDNSLabel (label string) bool {
 	return true
 }
 
-func trimHttpPrefixString (value string) string {
+func trimHttpPrefixString(value string) string {
 	if strings.HasPrefix(value, "http://") {
 		return value[7:]
 	} else if strings.HasPrefix(value, "https://") {
@@ -94,7 +94,7 @@ func trimHttpPrefixString (value string) string {
 	}
 }
 
-func trimHttpPrefixBytes (value []byte) []byte {
+func trimHttpPrefixBytes(value []byte) []byte {
 	if bytes.HasPrefix(value, []byte("http://")) {
 		return value[7:]
 	} else if bytes.HasPrefix(value, []byte("https://")) {
@@ -104,9 +104,9 @@ func trimHttpPrefixBytes (value []byte) []byte {
 	}
 }
 
-func trimTrailingDots (value string) string {
+func trimTrailingDots(value string) string {
 	length := len(value)
-	for length > 0 && value[length - 1] == '.' {
+	for length > 0 && value[length-1] == '.' {
 		length--
 	}
 	return value[0:length]
@@ -117,7 +117,7 @@ func trimTrailingDots (value string) string {
 //  2. Trim trailing dots
 //  3. Convert to lower case
 //  4. Replace totally nonsensical labels (e.g. having non-printable characters) with a placeholder
-func sanitizeDNSName (value string) string {
+func sanitizeDNSName(value string) string {
 	value = strings.ToLower(trimTrailingDots(strings.TrimSpace(value)))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
@@ -129,7 +129,7 @@ func sanitizeDNSName (value string) string {
 }
 
 // Like sanitizeDNSName, but labels that are Unicode are converted to Punycode.
-func sanitizeUnicodeDNSName (value string) string {
+func sanitizeUnicodeDNSName(value string) string {
 	value = strings.ToLower(trimTrailingDots(strings.TrimSpace(value)))
 	labels := strings.Split(value, ".")
 	for i, label := range labels {
@@ -142,13 +142,13 @@ func sanitizeUnicodeDNSName (value string) string {
 	return strings.Join(labels, ".")
 }
 
-func (ids *Identifiers) appendDNSName (dnsName string) {
+func (ids *Identifiers) appendDNSName(dnsName string) {
 	if dnsName != "" {
 		ids.DNSNames = append(ids.DNSNames, dnsName)
 	}
 }
 
-func (ids *Identifiers) addDnsSANfinal (value []byte) {
+func (ids *Identifiers) addDnsSANfinal(value []byte) {
 	if ipaddr := parseIPAddrString(string(value)); ipaddr != nil {
 		// Stupid CAs put IP addresses in DNS SANs because stupid Microsoft
 		// used to not support IP address SANs.  Since there's no way for an IP
@@ -169,7 +169,7 @@ func (ids *Identifiers) addDnsSANfinal (value []byte) {
 	}
 }
 
-func (ids *Identifiers) addDnsSANnonull (value []byte) {
+func (ids *Identifiers) addDnsSANnonull(value []byte) {
 	if slashIndex := bytes.IndexByte(value, '/'); slashIndex != -1 {
 		// If the value contains a slash, then this might be a URL,
 		// so process the part of the value up to the first slash,
@@ -181,7 +181,7 @@ func (ids *Identifiers) addDnsSANnonull (value []byte) {
 	ids.addDnsSANfinal(value)
 }
 
-func (ids *Identifiers) AddDnsSAN (value []byte) {
+func (ids *Identifiers) AddDnsSAN(value []byte) {
 	// Trim http:// and https:// prefixes, which are all too common in the wild,
 	// so http://example.com becomes just example.com.  Even though clients
 	// should never successfully validate a DNS name like http://example.com,
@@ -198,7 +198,7 @@ func (ids *Identifiers) AddDnsSAN (value []byte) {
 	ids.addDnsSANnonull(value)
 }
 
-func (ids *Identifiers) addCNfinal (value string) {
+func (ids *Identifiers) addCNfinal(value string) {
 	if ipaddr := parseIPAddrString(value); ipaddr != nil {
 		ids.IPAddrs = append(ids.IPAddrs, ipaddr)
 	} else if !strings.ContainsRune(value, ' ') {
@@ -207,7 +207,7 @@ func (ids *Identifiers) addCNfinal (value string) {
 	}
 }
 
-func (ids *Identifiers) addCNnonull (value string) {
+func (ids *Identifiers) addCNnonull(value string) {
 	if slashIndex := strings.IndexRune(value, '/'); slashIndex != -1 {
 		// If the value contains a slash, then this might be a URL,
 		// so process the part of the value up to the first slash,
@@ -219,7 +219,7 @@ func (ids *Identifiers) addCNnonull (value string) {
 	ids.addCNfinal(value)
 }
 
-func (ids *Identifiers) AddCN (value string) {
+func (ids *Identifiers) AddCN(value string) {
 	// Trim http:// and https:// prefixes, which are all too common in the wild,
 	// so http://example.com becomes just example.com.  Even though clients
 	// should never successfully validate a DNS name like http://example.com,
@@ -236,15 +236,15 @@ func (ids *Identifiers) AddCN (value string) {
 	ids.addCNnonull(value)
 }
 
-func (ids *Identifiers) AddIPAddress (value net.IP) {
+func (ids *Identifiers) AddIPAddress(value net.IP) {
 	ids.IPAddrs = append(ids.IPAddrs, value)
 }
 
-func (ids *Identifiers) dnsNamesString (sep string) string {
+func (ids *Identifiers) dnsNamesString(sep string) string {
 	return strings.Join(ids.DNSNames, sep)
 }
 
-func (ids *Identifiers) ipAddrsString (sep string) string {
+func (ids *Identifiers) ipAddrsString(sep string) string {
 	str := ""
 	for _, ipAddr := range ids.IPAddrs {
 		if str != "" {
@@ -255,7 +255,7 @@ func (ids *Identifiers) ipAddrsString (sep string) string {
 	return str
 }
 
-func (cert *CertInfo) ParseIdentifiers () (*Identifiers, error) {
+func (cert *CertInfo) ParseIdentifiers() (*Identifiers, error) {
 	ids := NewIdentifiers()
 
 	if cert.SubjectParseError != nil {

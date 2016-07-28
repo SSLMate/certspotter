@@ -10,19 +10,19 @@
 package certspotter
 
 import (
-	"software.sslmate.com/src/certspotter/ct"
 	"bytes"
 	"crypto/sha256"
+	"software.sslmate.com/src/certspotter/ct"
 )
 
-func reverseHashes (hashes []ct.MerkleTreeNode) {
-	for i := 0; i < len(hashes) / 2; i++ {
+func reverseHashes(hashes []ct.MerkleTreeNode) {
+	for i := 0; i < len(hashes)/2; i++ {
 		j := len(hashes) - i - 1
 		hashes[i], hashes[j] = hashes[j], hashes[i]
 	}
 }
 
-func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, *MerkleTreeBuilder) {
+func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, *MerkleTreeBuilder) {
 	if second.TreeSize < first.TreeSize {
 		// Can't be consistent if tree got smaller
 		return false, nil
@@ -46,7 +46,7 @@ func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead
 	lastNode := second.TreeSize - 1
 
 	// While we're the right child, everything is in both trees, so move one level up.
-	for node % 2 == 1 {
+	for node%2 == 1 {
 		node /= 2
 		lastNode /= 2
 	}
@@ -68,7 +68,7 @@ func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead
 	leftHashes = append(leftHashes, newHash)
 
 	for node > 0 {
-		if node % 2 == 1 {
+		if node%2 == 1 {
 			// node is a right child; left sibling exists in both trees
 			if len(proof) == 0 {
 				return false, nil
@@ -112,14 +112,14 @@ func VerifyConsistencyProof (proof ct.ConsistencyProof, first *ct.SignedTreeHead
 	return true, &MerkleTreeBuilder{stack: leftHashes, size: first.TreeSize}
 }
 
-func hashLeaf (leafBytes []byte) ct.MerkleTreeNode {
+func hashLeaf(leafBytes []byte) ct.MerkleTreeNode {
 	hasher := sha256.New()
 	hasher.Write([]byte{0x00})
 	hasher.Write(leafBytes)
 	return hasher.Sum(nil)
 }
 
-func hashChildren (left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTreeNode {
+func hashChildren(left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTreeNode {
 	hasher := sha256.New()
 	hasher.Write([]byte{0x01})
 	hasher.Write(left)
@@ -128,15 +128,15 @@ func hashChildren (left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTre
 }
 
 type MerkleTreeBuilder struct {
-	stack		[]ct.MerkleTreeNode
-	size		uint64 // number of hashes added so far
+	stack []ct.MerkleTreeNode
+	size  uint64 // number of hashes added so far
 }
 
-func (builder *MerkleTreeBuilder) Add (hash ct.MerkleTreeNode) {
+func (builder *MerkleTreeBuilder) Add(hash ct.MerkleTreeNode) {
 	builder.stack = append(builder.stack, hash)
 	builder.size++
 	size := builder.size
-	for size % 2 == 0 {
+	for size%2 == 0 {
 		left, right := builder.stack[len(builder.stack)-2], builder.stack[len(builder.stack)-1]
 		builder.stack = builder.stack[:len(builder.stack)-2]
 		builder.stack = append(builder.stack, hashChildren(left, right))
@@ -144,7 +144,7 @@ func (builder *MerkleTreeBuilder) Add (hash ct.MerkleTreeNode) {
 	}
 }
 
-func (builder *MerkleTreeBuilder) Finish () ct.MerkleTreeNode {
+func (builder *MerkleTreeBuilder) Finish() ct.MerkleTreeNode {
 	if len(builder.stack) == 0 {
 		panic("MerkleTreeBuilder.Finish called on an empty tree")
 	}

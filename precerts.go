@@ -10,22 +10,23 @@
 package certspotter
 
 import (
-	"fmt"
-	"errors"
 	"bytes"
 	"encoding/asn1"
+	"errors"
+	"fmt"
 )
 
-func bitStringEqual (a, b *asn1.BitString) bool {
+func bitStringEqual(a, b *asn1.BitString) bool {
 	return a.BitLength == b.BitLength && bytes.Equal(a.Bytes, b.Bytes)
 }
 
 var (
-	oidExtensionAuthorityKeyId	= []int{2, 5, 29, 35}
-	oidExtensionSCT			= []int{1, 3, 6, 1, 4, 1, 11129, 2, 4, 2}
-	oidExtensionCTPoison		= []int{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+	oidExtensionAuthorityKeyId = []int{2, 5, 29, 35}
+	oidExtensionSCT            = []int{1, 3, 6, 1, 4, 1, 11129, 2, 4, 2}
+	oidExtensionCTPoison       = []int{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
 )
-func ValidatePrecert (precertBytes []byte, tbsBytes []byte) error {
+
+func ValidatePrecert(precertBytes []byte, tbsBytes []byte) error {
 	precert, err := ParseCertificate(precertBytes)
 	if err != nil {
 		return errors.New("failed to parse pre-certificate: " + err.Error())
@@ -116,18 +117,18 @@ func ValidatePrecert (precertBytes []byte, tbsBytes []byte) error {
 
 	return nil
 }
-func ReconstructPrecertTBS (tbs *TBSCertificate) (*TBSCertificate, error) {
+func ReconstructPrecertTBS(tbs *TBSCertificate) (*TBSCertificate, error) {
 	precertTBS := TBSCertificate{
-		Version:		tbs.Version,
-		SerialNumber:		tbs.SerialNumber,
-		SignatureAlgorithm:	tbs.SignatureAlgorithm,
-		Issuer:			tbs.Issuer,
-		Validity:		tbs.Validity,
-		Subject:		tbs.Subject,
-		PublicKey:		tbs.PublicKey,
-		UniqueId:		tbs.UniqueId,
-		SubjectUniqueId:	tbs.SubjectUniqueId,
-		Extensions:		make([]Extension, 0, len(tbs.Extensions)),
+		Version:            tbs.Version,
+		SerialNumber:       tbs.SerialNumber,
+		SignatureAlgorithm: tbs.SignatureAlgorithm,
+		Issuer:             tbs.Issuer,
+		Validity:           tbs.Validity,
+		Subject:            tbs.Subject,
+		PublicKey:          tbs.PublicKey,
+		UniqueId:           tbs.UniqueId,
+		SubjectUniqueId:    tbs.SubjectUniqueId,
+		Extensions:         make([]Extension, 0, len(tbs.Extensions)),
 	}
 
 	for _, ext := range tbs.Extensions {

@@ -10,29 +10,29 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
-	"os"
 	"io"
-	"bufio"
-	"strings"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/net/idna"
 
 	"software.sslmate.com/src/certspotter"
-	"software.sslmate.com/src/certspotter/ct"
 	"software.sslmate.com/src/certspotter/cmd"
+	"software.sslmate.com/src/certspotter/ct"
 )
 
-func defaultStateDir () string {
+func defaultStateDir() string {
 	if envVar := os.Getenv("CERTSPOTTER_STATE_DIR"); envVar != "" {
 		return envVar
 	} else {
 		return cmd.DefaultStateDir("certspotter")
 	}
 }
-func defaultConfigDir () string {
+func defaultConfigDir() string {
 	if envVar := os.Getenv("CERTSPOTTER_CONFIG_DIR"); envVar != "" {
 		return envVar
 	} else {
@@ -40,9 +40,9 @@ func defaultConfigDir () string {
 	}
 }
 
-func trimTrailingDots (value string) string {
+func trimTrailingDots(value string) string {
 	length := len(value)
-	for length > 0 && value[length - 1] == '.' {
+	for length > 0 && value[length-1] == '.' {
 		length--
 	}
 	return value[0:length]
@@ -52,15 +52,16 @@ var stateDir = flag.String("state_dir", defaultStateDir(), "Directory for storin
 var watchlistFilename = flag.String("watchlist", filepath.Join(defaultConfigDir(), "watchlist"), "File containing identifiers to watch (- for stdin)")
 
 type watchlistItem struct {
-	Domain		[]string
-	AcceptSuffix	bool
+	Domain       []string
+	AcceptSuffix bool
 }
+
 var watchlist []watchlistItem
 
-func parseWatchlistItem (str string) (watchlistItem, error) {
+func parseWatchlistItem(str string) (watchlistItem, error) {
 	if str == "." { // "." as in root zone (matches everything)
 		return watchlistItem{
-			Domain: []string{},
+			Domain:       []string{},
 			AcceptSuffix: true,
 		}, nil
 	} else {
@@ -74,13 +75,13 @@ func parseWatchlistItem (str string) (watchlistItem, error) {
 			return watchlistItem{}, fmt.Errorf("Invalid domain `%s': %s", str, err)
 		}
 		return watchlistItem{
-			Domain: strings.Split(asciiDomain, "."),
+			Domain:       strings.Split(asciiDomain, "."),
 			AcceptSuffix: acceptSuffix,
 		}, nil
 	}
 }
 
-func readWatchlist (reader io.Reader) ([]watchlistItem, error) {
+func readWatchlist(reader io.Reader) ([]watchlistItem, error) {
 	items := []watchlistItem{}
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
@@ -97,18 +98,18 @@ func readWatchlist (reader io.Reader) ([]watchlistItem, error) {
 	return items, scanner.Err()
 }
 
-func dnsLabelMatches (certLabel string, watchLabel string) bool {
+func dnsLabelMatches(certLabel string, watchLabel string) bool {
 	// For fail-safe behavior, if a label was unparsable, it matches everything.
 	// Similarly, redacted labels match everything, since the label _might_ be
 	// for a name we're interested in.
 
 	return certLabel == "*" ||
-	       certLabel == "?" ||
-	       certLabel == certspotter.UnparsableDNSLabelPlaceholder ||
-	       certspotter.MatchesWildcard(watchLabel, certLabel)
+		certLabel == "?" ||
+		certLabel == certspotter.UnparsableDNSLabelPlaceholder ||
+		certspotter.MatchesWildcard(watchLabel, certLabel)
 }
 
-func dnsNameMatches (dnsName []string, watchDomain []string, acceptSuffix bool) bool {
+func dnsNameMatches(dnsName []string, watchDomain []string, acceptSuffix bool) bool {
 	for len(dnsName) > 0 && len(watchDomain) > 0 {
 		certLabel := dnsName[len(dnsName)-1]
 		watchLabel := watchDomain[len(watchDomain)-1]
@@ -124,7 +125,7 @@ func dnsNameMatches (dnsName []string, watchDomain []string, acceptSuffix bool) 
 	return len(watchDomain) == 0 && (acceptSuffix || len(dnsName) == 0)
 }
 
-func dnsNameIsWatched (dnsName string) bool {
+func dnsNameIsWatched(dnsName string) bool {
 	labels := strings.Split(dnsName, ".")
 	for _, item := range watchlist {
 		if dnsNameMatches(labels, item.Domain, item.AcceptSuffix) {
@@ -134,7 +135,7 @@ func dnsNameIsWatched (dnsName string) bool {
 	return false
 }
 
-func anyDnsNameIsWatched (dnsNames []string) bool {
+func anyDnsNameIsWatched(dnsNames []string) bool {
 	for _, dnsName := range dnsNames {
 		if dnsNameIsWatched(dnsName) {
 			return true
@@ -143,12 +144,12 @@ func anyDnsNameIsWatched (dnsNames []string) bool {
 	return false
 }
 
-func processEntry (scanner *certspotter.Scanner, entry *ct.LogEntry) {
+func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
 	info := certspotter.EntryInfo{
-		LogUri:		scanner.LogUri,
-		Entry:		entry,
-		IsPrecert:	certspotter.IsPrecert(entry),
-		FullChain:	certspotter.GetFullChain(entry),
+		LogUri:    scanner.LogUri,
+		Entry:     entry,
+		IsPrecert: certspotter.IsPrecert(entry),
+		FullChain: certspotter.GetFullChain(entry),
 	}
 
 	info.CertInfo, info.ParseError = certspotter.MakeCertInfoFromLogEntry(entry)

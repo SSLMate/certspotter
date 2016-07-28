@@ -10,22 +10,22 @@
 package certspotter
 
 import (
-	"time"
-	"strconv"
-	"errors"
-	"unicode"
 	"encoding/asn1"
+	"errors"
+	"strconv"
+	"time"
+	"unicode"
 )
 
-func isDigit (b byte) bool {
+func isDigit(b byte) bool {
 	return unicode.IsDigit(rune(b))
 }
 
-func bytesToInt (bytes []byte) (int, error) {
+func bytesToInt(bytes []byte) (int, error) {
 	return strconv.Atoi(string(bytes))
 }
 
-func parseUTCTime (bytes []byte) (time.Time, error) {
+func parseUTCTime(bytes []byte) (time.Time, error) {
 	var err error
 	var year, month, day int
 	var hour, min, sec int
@@ -36,19 +36,29 @@ func parseUTCTime (bytes []byte) (time.Time, error) {
 		return time.Time{}, errors.New("UTCTime is too short")
 	}
 	year, err = bytesToInt(bytes[0:2])
-	if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+	}
 
 	month, err = bytesToInt(bytes[2:4])
-	if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+	}
 
 	day, err = bytesToInt(bytes[4:6])
-	if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+	}
 
 	hour, err = bytesToInt(bytes[6:8])
-	if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+	}
 
 	min, err = bytesToInt(bytes[8:10])
-	if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+	}
 
 	bytes = bytes[10:]
 
@@ -72,12 +82,16 @@ func parseUTCTime (bytes []byte) (time.Time, error) {
 				return time.Time{}, errors.New("UTCTime positive timezone offset is too short")
 			}
 			tzHour, err := bytesToInt(bytes[1:3])
-			if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+			}
 
 			tzMin, err := bytesToInt(bytes[3:5])
-			if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+			}
 
-			tz = time.FixedZone("", tzHour * 3600 + tzMin * 60)
+			tz = time.FixedZone("", tzHour*3600+tzMin*60)
 			bytes = bytes[5:]
 		} else if bytes[0] == '-' {
 			// -hhmm
@@ -85,12 +99,16 @@ func parseUTCTime (bytes []byte) (time.Time, error) {
 				return time.Time{}, errors.New("UTCTime negative timezone offset is too short")
 			}
 			tzHour, err := bytesToInt(bytes[1:3])
-			if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+			}
 
 			tzMin, err := bytesToInt(bytes[3:5])
-			if err != nil { return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("UTCTime contains invalid integer: " + err.Error())
+			}
 
-			tz = time.FixedZone("", -1 * (tzHour * 3600 + tzMin * 60))
+			tz = time.FixedZone("", -1*(tzHour*3600+tzMin*60))
 			bytes = bytes[5:]
 		}
 	} else {
@@ -111,7 +129,7 @@ func parseUTCTime (bytes []byte) (time.Time, error) {
 	return time.Date(year, time.Month(month), day, hour, min, sec, 0, tz), nil
 }
 
-func parseGeneralizedTime (bytes []byte) (time.Time, error) {
+func parseGeneralizedTime(bytes []byte) (time.Time, error) {
 	var err error
 	var year, month, day int
 	var hour, min, sec, ms int
@@ -122,16 +140,24 @@ func parseGeneralizedTime (bytes []byte) (time.Time, error) {
 		return time.Time{}, errors.New("GeneralizedTime is too short")
 	}
 	year, err = bytesToInt(bytes[0:4])
-	if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+	}
 
 	month, err = bytesToInt(bytes[4:6])
-	if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+	}
 
 	day, err = bytesToInt(bytes[6:8])
-	if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+	}
 
 	hour, err = bytesToInt(bytes[8:10])
-	if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+	if err != nil {
+		return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+	}
 
 	bytes = bytes[10:]
 
@@ -174,12 +200,16 @@ func parseGeneralizedTime (bytes []byte) (time.Time, error) {
 				return time.Time{}, errors.New("GeneralizedTime positive timezone offset is too short")
 			}
 			tzHour, err := bytesToInt(bytes[1:3])
-			if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+			}
 
 			tzMin, err := bytesToInt(bytes[3:5])
-			if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+			}
 
-			tz = time.FixedZone("", tzHour * 3600 + tzMin * 60)
+			tz = time.FixedZone("", tzHour*3600+tzMin*60)
 			bytes = bytes[5:]
 		} else if bytes[0] == '-' {
 			// -hhmm
@@ -187,12 +217,16 @@ func parseGeneralizedTime (bytes []byte) (time.Time, error) {
 				return time.Time{}, errors.New("GeneralizedTime negative timezone offset is too short")
 			}
 			tzHour, err := bytesToInt(bytes[1:3])
-			if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+			}
 
 			tzMin, err := bytesToInt(bytes[3:5])
-			if err != nil { return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error()) }
+			if err != nil {
+				return time.Time{}, errors.New("GeneralizedTime contains invalid integer: " + err.Error())
+			}
 
-			tz = time.FixedZone("", -1 * (tzHour * 3600 + tzMin * 60))
+			tz = time.FixedZone("", -1*(tzHour*3600+tzMin*60))
 			bytes = bytes[5:]
 		}
 	} else {
@@ -203,10 +237,10 @@ func parseGeneralizedTime (bytes []byte) (time.Time, error) {
 		return time.Time{}, errors.New("GeneralizedTime has trailing garbage")
 	}
 
-	return time.Date(year, time.Month(month), day, hour, min, sec, ms * 1000 * 1000, tz), nil
+	return time.Date(year, time.Month(month), day, hour, min, sec, ms*1000*1000, tz), nil
 }
 
-func decodeASN1Time (value *asn1.RawValue) (time.Time, error) {
+func decodeASN1Time(value *asn1.RawValue) (time.Time, error) {
 	if !value.IsCompound && value.Class == 0 {
 		if value.Tag == asn1.TagUTCTime {
 			return parseUTCTime(value.Bytes)

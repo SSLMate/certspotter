@@ -13,14 +13,14 @@
 package certspotter
 
 import (
-//	"container/list"
+	//	"container/list"
+	"crypto"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
 	"time"
-	"crypto"
-	"errors"
 
 	"software.sslmate.com/src/certspotter/ct"
 	"software.sslmate.com/src/certspotter/ct/client"
@@ -29,7 +29,7 @@ import (
 type ProcessCallback func(*Scanner, *ct.LogEntry)
 
 const (
-	FETCH_RETRIES = 10
+	FETCH_RETRIES    = 10
 	FETCH_RETRY_WAIT = 1
 )
 
@@ -48,28 +48,28 @@ type ScannerOptions struct {
 // Creates a new ScannerOptions struct with sensible defaults
 func DefaultScannerOptions() *ScannerOptions {
 	return &ScannerOptions{
-		BatchSize:     1000,
-		NumWorkers:    1,
-		Quiet:         false,
+		BatchSize:  1000,
+		NumWorkers: 1,
+		Quiet:      false,
 	}
 }
 
 // Scanner is a tool to scan all the entries in a CT Log.
 type Scanner struct {
 	// Base URI of CT log
-	LogUri				string
+	LogUri string
 
 	// Public key of the log
-	publicKey			crypto.PublicKey
+	publicKey crypto.PublicKey
 
 	// Client used to talk to the CT log instance
-	logClient			*client.LogClient
+	logClient *client.LogClient
 
 	// Configuration options for this Scanner instance
-	opts				ScannerOptions
+	opts ScannerOptions
 
 	// Stats
-	certsProcessed			int64
+	certsProcessed int64
 }
 
 // fetchRange represents a range of certs to fetch from a CT log
@@ -233,7 +233,7 @@ func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTr
 }
 
 func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, treeBuilder *MerkleTreeBuilder) error {
-	s.Log("Starting scan...");
+	s.Log("Starting scan...")
 
 	s.certsProcessed = 0
 	startTime := time.Now()

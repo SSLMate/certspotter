@@ -10,18 +10,18 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"bytes"
 	"os/user"
-	"encoding/json"
-	"sync"
-	"strings"
 	"path/filepath"
-	"time"
 	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	"software.sslmate.com/src/certspotter"
 	"software.sslmate.com/src/certspotter/ct"
@@ -39,7 +39,7 @@ var stateDir string
 
 var printMutex sync.Mutex
 
-func homedir () string {
+func homedir() string {
 	home := os.Getenv("HOME")
 	if home != "" {
 		return home
@@ -51,15 +51,15 @@ func homedir () string {
 	panic("Unable to determine home directory")
 }
 
-func DefaultStateDir (programName string) string {
-	return filepath.Join(homedir(), "." + programName)
+func DefaultStateDir(programName string) string {
+	return filepath.Join(homedir(), "."+programName)
 }
 
-func DefaultConfigDir (programName string) string {
-	return filepath.Join(homedir(), "." + programName)
+func DefaultConfigDir(programName string) string {
+	return filepath.Join(homedir(), "."+programName)
 }
 
-func LogEntry (info *certspotter.EntryInfo) {
+func LogEntry(info *certspotter.EntryInfo) {
 	if !*noSave {
 		var alreadyPresent bool
 		var err error
@@ -84,24 +84,24 @@ func LogEntry (info *certspotter.EntryInfo) {
 	}
 }
 
-func defangLogUri (logUri string) string {
+func defangLogUri(logUri string) string {
 	return strings.Replace(strings.Replace(logUri, "://", "_", 1), "/", "_", -1)
 }
 
-func saveEvidence (logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.SignedTreeHead, proof ct.ConsistencyProof) (string, string, string, error) {
+func saveEvidence(logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.SignedTreeHead, proof ct.ConsistencyProof) (string, string, string, error) {
 	now := strconv.FormatInt(time.Now().Unix(), 10)
 
-	firstFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".first")
+	firstFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri)+".inconsistent."+now+".first")
 	if err := certspotter.WriteSTHFile(firstFilename, firstSTH); err != nil {
 		return "", "", "", err
 	}
 
-	secondFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".second")
+	secondFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri)+".inconsistent."+now+".second")
 	if err := certspotter.WriteSTHFile(secondFilename, secondSTH); err != nil {
 		return "", "", "", err
 	}
 
-	proofFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri) + ".inconsistent." + now + ".proof")
+	proofFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri)+".inconsistent."+now+".proof")
 	if err := certspotter.WriteProofFile(proofFilename, proof); err != nil {
 		return "", "", "", err
 	}
@@ -109,7 +109,7 @@ func saveEvidence (logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.Sig
 	return firstFilename, secondFilename, proofFilename, nil
 }
 
-func Main (argStateDir string, processCallback certspotter.ProcessCallback) int {
+func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
 	stateDir = argStateDir
 
 	var logs []certspotter.LogInfo
@@ -171,9 +171,9 @@ func Main (argStateDir string, processCallback certspotter.ProcessCallback) int 
 		}
 
 		opts := certspotter.ScannerOptions{
-			BatchSize:     *batchSize,
-			NumWorkers:    *numWorkers,
-			Quiet:         !*verbose,
+			BatchSize:  *batchSize,
+			NumWorkers: *numWorkers,
+			Quiet:      !*verbose,
 		}
 		scanner := certspotter.NewScanner(logUri, logKey, &opts)
 
@@ -186,7 +186,7 @@ func Main (argStateDir string, processCallback certspotter.ProcessCallback) int 
 
 		if *verbose {
 			if prevSTH != nil {
-				log.Printf("Existing log; scanning %d new entries since previous scan (previous size %d, previous root hash = %x)", latestSTH.TreeSize - prevSTH.TreeSize, prevSTH.TreeSize, prevSTH.SHA256RootHash)
+				log.Printf("Existing log; scanning %d new entries since previous scan (previous size %d, previous root hash = %x)", latestSTH.TreeSize-prevSTH.TreeSize, prevSTH.TreeSize, prevSTH.SHA256RootHash)
 			} else if *allTime {
 				log.Printf("new log; scanning all %d entries in the log", latestSTH.TreeSize)
 			} else {

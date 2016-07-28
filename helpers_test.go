@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func doWildcardTest (t *testing.T, dnsName string, wildcard string, expected bool) {
+func doWildcardTest(t *testing.T, dnsName string, wildcard string, expected bool) {
 	if MatchesWildcard(dnsName, wildcard) != expected {
 		t.Errorf("MatchesWildcard(%q, %q) != %v", dnsName, wildcard, expected)
 	}
