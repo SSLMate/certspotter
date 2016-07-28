@@ -143,12 +143,31 @@ func sanitizeUnicodeDNSName(value string) string {
 }
 
 func (ids *Identifiers) appendDNSName(dnsName string) {
-	if dnsName != "" {
+	if dnsName != "" && !ids.hasDNSName(dnsName) {
 		ids.DNSNames = append(ids.DNSNames, dnsName)
 	}
 }
 func (ids *Identifiers) appendIPAddress(ipaddr net.IP) {
-	ids.IPAddrs = append(ids.IPAddrs, ipaddr)
+	if !ids.hasIPAddress(ipaddr) {
+		ids.IPAddrs = append(ids.IPAddrs, ipaddr)
+	}
+}
+
+func (ids *Identifiers) hasDNSName(target string) bool {
+	for _, value := range ids.DNSNames {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+func (ids *Identifiers) hasIPAddress(target net.IP) bool {
+	for _, value := range ids.IPAddrs {
+		if value.Equal(target) {
+			return true
+		}
+	}
+	return false
 }
 
 func (ids *Identifiers) addDnsSANfinal(value []byte) {
