@@ -35,7 +35,7 @@ type LogClient struct {
 // These represent the structures returned by the CT Log server.
 //////////////////////////////////////////////////////////////////////////////////
 
-// getSTHResponse respresents the JSON response to the get-sth CT method
+// getSTHResponse represents the JSON response to the get-sth CT method
 type getSTHResponse struct {
 	TreeSize          uint64 `json:"tree_size"`           // Number of certs in the current tree
 	Timestamp         uint64 `json:"timestamp"`           // Time that the tree was created
@@ -43,13 +43,13 @@ type getSTHResponse struct {
 	TreeHeadSignature []byte `json:"tree_head_signature"` // Log signature for this STH
 }
 
-// base64LeafEntry respresents a Base64 encoded leaf entry
+// base64LeafEntry represents a Base64 encoded leaf entry
 type base64LeafEntry struct {
 	LeafInput []byte `json:"leaf_input"`
 	ExtraData []byte `json:"extra_data"`
 }
 
-// getEntriesReponse respresents the JSON response to the CT get-entries method
+// getEntriesReponse represents the JSON response to the CT get-entries method
 type getEntriesResponse struct {
 	Entries []base64LeafEntry `json:"entries"` // the list of returned entries
 }
@@ -76,7 +76,7 @@ func New(uri string) *LogClient {
 	return &c
 }
 
-// Makes a HTTP call to |uri|, and attempts to parse the response as a JSON
+// Makes an HTTP call to |uri|, and attempts to parse the response as a JSON
 // representation of the structure in |res|.
 // Returns a non-nil |error| if there was a problem.
 func (c *LogClient) fetchAndParse(uri string, res interface{}) error {

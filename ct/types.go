@@ -155,7 +155,7 @@ func (h HashAlgorithm) String() string {
 	}
 }
 
-// SignatureAlgorithm from the the DigitallySigned struct
+// SignatureAlgorithm from the DigitallySigned struct
 type SignatureAlgorithm byte
 
 // SignatureAlgorithm constants
@@ -291,7 +291,7 @@ type SignedCertificateTimestamp struct {
 	SCTVersion Version    // The version of the protocol to which the SCT conforms
 	LogID      SHA256Hash // the SHA-256 hash of the log's public key, calculated over
 	// the DER encoding of the key represented as SubjectPublicKeyInfo.
-	Timestamp  uint64          // Timestamp (in ms since unix epoc) at which the SCT was issued
+	Timestamp  uint64          // Timestamp (in ms since unix epoch) at which the SCT was issued
 	Extensions CTExtensions    // For future extensions to the protocol
 	Signature  DigitallySigned // The Log's signature for this SCT
 }
@@ -314,7 +314,7 @@ type TimestampedEntry struct {
 	Extensions   CTExtensions
 }
 
-// MerkleTreeLeaf represents the deserialized sructure of the hash input for the
+// MerkleTreeLeaf represents the deserialized structure of the hash input for the
 // leaves of a log's Merkle tree. See RFC section 3.4
 type MerkleTreeLeaf struct {
 	Version          Version          // the version of the protocol to which the MerkleTreeLeaf corresponds

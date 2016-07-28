@@ -78,7 +78,7 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 			leftHashes = append(leftHashes, proof[0])
 			proof = proof[1:]
 		} else if node < lastNode {
-			// node is a left child; rigth sibling only exists in the new tree
+			// node is a left child; right sibling only exists in the new tree
 			if len(proof) == 0 {
 				return false, nil
 			}

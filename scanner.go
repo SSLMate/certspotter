@@ -38,7 +38,7 @@ type ScannerOptions struct {
 	// Number of entries to request in one batch from the Log
 	BatchSize int
 
-	// Number of concurrent proecssors to run
+	// Number of concurrent processors to run
 	NumWorkers int
 
 	// Don't print any status messages to stdout
@@ -134,7 +134,7 @@ func (s *Scanner) fetch(r fetchRange, entries chan<- ct.LogEntry, treeBuilder *M
 // |entries| channel for the processors to chew on.
 // Will retry failed attempts to retrieve ranges indefinitely.
 // Sends true over the |done| channel when the |ranges| channel is closed.
-/* disabled becuase error handling is broken
+/* disabled because error handling is broken
 func (s *Scanner) fetcherJob(id int, ranges <-chan fetchRange, entries chan<- ct.LogEntry, wg *sync.WaitGroup) {
 	for r := range ranges {
 		s.fetch(r, entries, nil)
