@@ -84,7 +84,7 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 			}
 			newHash = hashChildren(newHash, proof[0])
 			proof = proof[1:]
-		} // else node == lastNode: node is a let child with no sibling in either tree
+		} // else node == lastNode: node is a left child with no sibling in either tree
 		node /= 2
 		lastNode /= 2
 	}
