@@ -17,6 +17,11 @@ import (
 	"unicode"
 )
 
+const (
+	tagUTCTime         = 23
+	tagGeneralizedTime = 24
+)
+
 func isDigit(b byte) bool {
 	return unicode.IsDigit(rune(b))
 }
@@ -242,9 +247,9 @@ func parseGeneralizedTime(bytes []byte) (time.Time, error) {
 
 func decodeASN1Time(value *asn1.RawValue) (time.Time, error) {
 	if !value.IsCompound && value.Class == 0 {
-		if value.Tag == asn1.TagUTCTime {
+		if value.Tag == tagUTCTime {
 			return parseUTCTime(value.Bytes)
-		} else if value.Tag == asn1.TagGeneralizedTime {
+		} else if value.Tag == tagGeneralizedTime {
 			return parseGeneralizedTime(value.Bytes)
 		}
 	}
