@@ -82,7 +82,7 @@ func New(uri string) *LogClient {
 func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("GET %s: Sending request failed: %s", uri, err)
 	}
 	//	req.Header.Set("Keep-Alive", "timeout=15, max=100")
 	resp, err := c.httpClient.Do(req)
@@ -91,7 +91,7 @@ func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
 		body, err = ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			return err
+			return fmt.Errorf("GET %s: Reading response failed: %s", uri, err)
 		}
 	}
 	if err != nil {
@@ -101,7 +101,7 @@ func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
 		return fmt.Errorf("GET %s: %s (%s)", uri, resp.Status, string(body))
 	}
 	if err = json.Unmarshal(body, &res); err != nil {
-		return err
+		return fmt.Errorf("GET %s: Parsing response JSON failed: %s", uri, err)
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (c *LogClient) GetSTH() (sth *ct.SignedTreeHead, err error) {
 	}
 
 	if len(resp.SHA256RootHash) != sha256.Size {
-		return nil, fmt.Errorf("sha256_root_hash is invalid length, expected %d got %d", sha256.Size, len(resp.SHA256RootHash))
+		return nil, fmt.Errorf("STH returned by server has invalid sha256_root_hash (expected length %d got %d)", sha256.Size, len(resp.SHA256RootHash))
 	}
 	copy(sth.SHA256RootHash[:], resp.SHA256RootHash)
 
@@ -137,10 +137,10 @@ func (c *LogClient) GetSTH() (sth *ct.SignedTreeHead, err error) {
 // Returns a slice of LeafInputs or a non-nil error.
 func (c *LogClient) GetEntries(start, end int64) ([]ct.LogEntry, error) {
 	if end < 0 {
-		return nil, errors.New("end should be >= 0")
+		return nil, errors.New("GetEntries: end should be >= 0")
 	}
 	if end < start {
-		return nil, errors.New("start should be <= end")
+		return nil, errors.New("GetEntries: start should be <= end")
 	}
 	var resp getEntriesResponse
 	err := c.fetchAndParse(fmt.Sprintf("%s%s?start=%d&end=%d", c.uri, GetEntriesPath, start, end), &resp)
@@ -151,7 +151,7 @@ func (c *LogClient) GetEntries(start, end int64) ([]ct.LogEntry, error) {
 	for index, entry := range resp.Entries {
 		leaf, err := ct.ReadMerkleTreeLeaf(bytes.NewBuffer(entry.LeafInput))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Reading Merkle Tree Leaf at index %d failed: %s", start + int64(index), err)
 		}
 		entries[index].LeafBytes = entry.LeafInput
 		entries[index].Leaf = *leaf
@@ -165,10 +165,10 @@ func (c *LogClient) GetEntries(start, end int64) ([]ct.LogEntry, error) {
 			chain, err = ct.UnmarshalPrecertChainArray(entry.ExtraData)
 
 		default:
-			return nil, fmt.Errorf("saw unknown entry type: %v", leaf.TimestampedEntry.EntryType)
+			return nil, fmt.Errorf("Unknown entry type at index %d: %v", start + int64(index), leaf.TimestampedEntry.EntryType)
 		}
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Parsing entry of type %d at index %d failed: %s", leaf.TimestampedEntry.EntryType, start + int64(index), err)
 		}
 		entries[index].Chain = chain
 		entries[index].Index = start + int64(index)
@@ -180,10 +180,10 @@ func (c *LogClient) GetEntries(start, end int64) ([]ct.LogEntry, error) {
 // from the log.  Returns a slice of MerkleTreeNodes (a ct.ConsistencyProof) or a non-nil error.
 func (c *LogClient) GetConsistencyProof(first, second int64) (ct.ConsistencyProof, error) {
 	if second < 0 {
-		return nil, errors.New("second should be >= 0")
+		return nil, errors.New("GetConsistencyProof: second should be >= 0")
 	}
 	if second < first {
-		return nil, errors.New("first should be <= second")
+		return nil, errors.New("GetConsistencyProof: first should be <= second")
 	}
 	var resp getConsistencyProofResponse
 	err := c.fetchAndParse(fmt.Sprintf("%s%s?first=%d&second=%d", c.uri, GetSTHConsistencyPath, first, second), &resp)
