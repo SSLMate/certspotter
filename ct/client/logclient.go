@@ -67,7 +67,7 @@ func New(uri string) *LogClient {
 	c.uri = uri
 	transport := &httpclient.Transport{
 		ConnectTimeout:        10 * time.Second,
-		RequestTimeout:        30 * time.Second,
+		RequestTimeout:        60 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,
 		MaxIdleConnsPerHost:   10,
 		DisableKeepAlives:     false,
