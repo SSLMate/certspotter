@@ -98,6 +98,8 @@ certificates are logged:
 	* Symantec <https://security.googleblog.com/2015/10/sustaining-digital-certificate-security.html>
 	* WoSign <https://www.wosign.com/english/News/2016_wosign_CT.htm>
 
+* All DV certificates issued by GlobalSign <https://www.globalsign.com/en/blog/google-updates-certificate-transparency-policy/>.
+
 * Certificates that are detected when crawling web pages and doing
   Internet-wide scans.
 
