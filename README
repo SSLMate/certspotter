@@ -103,9 +103,8 @@ certificates are logged:
 * Certificates that are detected when crawling web pages and doing
   Internet-wide scans.
 
-In the coming years more certificates will be logged as more CAs
-participate and as browsers begin requiring certificate transparency
-for all certificates.
+Starting from October 2017, all new certificates must be logged (and
+therefore detectable by Cert Spotter) to be trusted by Google Chrome.
 
 
 SECURITY
