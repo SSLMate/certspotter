@@ -28,7 +28,10 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 		return false, nil
 	}
 	if first.TreeSize == second.TreeSize {
-		return bytes.Equal(first.SHA256RootHash[:], second.SHA256RootHash[:]) && len(proof) == 0, nil
+		if !(bytes.Equal(first.SHA256RootHash[:], second.SHA256RootHash[:]) && len(proof) == 0) {
+			return false, nil
+		}
+		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{first.SHA256RootHash[:]}, size: 1}
 	}
 	if first.TreeSize == 0 {
 		// The purpose of the consistency proof is to ensure the append-only
