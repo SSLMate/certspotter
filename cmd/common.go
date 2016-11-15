@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -119,14 +120,13 @@ func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
 
 	var logs []certspotter.LogInfo
 	if *logsFilename != "" {
-		logFile, err := os.Open(*logsFilename)
+		logsJson, err := ioutil.ReadFile(*logsFilename)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error opening logs file for reading: %s: %s\n", os.Args[0], *logsFilename, err)
+			fmt.Fprintf(os.Stderr, "%s: Error reading logs file: %s: %s\n", os.Args[0], *logsFilename, err)
 			return 1
 		}
-		defer logFile.Close()
 		var logFileObj certspotter.LogInfoFile
-		if err := json.NewDecoder(logFile).Decode(&logFileObj); err != nil {
+		if err := json.Unmarshal(logsJson, &logFileObj); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: Error decoding logs file: %s: %s\n", os.Args[0], *logsFilename, err)
 			return 1
 		}
