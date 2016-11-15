@@ -109,6 +109,11 @@ func saveEvidence(logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.Sign
 	return firstFilename, secondFilename, proofFilename, nil
 }
 
+func fileExists (path string) bool {
+	_, err := os.Lstat(path)
+	return err == nil
+}
+
 func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
 	stateDir = argStateDir
 
@@ -131,6 +136,8 @@ func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
 	} else {
 		logs = certspotter.DefaultLogs
 	}
+
+	firstRun := !fileExists(filepath.Join(stateDir, "once"))
 
 	if err := os.Mkdir(stateDir, 0777); err != nil && !os.IsExist(err) {
 		fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], stateDir, err)
@@ -185,22 +192,26 @@ func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
 		}
 
 		if *verbose {
-			if prevSTH != nil {
+			if *allTime {
+				log.Printf("Scanning all %d entries in the log because -all_time option specified", latestSTH.TreeSize)
+			} else if prevSTH != nil {
 				log.Printf("Existing log; scanning %d new entries since previous scan (previous size %d, previous root hash = %x)", latestSTH.TreeSize-prevSTH.TreeSize, prevSTH.TreeSize, prevSTH.SHA256RootHash)
-			} else if *allTime {
-				log.Printf("new log; scanning all %d entries in the log", latestSTH.TreeSize)
+			} else if firstRun {
+				log.Printf("First run of Cert Spotter; not scanning %d existing entries because -all_time option not specified", latestSTH.TreeSize)
 			} else {
-				log.Printf("new log; not scanning existing entries because -all_time option not specified")
+				log.Printf("New log; scanning all %d entries in the log", latestSTH.TreeSize)
 			}
 		}
 
 		var startIndex uint64
-		if prevSTH != nil {
-			startIndex = prevSTH.TreeSize
-		} else if *allTime {
+		if *allTime {
 			startIndex = 0
-		} else {
+		} else if prevSTH != nil {
+			startIndex = prevSTH.TreeSize
+		} else if firstRun {
 			startIndex = latestSTH.TreeSize
+		} else {
+			startIndex = 0
 		}
 
 		if latestSTH.TreeSize > startIndex {
@@ -251,6 +262,13 @@ func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
 			log.Printf("Error writing state file: %s: %s\n", stateFilename, err)
 			exitCode |= 1
 			continue
+		}
+	}
+
+	if firstRun {
+		if err := ioutil.WriteFile(filepath.Join(stateDir, "once"), []byte{}, 0666); err != nil {
+			log.Printf("Error writing once file: %s\n", err)
+			exitCode |= 1
 		}
 	}
 

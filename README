@@ -72,7 +72,9 @@ COMMAND LINE FLAGS
   -no_save
 	Do not save a copy of matching certificates.
   -all_time
-	Scan certs from all time, not just since last scan.
+	Scan for certificates from all time, not just those added since
+	the last run of Cert Spotter.  Unless this option is specified,
+	no certificates are scanned the first time Cert Spotter is run.
   -logs FILENAME
 	JSON file containing logs to scan, in the format documented at
 	<https://www.certificate-transparency.org/known-logs>.
