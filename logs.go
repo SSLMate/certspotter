@@ -86,6 +86,30 @@ var DefaultLogs = []LogInfo{
 		Url: "ctserver.cnnic.cn",
 		MMD: 86400,
 	},
+	{
+		// 293c519654c83965baaa50fc5807d4b76fbf587a2972dca4c30cf4e54547f478
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETtK8v7MICve56qTHHDhhBOuV4IlUaESxZryCfk9QbG9co/CqPvTsgPDbCpp6oFtyAHwlDhnvr7JijXRD9Cb2FA=="),
+		Url: "ct.googleapis.com/icarus",
+		MMD: 86400,
+	},
+	{
+		// bbd9dfbc1f8a71b593942397aa927b473857950aab52e81a909664368e1ed185
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEmyGDvYXsRJsNyXSrYc9DjHsIa2xzb4UR7ZxVoV6mrc9iZB7xjI6+NrOiwH+P/xxkRmOFG6Jel20q37hTh58rA=="),
+		Url: "ct.googleapis.com/skydiver",
+		MMD: 86400,
+	},
+	{
+		// 34bb6ad6c3df9c03eea8a499ff7891486c9d5e5cac92d01f7bfd1bce19db48ef
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESPNZ8/YFGNPbsu1Gfs/IEbVXsajWTOaft0oaFIZDqUiwy1o/PErK38SCFFWa+PeOQFXc9NKv6nV0+05/YIYuUQ=="),
+		Url: "ct.startssl.com",
+		MMD: 86400,
+	},
+	{
+		// 41b2dc2e89e63ce4af1ba7bb29bf68c6dee6f9f1cc047e30dffae3b3ba259263
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzBGIey1my66PTTBmJxklIpMhRrQvAdPG+SvVyLpzmwai8IoCnNBrRhgwhbrpJIsO0VtwKAx+8TpFf1rzgkJgMQ=="),
+		Url: "ctlog.wosign.com",
+		MMD: 86400,
+	},
 }
 
 // Logs which monitor certs from distrusted roots
