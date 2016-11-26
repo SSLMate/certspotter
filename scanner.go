@@ -14,6 +14,7 @@ package certspotter
 
 import (
 	//	"container/list"
+	"bytes"
 	"crypto"
 	"errors"
 	"fmt"
@@ -230,6 +231,40 @@ func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTr
 
 	valid, treeBuilder := VerifyConsistencyProof(proof, first, second)
 	return valid, treeBuilder, proof, nil
+}
+
+func (s *Scanner) MakeMerkleTreeBuilder(sth *ct.SignedTreeHead) (*MerkleTreeBuilder, error) {
+	if sth.TreeSize == 0 {
+		return &MerkleTreeBuilder{}, nil
+	}
+
+	entries, err := s.logClient.GetEntries(int64(sth.TreeSize - 1), int64(sth.TreeSize - 1))
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("Log did not return entry %d", sth.TreeSize - 1)
+	}
+	leafHash := hashLeaf(entries[0].LeafBytes)
+
+	var builder *MerkleTreeBuilder
+	if sth.TreeSize > 1 {
+		auditPath, _, err := s.logClient.GetAuditProof(leafHash, sth.TreeSize)
+		if err != nil {
+			return nil, err
+		}
+		reverseHashes(auditPath)
+		builder = &MerkleTreeBuilder{size: sth.TreeSize - 1, stack: auditPath}
+	} else {
+		builder = &MerkleTreeBuilder{size: 0}
+	}
+
+	builder.Add(leafHash)
+	if !bytes.Equal(builder.CalculateRoot(), sth.SHA256RootHash[:]) {
+		return nil, fmt.Errorf("Calculated root hash does not match signed tree head at size %d", sth.TreeSize)
+	}
+
+	return builder, nil
 }
 
 func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, treeBuilder *MerkleTreeBuilder) error {
