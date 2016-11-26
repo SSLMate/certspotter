@@ -6,11 +6,13 @@ package client
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/mreiferson/go-httpclient"
@@ -22,6 +24,7 @@ const (
 	GetSTHPath            = "/ct/v1/get-sth"
 	GetEntriesPath        = "/ct/v1/get-entries"
 	GetSTHConsistencyPath = "/ct/v1/get-sth-consistency"
+	GetProofByHashPath    = "/ct/v1/get-proof-by-hash"
 )
 
 // LogClient represents a client for a given CT Log instance
@@ -57,6 +60,12 @@ type getEntriesResponse struct {
 // getConsistencyProofResponse represents the JSON response to the CT get-consistency-proof method
 type getConsistencyProofResponse struct {
 	Consistency [][]byte `json:"consistency"`
+}
+
+// getAuditProofResponse represents the JSON response to the CT get-proof-by-hash method
+type getAuditProofResponse struct {
+	LeafIndex uint64 `json:"leaf_index"`
+	AuditPath [][]byte `json:"audit_path"`
 }
 
 // New constructs a new LogClient instance.
@@ -195,4 +204,20 @@ func (c *LogClient) GetConsistencyProof(first, second int64) (ct.ConsistencyProo
 		nodes[index] = nodeBytes
 	}
 	return nodes, nil
+}
+
+// GetAuditProof retrieves a Merkle Audit Proof (aka Inclusion Proof) for the given
+// |hash| based on the STH at |treeSize| from the log.  Returns a slice of MerkleTreeNodes
+// and the index of the leaf.
+func (c *LogClient) GetAuditProof(hash ct.MerkleTreeNode, treeSize uint64) (ct.AuditPath, uint64, error) {
+	var resp getAuditProofResponse
+	err := c.fetchAndParse(fmt.Sprintf("%s%s?hash=%s&tree_size=%d", c.uri, GetProofByHashPath, url.QueryEscape(base64.StdEncoding.EncodeToString(hash)), treeSize), &resp)
+	if err != nil {
+		return nil, 0, err
+	}
+	path := make([]ct.MerkleTreeNode, len(resp.AuditPath))
+	for index, nodeBytes := range resp.AuditPath {
+		path[index] = nodeBytes
+	}
+	return path, resp.LeafIndex, nil
 }
