@@ -246,7 +246,7 @@ func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
 				continue
 			}
 
-			rootHash := treeBuilder.Finish()
+			rootHash := treeBuilder.CalculateRoot()
 			if !bytes.Equal(rootHash, latestSTH.SHA256RootHash[:]) {
 				log.Printf("Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s).  If this error persists for an extended period, it should be construed as misbehavior by the log.\n", rootHash, latestSTH.SHA256RootHash)
 				exitCode |= 8

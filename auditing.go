@@ -147,14 +147,15 @@ func (builder *MerkleTreeBuilder) Add(hash ct.MerkleTreeNode) {
 	}
 }
 
-func (builder *MerkleTreeBuilder) Finish() ct.MerkleTreeNode {
+func (builder *MerkleTreeBuilder) CalculateRoot() ct.MerkleTreeNode {
 	if len(builder.stack) == 0 {
-		panic("MerkleTreeBuilder.Finish called on an empty tree")
+		panic("MerkleTreeBuilder.CalculateRoot called on an empty tree")
 	}
-	for len(builder.stack) > 1 {
-		left, right := builder.stack[len(builder.stack)-2], builder.stack[len(builder.stack)-1]
-		builder.stack = builder.stack[:len(builder.stack)-2]
-		builder.stack = append(builder.stack, hashChildren(left, right))
+	i := len(builder.stack) - 1
+	hash := builder.stack[i]
+	for i > 0 {
+		i -= 1
+		hash = hashChildren(builder.stack[i], hash)
 	}
-	return builder.stack[0]
+	return hash
 }
