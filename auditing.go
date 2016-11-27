@@ -22,6 +22,7 @@ func reverseHashes(hashes []ct.MerkleTreeNode) {
 	}
 }
 
+// TODO: drop the MerkleTreeBuilder return value
 func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, *MerkleTreeBuilder) {
 	if second.TreeSize < first.TreeSize {
 		// Can't be consistent if tree got smaller
