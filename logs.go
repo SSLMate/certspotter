@@ -11,6 +11,7 @@ package certspotter
 
 import (
 	"crypto"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 )
@@ -35,6 +36,11 @@ func (info *LogInfo) ParsedPublicKey() (crypto.PublicKey, error) {
 	} else {
 		return nil, nil
 	}
+}
+
+func (info *LogInfo) ID() []byte {
+	sum := sha256.Sum256(info.Key)
+	return sum[:]
 }
 
 var DefaultLogs = []LogInfo{
