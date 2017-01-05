@@ -254,9 +254,9 @@ func (s *Scanner) MakeMerkleTreeBuilder(sth *ct.SignedTreeHead) (*MerkleTreeBuil
 			return nil, err
 		}
 		reverseHashes(auditPath)
-		builder = &MerkleTreeBuilder{size: sth.TreeSize - 1, stack: auditPath}
+		builder = &MerkleTreeBuilder{numLeaves: sth.TreeSize - 1, stack: auditPath}
 	} else {
-		builder = &MerkleTreeBuilder{size: 0}
+		builder = &MerkleTreeBuilder{numLeaves: 0}
 	}
 
 	builder.Add(leafHash)

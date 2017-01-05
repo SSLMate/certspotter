@@ -33,7 +33,7 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 		if !(bytes.Equal(first.SHA256RootHash[:], second.SHA256RootHash[:]) && len(proof) == 0) {
 			return false, nil
 		}
-		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{first.SHA256RootHash[:]}, size: 1}
+		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{first.SHA256RootHash[:]}, numLeaves: 1}
 	}
 	if first.TreeSize == 0 {
 		// The purpose of the consistency proof is to ensure the append-only
@@ -43,7 +43,7 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 		if len(proof) != 0 {
 			return false, nil
 		}
-		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{}, size: 0}
+		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{}, numLeaves: 0}
 	}
 	// Guaranteed that 0 < first.TreeSize < second.TreeSize
 
@@ -114,7 +114,7 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 
 	reverseHashes(leftHashes)
 
-	return true, &MerkleTreeBuilder{stack: leftHashes, size: first.TreeSize}
+	return true, &MerkleTreeBuilder{stack: leftHashes, numLeaves: first.TreeSize}
 }
 
 func hashNothing() ct.MerkleTreeNode {
@@ -138,18 +138,18 @@ func hashChildren(left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTree
 
 type MerkleTreeBuilder struct {
 	stack []ct.MerkleTreeNode
-	size  uint64 // number of hashes added so far
+	numLeaves  uint64 // number of hashes added so far
 }
 
 func (builder *MerkleTreeBuilder) Add(hash ct.MerkleTreeNode) {
 	builder.stack = append(builder.stack, hash)
-	builder.size++
-	size := builder.size
-	for size%2 == 0 {
+	builder.numLeaves++
+	numLeaves := builder.numLeaves
+	for numLeaves%2 == 0 {
 		left, right := builder.stack[len(builder.stack)-2], builder.stack[len(builder.stack)-1]
 		builder.stack = builder.stack[:len(builder.stack)-2]
 		builder.stack = append(builder.stack, hashChildren(left, right))
-		size /= 2
+		numLeaves /= 2
 	}
 }
 
