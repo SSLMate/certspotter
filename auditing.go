@@ -116,6 +116,10 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 	return true, &MerkleTreeBuilder{stack: leftHashes, size: first.TreeSize}
 }
 
+func hashNothing() ct.MerkleTreeNode {
+	return sha256.New().Sum(nil)
+}
+
 func hashLeaf(leafBytes []byte) ct.MerkleTreeNode {
 	hasher := sha256.New()
 	hasher.Write([]byte{0x00})
@@ -150,7 +154,7 @@ func (builder *MerkleTreeBuilder) Add(hash ct.MerkleTreeNode) {
 
 func (builder *MerkleTreeBuilder) CalculateRoot() ct.MerkleTreeNode {
 	if len(builder.stack) == 0 {
-		panic("MerkleTreeBuilder.CalculateRoot called on an empty tree")
+		return hashNothing()
 	}
 	i := len(builder.stack) - 1
 	hash := builder.stack[i]
