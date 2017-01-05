@@ -184,3 +184,7 @@ func (builder *MerkleTreeBuilder) CalculateRoot() ct.MerkleTreeNode {
 	}
 	return hash
 }
+
+func (builder *MerkleTreeBuilder) GetNumLeaves() uint64 {
+	return builder.numLeaves
+}
