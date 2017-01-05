@@ -254,9 +254,12 @@ func (s *Scanner) MakeMerkleTreeBuilder(sth *ct.SignedTreeHead) (*MerkleTreeBuil
 			return nil, err
 		}
 		reverseHashes(auditPath)
-		builder = &MerkleTreeBuilder{numLeaves: sth.TreeSize - 1, stack: auditPath}
+		builder, err = NewMerkleTreeBuilder(auditPath, sth.TreeSize - 1)
+		if err != nil {
+			return nil, fmt.Errorf("Error returned bad audit proof for %x to %d", leafHash, sth.TreeSize)
+		}
 	} else {
-		builder = &MerkleTreeBuilder{numLeaves: 0}
+		builder = EmptyMerkleTreeBuilder()
 	}
 
 	builder.Add(leafHash)

@@ -12,6 +12,7 @@ package certspotter
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"software.sslmate.com/src/certspotter/ct"
 )
 
@@ -139,6 +140,24 @@ func hashChildren(left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTree
 type MerkleTreeBuilder struct {
 	stack []ct.MerkleTreeNode
 	numLeaves  uint64 // number of hashes added so far
+}
+
+func calculateStackSize (numLeaves uint64) int {
+	stackSize := 0
+	for numLeaves > 0 {
+		stackSize += int(numLeaves & 1)
+		numLeaves >>= 1
+	}
+	return stackSize
+}
+func EmptyMerkleTreeBuilder () *MerkleTreeBuilder {
+	return &MerkleTreeBuilder{}
+}
+func NewMerkleTreeBuilder (stack []ct.MerkleTreeNode, numLeaves uint64) (*MerkleTreeBuilder, error) {
+	if len(stack) != calculateStackSize(numLeaves) {
+		return nil, errors.New("NewMerkleTreeBuilder: incorrect stack size")
+	}
+	return &MerkleTreeBuilder{stack: stack, numLeaves: numLeaves}, nil
 }
 
 func (builder *MerkleTreeBuilder) Add(hash ct.MerkleTreeNode) {
