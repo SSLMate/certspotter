@@ -12,6 +12,7 @@ package certspotter
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"software.sslmate.com/src/certspotter/ct"
 )
@@ -187,4 +188,27 @@ func (builder *MerkleTreeBuilder) CalculateRoot() ct.MerkleTreeNode {
 
 func (builder *MerkleTreeBuilder) GetNumLeaves() uint64 {
 	return builder.numLeaves
+}
+
+func (builder *MerkleTreeBuilder) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"stack": builder.stack,
+		"num_leaves": builder.numLeaves,
+	})
+}
+
+func (builder *MerkleTreeBuilder) UnmarshalJSON(b []byte) error {
+	var rawBuilder struct {
+		Stack []ct.MerkleTreeNode `json:"stack"`
+		NumLeaves uint64 `json:"num_leaves"`
+	}
+	if err := json.Unmarshal(b, &rawBuilder); err != nil {
+		return errors.New("Failed to unmarshal MerkleTreeBuilder: " + err.Error())
+	}
+	if len(rawBuilder.Stack) != calculateStackSize(rawBuilder.NumLeaves) {
+		return errors.New("Failed to unmarshal MerkleTreeBuilder: invalid stack size")
+	}
+	builder.numLeaves = rawBuilder.NumLeaves
+	builder.stack = rawBuilder.Stack
+	return nil
 }
