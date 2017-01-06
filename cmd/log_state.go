@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"software.sslmate.com/src/certspotter"
@@ -31,15 +32,13 @@ func sthFilename (sth *ct.SignedTreeHead) string {
 	hasher := sha256.New()
 	switch sth.Version {
 	case ct.V1:
-		binary.Write(hasher, binary.LittleEndian, sth.Version)
-		binary.Write(hasher, binary.LittleEndian, sth.TreeSize)
 		binary.Write(hasher, binary.LittleEndian, sth.Timestamp)
 		binary.Write(hasher, binary.LittleEndian, sth.SHA256RootHash)
 	default:
 		panic(fmt.Sprintf("Unsupported STH version %d", sth.Version))
 	}
 	// For 6962-bis, we will need to handle a variable-length root hash, and include the signature in the filename hash (since signatures must be deterministic)
-	return base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
+	return strconv.FormatUint(sth.TreeSize, 10) + "-" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
 }
 
 func makeLogStateDir (logStatePath string) error {
