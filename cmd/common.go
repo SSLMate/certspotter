@@ -222,7 +222,7 @@ func (ctlog *logHandle) audit () error {
 }
 
 func (ctlog *logHandle) scan (processCallback certspotter.ProcessCallback) error {
-	startIndex := int64(ctlog.position.GetNumLeaves())
+	startIndex := int64(ctlog.position.GetSize())
 	endIndex := int64(ctlog.verifiedSTH.TreeSize)
 
 	if endIndex > startIndex {
@@ -272,7 +272,7 @@ func processLog(logInfo* certspotter.LogInfo, processCallback certspotter.Proces
 		}
 	} else if ctlog.position != nil {
 		if *verbose {
-			log.Printf("Existing log; scanning %d new entries since previous scan", ctlog.verifiedSTH.TreeSize-ctlog.position.GetNumLeaves())
+			log.Printf("Existing log; scanning %d new entries since previous scan", ctlog.verifiedSTH.TreeSize-ctlog.position.GetSize())
 		}
 	} else if state.IsFirstRun() {
 		ctlog.position, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
