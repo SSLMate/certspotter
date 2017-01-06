@@ -154,6 +154,11 @@ func NewMerkleTreeBuilder (stack []ct.MerkleTreeNode, numLeaves uint64) (*Merkle
 	}
 	return &MerkleTreeBuilder{stack: stack, numLeaves: numLeaves}, nil
 }
+func CloneMerkleTreeBuilder (source *MerkleTreeBuilder) *MerkleTreeBuilder {
+	stack := make([]ct.MerkleTreeNode, len(source.stack))
+	copy(stack, source.stack)
+	return &MerkleTreeBuilder{stack: stack, numLeaves: source.numLeaves}
+}
 
 func (builder *MerkleTreeBuilder) Add(hash ct.MerkleTreeNode) {
 	builder.stack = append(builder.stack, hash)

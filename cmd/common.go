@@ -226,8 +226,7 @@ func (ctlog *logHandle) scan (processCallback certspotter.ProcessCallback) error
 	endIndex := int64(ctlog.verifiedSTH.TreeSize)
 
 	if endIndex > startIndex {
-		treeBuilder := ctlog.position
-		ctlog.position = nil
+		treeBuilder := certspotter.CloneMerkleTreeBuilder(ctlog.position)
 
 		if err := ctlog.scanner.Scan(startIndex, endIndex, processCallback, treeBuilder); err != nil {
 			return fmt.Errorf("Error scanning log (if this error persists, it should be construed as misbehavior by the log): %s", err)
@@ -239,10 +238,9 @@ func (ctlog *logHandle) scan (processCallback certspotter.ProcessCallback) error
 		}
 
 		ctlog.position = treeBuilder
-	}
-
-	if err := ctlog.state.StoreLogPosition(ctlog.position); err != nil {
-		return fmt.Errorf("Error storing log position: %s", err)
+		if err := ctlog.state.StoreLogPosition(ctlog.position); err != nil {
+			return fmt.Errorf("Error storing log position: %s", err)
+		}
 	}
 
 	return nil
@@ -290,6 +288,10 @@ func processLog(logInfo* certspotter.LogInfo, processCallback certspotter.Proces
 		if *verbose {
 			log.Printf("New log; scanning all %d entries in the log", ctlog.verifiedSTH.TreeSize)
 		}
+	}
+	if err := ctlog.state.StoreLogPosition(ctlog.position); err != nil {
+		log.Printf("Error storing log position: %s\n", err)
+		return 1
 	}
 
 	if err := ctlog.scan(processCallback); err != nil {
