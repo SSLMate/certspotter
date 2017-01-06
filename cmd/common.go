@@ -97,7 +97,7 @@ func loadLogList () ([]certspotter.LogInfo, error) {
 type logHandle struct {
 	scanner		*certspotter.Scanner
 	state		*LogState
-	position	*certspotter.MerkleTreeBuilder
+	position	*certspotter.CollapsedMerkleTree
 	verifiedSTH	*ct.SignedTreeHead
 }
 
@@ -134,7 +134,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 		}
 		if legacySTH != nil {
 			log.Printf("Initializing log state from legacy state directory")
-			ctlog.position, err = ctlog.scanner.MakeMerkleTreeBuilder(legacySTH)
+			ctlog.position, err = ctlog.scanner.MakeCollapsedMerkleTree(legacySTH)
 			if err != nil {
 				return nil, fmt.Errorf("Error reconstructing Merkle Tree for legacy STH: %s", err)
 			}
@@ -226,18 +226,18 @@ func (ctlog *logHandle) scan (processCallback certspotter.ProcessCallback) error
 	endIndex := int64(ctlog.verifiedSTH.TreeSize)
 
 	if endIndex > startIndex {
-		treeBuilder := certspotter.CloneMerkleTreeBuilder(ctlog.position)
+		tree := certspotter.CloneCollapsedMerkleTree(ctlog.position)
 
-		if err := ctlog.scanner.Scan(startIndex, endIndex, processCallback, treeBuilder); err != nil {
+		if err := ctlog.scanner.Scan(startIndex, endIndex, processCallback, tree); err != nil {
 			return fmt.Errorf("Error scanning log (if this error persists, it should be construed as misbehavior by the log): %s", err)
 		}
 
-		rootHash := treeBuilder.CalculateRoot()
+		rootHash := tree.CalculateRoot()
 		if !bytes.Equal(rootHash, ctlog.verifiedSTH.SHA256RootHash[:]) {
 			return fmt.Errorf("Log has misbehaved: log entries at tree size %d do not correspond to signed tree root", ctlog.verifiedSTH.TreeSize)
 		}
 
-		ctlog.position = treeBuilder
+		ctlog.position = tree
 		if err := ctlog.state.StoreLogPosition(ctlog.position); err != nil {
 			return fmt.Errorf("Error storing log position: %s", err)
 		}
@@ -266,7 +266,7 @@ func processLog(logInfo* certspotter.LogInfo, processCallback certspotter.Proces
 	}
 
 	if *allTime {
-		ctlog.position = certspotter.EmptyMerkleTreeBuilder()
+		ctlog.position = certspotter.EmptyCollapsedMerkleTree()
 		if *verbose {
 			log.Printf("Scanning all %d entries in the log because -all_time option specified", ctlog.verifiedSTH.TreeSize)
 		}
@@ -275,7 +275,7 @@ func processLog(logInfo* certspotter.LogInfo, processCallback certspotter.Proces
 			log.Printf("Existing log; scanning %d new entries since previous scan", ctlog.verifiedSTH.TreeSize-ctlog.position.GetNumLeaves())
 		}
 	} else if state.IsFirstRun() {
-		ctlog.position, err = ctlog.scanner.MakeMerkleTreeBuilder(ctlog.verifiedSTH)
+		ctlog.position, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
 		if err != nil {
 			log.Printf("Error reconstructing Merkle Tree: %s", err)
 			return 1
@@ -284,7 +284,7 @@ func processLog(logInfo* certspotter.LogInfo, processCallback certspotter.Proces
 			log.Printf("First run of Cert Spotter; not scanning %d existing entries because -all_time option not specified", ctlog.verifiedSTH.TreeSize)
 		}
 	} else {
-		ctlog.position = certspotter.EmptyMerkleTreeBuilder()
+		ctlog.position = certspotter.EmptyCollapsedMerkleTree()
 		if *verbose {
 			log.Printf("New log; scanning all %d entries in the log", ctlog.verifiedSTH.TreeSize)
 		}

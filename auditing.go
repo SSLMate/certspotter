@@ -132,7 +132,7 @@ func hashChildren(left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTree
 	return hasher.Sum(nil)
 }
 
-type MerkleTreeBuilder struct {
+type CollapsedMerkleTree struct {
 	stack []ct.MerkleTreeNode
 	numLeaves  uint64 // number of hashes added so far
 }
@@ -145,69 +145,69 @@ func calculateStackSize (numLeaves uint64) int {
 	}
 	return stackSize
 }
-func EmptyMerkleTreeBuilder () *MerkleTreeBuilder {
-	return &MerkleTreeBuilder{}
+func EmptyCollapsedMerkleTree () *CollapsedMerkleTree {
+	return &CollapsedMerkleTree{}
 }
-func NewMerkleTreeBuilder (stack []ct.MerkleTreeNode, numLeaves uint64) (*MerkleTreeBuilder, error) {
+func NewCollapsedMerkleTree (stack []ct.MerkleTreeNode, numLeaves uint64) (*CollapsedMerkleTree, error) {
 	if len(stack) != calculateStackSize(numLeaves) {
-		return nil, errors.New("NewMerkleTreeBuilder: incorrect stack size")
+		return nil, errors.New("NewCollapsedMerkleTree: incorrect stack size")
 	}
-	return &MerkleTreeBuilder{stack: stack, numLeaves: numLeaves}, nil
+	return &CollapsedMerkleTree{stack: stack, numLeaves: numLeaves}, nil
 }
-func CloneMerkleTreeBuilder (source *MerkleTreeBuilder) *MerkleTreeBuilder {
+func CloneCollapsedMerkleTree (source *CollapsedMerkleTree) *CollapsedMerkleTree {
 	stack := make([]ct.MerkleTreeNode, len(source.stack))
 	copy(stack, source.stack)
-	return &MerkleTreeBuilder{stack: stack, numLeaves: source.numLeaves}
+	return &CollapsedMerkleTree{stack: stack, numLeaves: source.numLeaves}
 }
 
-func (builder *MerkleTreeBuilder) Add(hash ct.MerkleTreeNode) {
-	builder.stack = append(builder.stack, hash)
-	builder.numLeaves++
-	numLeaves := builder.numLeaves
+func (tree *CollapsedMerkleTree) Add(hash ct.MerkleTreeNode) {
+	tree.stack = append(tree.stack, hash)
+	tree.numLeaves++
+	numLeaves := tree.numLeaves
 	for numLeaves%2 == 0 {
-		left, right := builder.stack[len(builder.stack)-2], builder.stack[len(builder.stack)-1]
-		builder.stack = builder.stack[:len(builder.stack)-2]
-		builder.stack = append(builder.stack, hashChildren(left, right))
+		left, right := tree.stack[len(tree.stack)-2], tree.stack[len(tree.stack)-1]
+		tree.stack = tree.stack[:len(tree.stack)-2]
+		tree.stack = append(tree.stack, hashChildren(left, right))
 		numLeaves /= 2
 	}
 }
 
-func (builder *MerkleTreeBuilder) CalculateRoot() ct.MerkleTreeNode {
-	if len(builder.stack) == 0 {
+func (tree *CollapsedMerkleTree) CalculateRoot() ct.MerkleTreeNode {
+	if len(tree.stack) == 0 {
 		return hashNothing()
 	}
-	i := len(builder.stack) - 1
-	hash := builder.stack[i]
+	i := len(tree.stack) - 1
+	hash := tree.stack[i]
 	for i > 0 {
 		i -= 1
-		hash = hashChildren(builder.stack[i], hash)
+		hash = hashChildren(tree.stack[i], hash)
 	}
 	return hash
 }
 
-func (builder *MerkleTreeBuilder) GetNumLeaves() uint64 {
-	return builder.numLeaves
+func (tree *CollapsedMerkleTree) GetNumLeaves() uint64 {
+	return tree.numLeaves
 }
 
-func (builder *MerkleTreeBuilder) MarshalJSON() ([]byte, error) {
+func (tree *CollapsedMerkleTree) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"stack": builder.stack,
-		"num_leaves": builder.numLeaves,
+		"stack": tree.stack,
+		"num_leaves": tree.numLeaves,
 	})
 }
 
-func (builder *MerkleTreeBuilder) UnmarshalJSON(b []byte) error {
-	var rawBuilder struct {
+func (tree *CollapsedMerkleTree) UnmarshalJSON(b []byte) error {
+	var rawTree struct {
 		Stack []ct.MerkleTreeNode `json:"stack"`
 		NumLeaves uint64 `json:"num_leaves"`
 	}
-	if err := json.Unmarshal(b, &rawBuilder); err != nil {
-		return errors.New("Failed to unmarshal MerkleTreeBuilder: " + err.Error())
+	if err := json.Unmarshal(b, &rawTree); err != nil {
+		return errors.New("Failed to unmarshal CollapsedMerkleTree: " + err.Error())
 	}
-	if len(rawBuilder.Stack) != calculateStackSize(rawBuilder.NumLeaves) {
-		return errors.New("Failed to unmarshal MerkleTreeBuilder: invalid stack size")
+	if len(rawTree.Stack) != calculateStackSize(rawTree.NumLeaves) {
+		return errors.New("Failed to unmarshal CollapsedMerkleTree: invalid stack size")
 	}
-	builder.numLeaves = rawBuilder.NumLeaves
-	builder.stack = rawBuilder.Stack
+	tree.numLeaves = rawTree.NumLeaves
+	tree.stack = rawTree.Stack
 	return nil
 }

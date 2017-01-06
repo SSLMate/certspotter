@@ -91,7 +91,7 @@ func (s *Scanner) processerJob(id int, entries <-chan ct.LogEntry, processCert P
 	wg.Done()
 }
 
-func (s *Scanner) fetch(r fetchRange, entries chan<- ct.LogEntry, treeBuilder *MerkleTreeBuilder) error {
+func (s *Scanner) fetch(r fetchRange, entries chan<- ct.LogEntry, tree *CollapsedMerkleTree) error {
 	success := false
 	retries := FETCH_RETRIES
 	retryWait := FETCH_RETRY_WAIT
@@ -113,8 +113,8 @@ func (s *Scanner) fetch(r fetchRange, entries chan<- ct.LogEntry, treeBuilder *M
 		retries = FETCH_RETRIES
 		retryWait = FETCH_RETRY_WAIT
 		for _, logEntry := range logEntries {
-			if treeBuilder != nil {
-				treeBuilder.Add(hashLeaf(logEntry.LeafBytes))
+			if tree != nil {
+				tree.Add(hashLeaf(logEntry.LeafBytes))
 			}
 			logEntry.Index = r.start
 			entries <- logEntry
@@ -234,9 +234,9 @@ func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTr
 	return VerifyConsistencyProof(proof, first, second), nil
 }
 
-func (s *Scanner) MakeMerkleTreeBuilder(sth *ct.SignedTreeHead) (*MerkleTreeBuilder, error) {
+func (s *Scanner) MakeCollapsedMerkleTree(sth *ct.SignedTreeHead) (*CollapsedMerkleTree, error) {
 	if sth.TreeSize == 0 {
-		return &MerkleTreeBuilder{}, nil
+		return &CollapsedMerkleTree{}, nil
 	}
 
 	entries, err := s.logClient.GetEntries(int64(sth.TreeSize - 1), int64(sth.TreeSize - 1))
@@ -248,30 +248,30 @@ func (s *Scanner) MakeMerkleTreeBuilder(sth *ct.SignedTreeHead) (*MerkleTreeBuil
 	}
 	leafHash := hashLeaf(entries[0].LeafBytes)
 
-	var builder *MerkleTreeBuilder
+	var tree *CollapsedMerkleTree
 	if sth.TreeSize > 1 {
 		auditPath, _, err := s.logClient.GetAuditProof(leafHash, sth.TreeSize)
 		if err != nil {
 			return nil, err
 		}
 		reverseHashes(auditPath)
-		builder, err = NewMerkleTreeBuilder(auditPath, sth.TreeSize - 1)
+		tree, err = NewCollapsedMerkleTree(auditPath, sth.TreeSize - 1)
 		if err != nil {
 			return nil, fmt.Errorf("Error returned bad audit proof for %x to %d", leafHash, sth.TreeSize)
 		}
 	} else {
-		builder = EmptyMerkleTreeBuilder()
+		tree = EmptyCollapsedMerkleTree()
 	}
 
-	builder.Add(leafHash)
-	if !bytes.Equal(builder.CalculateRoot(), sth.SHA256RootHash[:]) {
+	tree.Add(leafHash)
+	if !bytes.Equal(tree.CalculateRoot(), sth.SHA256RootHash[:]) {
 		return nil, fmt.Errorf("Calculated root hash does not match signed tree head at size %d", sth.TreeSize)
 	}
 
-	return builder, nil
+	return tree, nil
 }
 
-func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, treeBuilder *MerkleTreeBuilder) error {
+func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, tree *CollapsedMerkleTree) error {
 	s.Log("Starting scan...")
 
 	s.certsProcessed = 0
@@ -300,7 +300,7 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 
 	for start := startIndex; start < int64(endIndex); {
 		end := min(start+int64(s.opts.BatchSize), int64(endIndex)) - 1
-		if err := s.fetch(fetchRange{start, end}, jobs, treeBuilder); err != nil {
+		if err := s.fetch(fetchRange{start, end}, jobs, tree); err != nil {
 			return err
 		}
 		start = end + 1
