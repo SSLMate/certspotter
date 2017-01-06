@@ -327,8 +327,8 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 	}
 
 	if state.IsFirstRun() && exitCode == 0 {
-		if err := state.Finish(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error finalizing state: %s\n", os.Args[0], err)
+		if err := state.WriteOnceFile(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: Error writing once file: %s\n", os.Args[0], err)
 			exitCode |= 1
 		}
 	}

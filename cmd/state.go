@@ -116,7 +116,7 @@ func (state *State) IsFirstRun() bool {
 	return !fileExists(filepath.Join(state.path, "once"))
 }
 
-func (state *State) Finish() error {
+func (state *State) WriteOnceFile() error {
 	if err := ioutil.WriteFile(filepath.Join(state.path, "once"), []byte{}, 0666); err != nil {
 		return fmt.Errorf("Error writing once file: %s", err)
 	}
