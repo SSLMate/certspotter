@@ -24,18 +24,17 @@ func reverseHashes(hashes []ct.MerkleTreeNode) {
 	}
 }
 
-// TODO: drop the MerkleTreeBuilder return value
-func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, *MerkleTreeBuilder) {
+func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead, second *ct.SignedTreeHead) bool {
 	// TODO: make sure every hash in proof is right length? otherwise input to hashChildren is ambiguous
 	if second.TreeSize < first.TreeSize {
 		// Can't be consistent if tree got smaller
-		return false, nil
+		return false
 	}
 	if first.TreeSize == second.TreeSize {
 		if !(bytes.Equal(first.SHA256RootHash[:], second.SHA256RootHash[:]) && len(proof) == 0) {
-			return false, nil
+			return false
 		}
-		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{first.SHA256RootHash[:]}, numLeaves: 1}
+		return true
 	}
 	if first.TreeSize == 0 {
 		// The purpose of the consistency proof is to ensure the append-only
@@ -43,9 +42,9 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 		// second tree.  If the first tree is empty, then it's trivially a prefix
 		// of the second tree, so no proof is needed.
 		if len(proof) != 0 {
-			return false, nil
+			return false
 		}
-		return true, &MerkleTreeBuilder{stack: []ct.MerkleTreeNode{}, numLeaves: 0}
+		return true
 	}
 	// Guaranteed that 0 < first.TreeSize < second.TreeSize
 
@@ -58,12 +57,11 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 		lastNode /= 2
 	}
 
-	var leftHashes []ct.MerkleTreeNode
 	var newHash ct.MerkleTreeNode
 	var oldHash ct.MerkleTreeNode
 	if node > 0 {
 		if len(proof) == 0 {
-			return false, nil
+			return false
 		}
 		newHash = proof[0]
 		proof = proof[1:]
@@ -72,22 +70,20 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 		newHash = first.SHA256RootHash[:]
 	}
 	oldHash = newHash
-	leftHashes = append(leftHashes, newHash)
 
 	for node > 0 {
 		if node%2 == 1 {
 			// node is a right child; left sibling exists in both trees
 			if len(proof) == 0 {
-				return false, nil
+				return false
 			}
 			newHash = hashChildren(proof[0], newHash)
 			oldHash = hashChildren(proof[0], oldHash)
-			leftHashes = append(leftHashes, proof[0])
 			proof = proof[1:]
 		} else if node < lastNode {
 			// node is a left child; rigth sibling only exists in the new tree
 			if len(proof) == 0 {
-				return false, nil
+				return false
 			}
 			newHash = hashChildren(newHash, proof[0])
 			proof = proof[1:]
@@ -97,13 +93,13 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 	}
 
 	if !bytes.Equal(oldHash, first.SHA256RootHash[:]) {
-		return false, nil
+		return false
 	}
 
 	// If trees have different height, continue up the path to reach the new root
 	for lastNode > 0 {
 		if len(proof) == 0 {
-			return false, nil
+			return false
 		}
 		newHash = hashChildren(newHash, proof[0])
 		proof = proof[1:]
@@ -111,12 +107,10 @@ func VerifyConsistencyProof(proof ct.ConsistencyProof, first *ct.SignedTreeHead,
 	}
 
 	if !bytes.Equal(newHash, second.SHA256RootHash[:]) {
-		return false, nil
+		return false
 	}
 
-	reverseHashes(leftHashes)
-
-	return true, &MerkleTreeBuilder{stack: leftHashes, numLeaves: first.TreeSize}
+	return true
 }
 
 func hashNothing() ct.MerkleTreeNode {

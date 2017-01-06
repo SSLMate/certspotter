@@ -176,7 +176,7 @@ func (ctlog *logHandle) audit () error {
 
 	for _, sth := range sths {
 		if sth.TreeSize > ctlog.verifiedSTH.TreeSize {
-			isValid, _, _, err := ctlog.scanner.CheckConsistency(ctlog.verifiedSTH, sth)
+			isValid, err := ctlog.scanner.CheckConsistency(ctlog.verifiedSTH, sth)
 			if err != nil {
 				return fmt.Errorf("Error fetching consistency proof between %d and %d (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.verifiedSTH.TreeSize, sth.TreeSize, err)
 			}
@@ -188,7 +188,7 @@ func (ctlog *logHandle) audit () error {
 				return fmt.Errorf("Error storing verified STH: %s", err)
 			}
 		} else if sth.TreeSize < ctlog.verifiedSTH.TreeSize {
-			isValid, _, _, err := ctlog.scanner.CheckConsistency(sth, ctlog.verifiedSTH)
+			isValid, err := ctlog.scanner.CheckConsistency(sth, ctlog.verifiedSTH)
 			if err != nil {
 				return fmt.Errorf("Error fetching consistency proof between %d and %d (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.verifiedSTH.TreeSize, sth.TreeSize, err)
 			}

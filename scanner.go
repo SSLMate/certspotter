@@ -211,12 +211,12 @@ func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
 	return latestSth, nil
 }
 
-func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, *MerkleTreeBuilder, ct.ConsistencyProof, error) {
+func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, error) {
 	var proof ct.ConsistencyProof
 
 	if first.TreeSize > second.TreeSize {
 		// No way this can be valid
-		return false, nil, nil, nil
+		return false, nil
 	} else if first.TreeSize == second.TreeSize {
 		// The proof *should* be empty, so don't bother contacting the server.
 		// This is necessary because the digicert server returns a 400 error if first==second.
@@ -225,12 +225,11 @@ func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTr
 		var err error
 		proof, err = s.logClient.GetConsistencyProof(int64(first.TreeSize), int64(second.TreeSize))
 		if err != nil {
-			return false, nil, nil, err
+			return false, err
 		}
 	}
 
-	valid, treeBuilder := VerifyConsistencyProof(proof, first, second)
-	return valid, treeBuilder, proof, nil
+	return VerifyConsistencyProof(proof, first, second), nil
 }
 
 func (s *Scanner) MakeMerkleTreeBuilder(sth *ct.SignedTreeHead) (*MerkleTreeBuilder, error) {
