@@ -133,54 +133,54 @@ func hashChildren(left ct.MerkleTreeNode, right ct.MerkleTreeNode) ct.MerkleTree
 }
 
 type CollapsedMerkleTree struct {
-	stack []ct.MerkleTreeNode
+	nodes []ct.MerkleTreeNode
 	size  uint64
 }
 
-func calculateStackSize (size uint64) int {
-	stackSize := 0
+func calculateNumNodes (size uint64) int {
+	numNodes := 0
 	for size > 0 {
-		stackSize += int(size & 1)
+		numNodes += int(size & 1)
 		size >>= 1
 	}
-	return stackSize
+	return numNodes
 }
 func EmptyCollapsedMerkleTree () *CollapsedMerkleTree {
 	return &CollapsedMerkleTree{}
 }
-func NewCollapsedMerkleTree (stack []ct.MerkleTreeNode, size uint64) (*CollapsedMerkleTree, error) {
-	if len(stack) != calculateStackSize(size) {
-		return nil, errors.New("NewCollapsedMerkleTree: incorrect stack size")
+func NewCollapsedMerkleTree (nodes []ct.MerkleTreeNode, size uint64) (*CollapsedMerkleTree, error) {
+	if len(nodes) != calculateNumNodes(size) {
+		return nil, errors.New("NewCollapsedMerkleTree: nodes has incorrect size")
 	}
-	return &CollapsedMerkleTree{stack: stack, size: size}, nil
+	return &CollapsedMerkleTree{nodes: nodes, size: size}, nil
 }
 func CloneCollapsedMerkleTree (source *CollapsedMerkleTree) *CollapsedMerkleTree {
-	stack := make([]ct.MerkleTreeNode, len(source.stack))
-	copy(stack, source.stack)
-	return &CollapsedMerkleTree{stack: stack, size: source.size}
+	nodes := make([]ct.MerkleTreeNode, len(source.nodes))
+	copy(nodes, source.nodes)
+	return &CollapsedMerkleTree{nodes: nodes, size: source.size}
 }
 
 func (tree *CollapsedMerkleTree) Add(hash ct.MerkleTreeNode) {
-	tree.stack = append(tree.stack, hash)
+	tree.nodes = append(tree.nodes, hash)
 	tree.size++
 	size := tree.size
 	for size%2 == 0 {
-		left, right := tree.stack[len(tree.stack)-2], tree.stack[len(tree.stack)-1]
-		tree.stack = tree.stack[:len(tree.stack)-2]
-		tree.stack = append(tree.stack, hashChildren(left, right))
+		left, right := tree.nodes[len(tree.nodes)-2], tree.nodes[len(tree.nodes)-1]
+		tree.nodes = tree.nodes[:len(tree.nodes)-2]
+		tree.nodes = append(tree.nodes, hashChildren(left, right))
 		size /= 2
 	}
 }
 
 func (tree *CollapsedMerkleTree) CalculateRoot() ct.MerkleTreeNode {
-	if len(tree.stack) == 0 {
+	if len(tree.nodes) == 0 {
 		return hashNothing()
 	}
-	i := len(tree.stack) - 1
-	hash := tree.stack[i]
+	i := len(tree.nodes) - 1
+	hash := tree.nodes[i]
 	for i > 0 {
 		i -= 1
-		hash = hashChildren(tree.stack[i], hash)
+		hash = hashChildren(tree.nodes[i], hash)
 	}
 	return hash
 }
@@ -191,23 +191,23 @@ func (tree *CollapsedMerkleTree) GetSize() uint64 {
 
 func (tree *CollapsedMerkleTree) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"stack": tree.stack,
+		"nodes": tree.nodes,
 		"size": tree.size,
 	})
 }
 
 func (tree *CollapsedMerkleTree) UnmarshalJSON(b []byte) error {
 	var rawTree struct {
-		Stack []ct.MerkleTreeNode `json:"stack"`
+		Nodes []ct.MerkleTreeNode `json:"nodes"`
 		Size uint64 `json:"size"`
 	}
 	if err := json.Unmarshal(b, &rawTree); err != nil {
 		return errors.New("Failed to unmarshal CollapsedMerkleTree: " + err.Error())
 	}
-	if len(rawTree.Stack) != calculateStackSize(rawTree.Size) {
-		return errors.New("Failed to unmarshal CollapsedMerkleTree: invalid stack size")
+	if len(rawTree.Nodes) != calculateNumNodes(rawTree.Size) {
+		return errors.New("Failed to unmarshal CollapsedMerkleTree: nodes has incorrect length")
 	}
 	tree.size = rawTree.Size
-	tree.stack = rawTree.Stack
+	tree.nodes = rawTree.Nodes
 	return nil
 }
