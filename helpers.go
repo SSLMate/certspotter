@@ -14,14 +14,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -360,44 +358,6 @@ func (info *EntryInfo) InvokeHookScript(command string) error {
 		}
 	}
 	return nil
-}
-
-func WriteCertRepository(repoPath string, isPrecert bool, certs [][]byte) (bool, string, error) {
-	if len(certs) == 0 {
-		return false, "", fmt.Errorf("Cannot write an empty certificate chain")
-	}
-
-	fingerprint := sha256hex(certs[0])
-	prefixPath := filepath.Join(repoPath, fingerprint[0:2])
-	var filenameSuffix string
-	if isPrecert {
-		filenameSuffix = ".precert.pem"
-	} else {
-		filenameSuffix = ".cert.pem"
-	}
-	if err := os.Mkdir(prefixPath, 0777); err != nil && !os.IsExist(err) {
-		return false, "", fmt.Errorf("Failed to create prefix directory %s: %s", prefixPath, err)
-	}
-	path := filepath.Join(prefixPath, fingerprint+filenameSuffix)
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
-	if err != nil {
-		if os.IsExist(err) {
-			return true, path, nil
-		} else {
-			return false, path, fmt.Errorf("Failed to open %s for writing: %s", path, err)
-		}
-	}
-	for _, cert := range certs {
-		if err := pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: cert}); err != nil {
-			file.Close()
-			return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
-		}
-	}
-	if err := file.Close(); err != nil {
-		return false, path, fmt.Errorf("Error writing to %s: %s", path, err)
-	}
-
-	return false, path, nil
 }
 
 func MatchesWildcard(dnsName string, pattern string) bool {
