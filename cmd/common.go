@@ -326,9 +326,11 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 		exitCode |= processLog(&logs[i], processCallback)
 	}
 
-	if err := state.Finish(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: Error finalizing state: %s\n", os.Args[0], err)
-		exitCode |= 1
+	if state.IsFirstRun() && exitCode == 0 {
+		if err := state.Finish(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: Error finalizing state: %s\n", os.Args[0], err)
+			exitCode |= 1
+		}
 	}
 
 	return exitCode
