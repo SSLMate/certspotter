@@ -128,9 +128,9 @@ func (logState *LogState) RemoveUnverifiedSTH (sth *ct.SignedTreeHead) error {
 	return nil
 }
 
-func (logState *LogState) GetLogPosition () (*certspotter.CollapsedMerkleTree, error) {
+func (logState *LogState) GetTree () (*certspotter.CollapsedMerkleTree, error) {
 	tree := new(certspotter.CollapsedMerkleTree)
-	if err := readJSONFile(filepath.Join(logState.path, "position"), tree); err != nil {
+	if err := readJSONFile(filepath.Join(logState.path, "tree"), tree); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		} else {
@@ -140,6 +140,6 @@ func (logState *LogState) GetLogPosition () (*certspotter.CollapsedMerkleTree, e
 	return tree, nil
 }
 
-func (logState *LogState) StoreLogPosition (tree *certspotter.CollapsedMerkleTree) error {
-	return writeJSONFile(filepath.Join(logState.path, "position"), tree, 0666)
+func (logState *LogState) StoreTree (tree *certspotter.CollapsedMerkleTree) error {
+	return writeJSONFile(filepath.Join(logState.path, "tree"), tree, 0666)
 }
