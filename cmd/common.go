@@ -1,4 +1,4 @@
-// Copyright (C) 2016 Opsmate, Inc.
+// Copyright (C) 2016-2017 Opsmate, Inc.
 //
 // This Source Code Form is subject to the terms of the Mozilla
 // Public License, v. 2.0. If a copy of the MPL was not distributed
@@ -11,18 +11,13 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
 
 	"software.sslmate.com/src/certspotter"
 	"software.sslmate.com/src/certspotter/ct"
@@ -36,7 +31,7 @@ var underwater = flag.Bool("underwater", false, "Monitor certificates from distr
 var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certificates")
 var verbose = flag.Bool("verbose", false, "Be verbose")
 var allTime = flag.Bool("all_time", false, "Scan certs from all time, not just since last scan")
-var stateDir string
+var state *State
 
 var printMutex sync.Mutex
 
@@ -64,7 +59,7 @@ func LogEntry(info *certspotter.EntryInfo) {
 	if !*noSave {
 		var alreadyPresent bool
 		var err error
-		alreadyPresent, info.Filename, err = certspotter.WriteCertRepository(filepath.Join(stateDir, "certs"), info.IsPrecert, info.FullChain)
+		alreadyPresent, info.Filename, err = state.SaveCert(info.IsPrecert, info.FullChain)
 		if err != nil {
 			log.Print(err)
 		}
@@ -85,191 +80,240 @@ func LogEntry(info *certspotter.EntryInfo) {
 	}
 }
 
-func defangLogUri(logUri string) string {
-	return strings.Replace(strings.Replace(logUri, "://", "_", 1), "/", "_", -1)
-}
-
-func saveEvidence(logUri string, firstSTH *ct.SignedTreeHead, secondSTH *ct.SignedTreeHead, proof ct.ConsistencyProof) (string, string, string, error) {
-	now := strconv.FormatInt(time.Now().Unix(), 10)
-
-	firstFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri)+".inconsistent."+now+".first")
-	if err := certspotter.WriteSTHFile(firstFilename, firstSTH); err != nil {
-		return "", "", "", err
-	}
-
-	secondFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri)+".inconsistent."+now+".second")
-	if err := certspotter.WriteSTHFile(secondFilename, secondSTH); err != nil {
-		return "", "", "", err
-	}
-
-	proofFilename := filepath.Join(stateDir, "evidence", defangLogUri(logUri)+".inconsistent."+now+".proof")
-	if err := certspotter.WriteProofFile(proofFilename, proof); err != nil {
-		return "", "", "", err
-	}
-
-	return firstFilename, secondFilename, proofFilename, nil
-}
-
-func fileExists (path string) bool {
-	_, err := os.Lstat(path)
-	return err == nil
-}
-
-func Main(argStateDir string, processCallback certspotter.ProcessCallback) int {
-	stateDir = argStateDir
-
-	var logs []certspotter.LogInfo
+func loadLogList () ([]certspotter.LogInfo, error) {
 	if *logsFilename != "" {
-		logsJson, err := ioutil.ReadFile(*logsFilename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error reading logs file: %s: %s\n", os.Args[0], *logsFilename, err)
-			return 1
-		}
 		var logFileObj certspotter.LogInfoFile
-		if err := json.Unmarshal(logsJson, &logFileObj); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error decoding logs file: %s: %s\n", os.Args[0], *logsFilename, err)
-			return 1
+		if err := readJSONFile(*logsFilename, &logFileObj); err != nil {
+			return nil, fmt.Errorf("Error reading logs file: %s: %s", *logsFilename, err)
 		}
-		logs = logFileObj.Logs
+		return logFileObj.Logs, nil
 	} else if *underwater {
-		logs = certspotter.UnderwaterLogs
+		return certspotter.UnderwaterLogs, nil
 	} else {
-		logs = certspotter.DefaultLogs
+		return certspotter.DefaultLogs, nil
+	}
+}
+
+type logHandle struct {
+	scanner		*certspotter.Scanner
+	state		*LogState
+	position	*certspotter.MerkleTreeBuilder
+	verifiedSTH	*ct.SignedTreeHead
+}
+
+func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
+	ctlog := new(logHandle)
+
+	logKey, err := logInfo.ParsedPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("Bad public key: %s", err)
+	}
+	ctlog.scanner = certspotter.NewScanner(logInfo.FullURI(), logKey, &certspotter.ScannerOptions{
+		BatchSize:  *batchSize,
+		NumWorkers: *numWorkers,
+		Quiet:      !*verbose,
+	})
+
+	ctlog.state, err = state.OpenLogState(logInfo)
+	if err != nil {
+		return nil, fmt.Errorf("Error opening state directory: %s", err)
+	}
+	ctlog.position, err = ctlog.state.GetLogPosition()
+	if err != nil {
+		return nil, fmt.Errorf("Error loading log position: %s", err)
+	}
+	ctlog.verifiedSTH, err = ctlog.state.GetVerifiedSTH()
+	if err != nil {
+		return nil, fmt.Errorf("Error loading verified STH: %s", err)
 	}
 
-	firstRun := !fileExists(filepath.Join(stateDir, "once"))
+	if ctlog.position == nil && ctlog.verifiedSTH == nil { // This branch can be removed eventually
+		legacySTH, err := state.GetLegacySTH(logInfo);
+		if err != nil {
+			return nil, fmt.Errorf("Error loading legacy STH: %s", err)
+		}
+		if legacySTH != nil {
+			ctlog.position, err = ctlog.scanner.MakeMerkleTreeBuilder(legacySTH)
+			if err != nil {
+				return nil, fmt.Errorf("Error reconstructing Merkle Tree for legacy STH: %s", err)
+			}
+			if err := ctlog.state.StoreLogPosition(ctlog.position); err != nil {
+				return nil, fmt.Errorf("Error storing log position: %s", err)
+			}
+			if err := ctlog.state.StoreVerifiedSTH(legacySTH); err != nil {
+				return nil, fmt.Errorf("Error storing verified STH: %s", err)
+			}
+			state.RemoveLegacySTH(logInfo)
+		}
+	}
 
-	if err := os.Mkdir(stateDir, 0777); err != nil && !os.IsExist(err) {
-		fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], stateDir, err)
+	return ctlog, nil
+}
+
+func (ctlog *logHandle) refresh () error {
+	latestSTH, err := ctlog.scanner.GetSTH()
+	if err != nil {
+		return fmt.Errorf("Error retrieving STH from log: %s", err)
+	}
+	if ctlog.verifiedSTH == nil {
+		ctlog.verifiedSTH = latestSTH
+		if err := ctlog.state.StoreVerifiedSTH(ctlog.verifiedSTH); err != nil {
+			return fmt.Errorf("Error storing verified STH: %s", err)
+		}
+	} else {
+		if err := ctlog.state.StoreUnverifiedSTH(latestSTH); err != nil {
+			return fmt.Errorf("Error storing unverified STH: %s", err)
+		}
+	}
+	return nil
+}
+
+func (ctlog *logHandle) audit () error {
+	sths, err := ctlog.state.GetUnverifiedSTHs()
+	if err != nil {
+		return fmt.Errorf("Error loading unverified STHs: %s", err)
+	}
+
+	for _, sth := range sths {
+		if sth.TreeSize > ctlog.verifiedSTH.TreeSize {
+			isValid, _, _, err := ctlog.scanner.CheckConsistency(ctlog.verifiedSTH, sth)
+			if err != nil {
+				return fmt.Errorf("Error fetching consistency proof between %d and %d (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.verifiedSTH.TreeSize, sth.TreeSize, err)
+			}
+			if !isValid {
+				return fmt.Errorf("Log has misbehaved: STH in '%s' is not consistent with STH in '%s'", ctlog.state.VerifiedSTHFilename(), ctlog.state.UnverifiedSTHFilename(sth))
+			}
+			ctlog.verifiedSTH = sth
+			if err := ctlog.state.StoreVerifiedSTH(ctlog.verifiedSTH); err != nil {
+				return fmt.Errorf("Error storing verified STH: %s", err)
+			}
+		} else if sth.TreeSize < ctlog.verifiedSTH.TreeSize {
+			isValid, _, _, err := ctlog.scanner.CheckConsistency(sth, ctlog.verifiedSTH)
+			if err != nil {
+				return fmt.Errorf("Error fetching consistency proof between %d and %d (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.verifiedSTH.TreeSize, sth.TreeSize, err)
+			}
+			if !isValid {
+				return fmt.Errorf("Log has misbehaved: STH in '%s' is not consistent with STH in '%s'", ctlog.state.VerifiedSTHFilename(), ctlog.state.UnverifiedSTHFilename(sth))
+			}
+		} else {
+			if !bytes.Equal(sth.SHA256RootHash[:], ctlog.verifiedSTH.SHA256RootHash[:]) {
+				return fmt.Errorf("Log has misbehaved: STH in '%s' is not consistent with STH in '%s'", ctlog.state.VerifiedSTHFilename(), ctlog.state.UnverifiedSTHFilename(sth))
+			}
+		}
+		if err := ctlog.state.RemoveUnverifiedSTH(sth); err != nil {
+			return fmt.Errorf("Error removing redundant STH: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func (ctlog *logHandle) scan (processCallback certspotter.ProcessCallback) error {
+	startIndex := int64(ctlog.position.GetNumLeaves())
+	endIndex := int64(ctlog.verifiedSTH.TreeSize)
+
+	if endIndex > startIndex {
+		treeBuilder := ctlog.position
+		ctlog.position = nil
+
+		if err := ctlog.scanner.Scan(startIndex, endIndex, processCallback, treeBuilder); err != nil {
+			return fmt.Errorf("Error scanning log (if this error persists, it should be construed as misbehavior by the log): %s", err)
+		}
+
+		rootHash := treeBuilder.CalculateRoot()
+		if !bytes.Equal(rootHash, ctlog.verifiedSTH.SHA256RootHash[:]) {
+			return fmt.Errorf("Log has misbehaved: log entries at tree size %d do not correspond to signed tree root", ctlog.verifiedSTH.TreeSize)
+		}
+
+		ctlog.position = treeBuilder
+	}
+
+	if err := ctlog.state.StoreLogPosition(ctlog.position); err != nil {
+		return fmt.Errorf("Error storing log position: %s", err)
+	}
+
+	return nil
+}
+
+func processLog(logInfo* certspotter.LogInfo, processCallback certspotter.ProcessCallback) int {
+	log.SetPrefix(os.Args[0] + ": " + logInfo.Url + ": ")
+
+	ctlog, err := makeLogHandle(logInfo)
+	if err != nil {
+		log.Printf("%s\n", err)
 		return 1
 	}
-	for _, subdir := range []string{"certs", "sths", "evidence"} {
-		path := filepath.Join(stateDir, subdir)
-		if err := os.Mkdir(path, 0777); err != nil && !os.IsExist(err) {
-			fmt.Fprintf(os.Stderr, "%s: Error creating state directory: %s: %s\n", os.Args[0], path, err)
+
+	if err := ctlog.refresh(); err != nil {
+		log.Printf("%s\n", err)
+		return 1
+	}
+
+	if err := ctlog.audit(); err != nil {
+		log.Printf("%s\n", err)
+		return 1
+	}
+
+	if *allTime {
+		ctlog.position = certspotter.EmptyMerkleTreeBuilder()
+		if *verbose {
+			log.Printf("Scanning all %d entries in the log because -all_time option specified", ctlog.verifiedSTH.TreeSize)
+		}
+	} else if ctlog.position != nil {
+		if *verbose {
+			log.Printf("Existing log; scanning %d new entries since previous scan", ctlog.verifiedSTH.TreeSize-ctlog.position.GetNumLeaves())
+		}
+	} else if state.IsFirstRun() {
+		ctlog.position, err = ctlog.scanner.MakeMerkleTreeBuilder(ctlog.verifiedSTH)
+		if err != nil {
+			log.Printf("Error reconstructing Merkle Tree: %s", err)
 			return 1
 		}
+		if *verbose {
+			log.Printf("First run of Cert Spotter; not scanning %d existing entries because -all_time option not specified", ctlog.verifiedSTH.TreeSize)
+		}
+	} else {
+		ctlog.position = certspotter.EmptyMerkleTreeBuilder()
+		if *verbose {
+			log.Printf("New log; scanning all %d entries in the log", ctlog.verifiedSTH.TreeSize)
+		}
 	}
 
-	/*
-	 * Exit code bits:
-	 *  1 = initialization/configuration/system error
-	 *  2 = usage error
-	 *  4 = error communicating with log
-	 *  8 = log misbehavior
-	 */
+	if err := ctlog.scan(processCallback); err != nil {
+		log.Printf("%s\n", err)
+		return 1
+	}
+
+	if *verbose {
+		log.Printf("Final log size = %d, final root hash = %x", ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
+	}
+
+	return 0
+}
+
+func Main(statePath string, processCallback certspotter.ProcessCallback) int {
+	var err error
+
+	state, err = OpenState(statePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		return 1
+	}
+
+	logs, err := loadLogList()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		return 1
+	}
+
 	exitCode := 0
-
-	for _, logInfo := range logs {
-		logUri := logInfo.FullURI()
-		log.SetPrefix(os.Args[0] + ": " + logUri + ": ")
-		logKey, err := logInfo.ParsedPublicKey()
-		if err != nil {
-			log.Printf("Bad public key: %s\n", err)
-			exitCode |= 1
-			continue
-		}
-		stateFilename := filepath.Join(stateDir, "sths", defangLogUri(logUri))
-		prevSTH, err := certspotter.ReadSTHFile(stateFilename)
-		if err != nil {
-			log.Printf("Error reading state file: %s: %s\n", stateFilename, err)
-			exitCode |= 1
-			continue
-		}
-
-		opts := certspotter.ScannerOptions{
-			BatchSize:  *batchSize,
-			NumWorkers: *numWorkers,
-			Quiet:      !*verbose,
-		}
-		scanner := certspotter.NewScanner(logUri, logKey, &opts)
-
-		latestSTH, err := scanner.GetSTH()
-		if err != nil {
-			log.Printf("Error retrieving STH from log: %s\n", err)
-			exitCode |= 4
-			continue
-		}
-
-		if *verbose {
-			if *allTime {
-				log.Printf("Scanning all %d entries in the log because -all_time option specified", latestSTH.TreeSize)
-			} else if prevSTH != nil {
-				log.Printf("Existing log; scanning %d new entries since previous scan (previous size %d, previous root hash = %x)", latestSTH.TreeSize-prevSTH.TreeSize, prevSTH.TreeSize, prevSTH.SHA256RootHash)
-			} else if firstRun {
-				log.Printf("First run of Cert Spotter; not scanning %d existing entries because -all_time option not specified", latestSTH.TreeSize)
-			} else {
-				log.Printf("New log; scanning all %d entries in the log", latestSTH.TreeSize)
-			}
-		}
-
-		var startIndex uint64
-		if *allTime {
-			startIndex = 0
-		} else if prevSTH != nil {
-			startIndex = prevSTH.TreeSize
-		} else if firstRun {
-			startIndex = latestSTH.TreeSize
-		} else {
-			startIndex = 0
-		}
-
-		if latestSTH.TreeSize > startIndex {
-			var treeBuilder *certspotter.MerkleTreeBuilder
-			if prevSTH != nil {
-				var valid bool
-				var err error
-				var proof ct.ConsistencyProof
-				valid, treeBuilder, proof, err = scanner.CheckConsistency(prevSTH, latestSTH)
-				if err != nil {
-					log.Printf("Error fetching consistency proof: %s\n", err)
-					exitCode |= 4
-					continue
-				}
-				if !valid {
-					firstFilename, secondFilename, proofFilename, err := saveEvidence(logUri, prevSTH, latestSTH, proof)
-					if err != nil {
-						log.Printf("Consistency proof failed - the log has misbehaved!  Saving evidence of misbehavior failed: %s\n", err)
-					} else {
-						log.Printf("Consistency proof failed - the log has misbehaved!  Evidence of misbehavior has been saved to '%s' and '%s' (with proof in '%s').\n", firstFilename, secondFilename, proofFilename)
-					}
-					exitCode |= 8
-					continue
-				}
-			} else {
-				treeBuilder = &certspotter.MerkleTreeBuilder{}
-			}
-
-			if err := scanner.Scan(int64(startIndex), int64(latestSTH.TreeSize), processCallback, treeBuilder); err != nil {
-				log.Printf("Error scanning log: %s\n", err)
-				exitCode |= 4
-				continue
-			}
-
-			rootHash := treeBuilder.CalculateRoot()
-			if !bytes.Equal(rootHash, latestSTH.SHA256RootHash[:]) {
-				log.Printf("Validation of log entries failed - calculated tree root (%x) does not match signed tree root (%s).  If this error persists for an extended period, it should be construed as misbehavior by the log.\n", rootHash, latestSTH.SHA256RootHash)
-				exitCode |= 8
-				continue
-			}
-		}
-
-		if *verbose {
-			log.Printf("final log size = %d, final root hash = %x", latestSTH.TreeSize, latestSTH.SHA256RootHash)
-		}
-
-		if err := certspotter.WriteSTHFile(stateFilename, latestSTH); err != nil {
-			log.Printf("Error writing state file: %s: %s\n", stateFilename, err)
-			exitCode |= 1
-			continue
-		}
+	for i := range logs {
+		exitCode |= processLog(&logs[i], processCallback)
 	}
 
-	if firstRun {
-		if err := ioutil.WriteFile(filepath.Join(stateDir, "once"), []byte{}, 0666); err != nil {
-			log.Printf("Error writing once file: %s\n", err)
-			exitCode |= 1
-		}
+	if err := state.Finish(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: Error finalizing state: %s\n", os.Args[0], err)
+		exitCode |= 1
 	}
 
 	return exitCode
