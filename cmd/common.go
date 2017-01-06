@@ -108,7 +108,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Bad public key: %s", err)
 	}
-	ctlog.scanner = certspotter.NewScanner(logInfo.FullURI(), logKey, &certspotter.ScannerOptions{
+	ctlog.scanner = certspotter.NewScanner(logInfo.FullURI(), logInfo.ID(), logKey, &certspotter.ScannerOptions{
 		BatchSize:  *batchSize,
 		NumWorkers: *numWorkers,
 		Quiet:      !*verbose,
