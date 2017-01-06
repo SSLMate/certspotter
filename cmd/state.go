@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -90,6 +91,7 @@ func OpenState (statePath string) (*State, error) {
 			return nil, fmt.Errorf("Error creating state directory: %s", err)
 		}
 		if version == 0 {
+			log.Printf("Migrating state directory (%s) to new layout...", statePath)
 			if err := os.Rename(filepath.Join(statePath, "sths"), filepath.Join(statePath, "legacy_sths")); err != nil {
 				return nil, fmt.Errorf("Error migrating STHs directory: %s", err)
 			}

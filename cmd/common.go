@@ -133,6 +133,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 			return nil, fmt.Errorf("Error loading legacy STH: %s", err)
 		}
 		if legacySTH != nil {
+			log.Printf("Initializing log state from legacy state directory")
 			ctlog.position, err = ctlog.scanner.MakeMerkleTreeBuilder(legacySTH)
 			if err != nil {
 				return nil, fmt.Errorf("Error reconstructing Merkle Tree for legacy STH: %s", err)
@@ -151,11 +152,17 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 }
 
 func (ctlog *logHandle) refresh () error {
+	if *verbose {
+		log.Printf("Retrieving latest STH from log")
+	}
 	latestSTH, err := ctlog.scanner.GetSTH()
 	if err != nil {
 		return fmt.Errorf("Error retrieving STH from log: %s", err)
 	}
 	if ctlog.verifiedSTH == nil {
+		if *verbose {
+			log.Printf("No existing STH is known; presuming latest STH (%d) is valid", latestSTH.TreeSize)
+		}
 		ctlog.verifiedSTH = latestSTH
 		if err := ctlog.state.StoreVerifiedSTH(ctlog.verifiedSTH); err != nil {
 			return fmt.Errorf("Error storing verified STH: %s", err)
@@ -175,6 +182,9 @@ func (ctlog *logHandle) audit () error {
 	}
 
 	for _, sth := range sths {
+		if *verbose {
+			log.Printf("Verifying consistency between STH %d (%x) and STH %d (%x)", sth.TreeSize, sth.SHA256RootHash, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
+		}
 		if sth.TreeSize > ctlog.verifiedSTH.TreeSize {
 			isValid, err := ctlog.scanner.CheckConsistency(ctlog.verifiedSTH, sth)
 			if err != nil {
@@ -182,6 +192,9 @@ func (ctlog *logHandle) audit () error {
 			}
 			if !isValid {
 				return fmt.Errorf("Log has misbehaved: STH in '%s' is not consistent with STH in '%s'", ctlog.state.VerifiedSTHFilename(), ctlog.state.UnverifiedSTHFilename(sth))
+			}
+			if *verbose {
+				log.Printf("STH %d (%x) is now the latest verified STH", sth.TreeSize, sth.SHA256RootHash)
 			}
 			ctlog.verifiedSTH = sth
 			if err := ctlog.state.StoreVerifiedSTH(ctlog.verifiedSTH); err != nil {
