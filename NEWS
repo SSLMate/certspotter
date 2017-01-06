@@ -1,3 +1,24 @@
+v0.3 (2017-01-??)
+  * Revise -all_time flag (behavior change):
+    - If -all_time is specified, scan the entirety of all logs, even
+      existing logs
+    - When a new log is added, scan it in its entirety even if -all_time
+      is not specified
+  * Add new logs:
+    - Google Icarus
+    - Google Skydiver
+    - StartCom
+    - WoSign
+  * Overhaul log processing and auditing logic:
+    - STHs are never deleted unless they can be verified
+    - Multiple unverified STHs can be queued per log, laying groundwork
+      for STH pollination support
+    - New state directory layout; current state directories will be
+      migrated, but migration will be removed in a future version
+    - Persist condensed Merkle Tree state between runs, instead of
+      reconstructing it from consistency proof every time
+  * Minor bug fixes and improvements
+
 v0.2 (2016-08-25)
   * Suppress duplicate identifiers in output.
   * Fix "EOF" error when running under Go 1.7.
