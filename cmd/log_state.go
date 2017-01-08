@@ -62,7 +62,7 @@ func OpenLogState (logStatePath string) (*LogState, error) {
 }
 
 func (logState *LogState) VerifiedSTHFilename () string {
-	return filepath.Join(logState.path, "verified_sth.json")
+	return filepath.Join(logState.path, "sth.json")
 }
 
 func (logState *LogState) GetVerifiedSTH () (*ct.SignedTreeHead, error) {
