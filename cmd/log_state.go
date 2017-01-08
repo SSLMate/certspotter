@@ -24,11 +24,11 @@ import (
 )
 
 type LogState struct {
-	path	string
+	path string
 }
 
 // generate a filename that uniquely identifies the STH (within the context of a particular log)
-func sthFilename (sth *ct.SignedTreeHead) string {
+func sthFilename(sth *ct.SignedTreeHead) string {
 	hasher := sha256.New()
 	switch sth.Version {
 	case ct.V1:
@@ -41,7 +41,7 @@ func sthFilename (sth *ct.SignedTreeHead) string {
 	return strconv.FormatUint(sth.TreeSize, 10) + "-" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil)) + ".json"
 }
 
-func makeLogStateDir (logStatePath string) error {
+func makeLogStateDir(logStatePath string) error {
 	if err := os.Mkdir(logStatePath, 0777); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("%s: %s", logStatePath, err)
 	}
@@ -54,18 +54,18 @@ func makeLogStateDir (logStatePath string) error {
 	return nil
 }
 
-func OpenLogState (logStatePath string) (*LogState, error) {
+func OpenLogState(logStatePath string) (*LogState, error) {
 	if err := makeLogStateDir(logStatePath); err != nil {
 		return nil, fmt.Errorf("Error creating log state directory: %s", err)
 	}
 	return &LogState{path: logStatePath}, nil
 }
 
-func (logState *LogState) VerifiedSTHFilename () string {
+func (logState *LogState) VerifiedSTHFilename() string {
 	return filepath.Join(logState.path, "sth.json")
 }
 
-func (logState *LogState) GetVerifiedSTH () (*ct.SignedTreeHead, error) {
+func (logState *LogState) GetVerifiedSTH() (*ct.SignedTreeHead, error) {
 	sth, err := readSTHFile(logState.VerifiedSTHFilename())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -77,11 +77,11 @@ func (logState *LogState) GetVerifiedSTH () (*ct.SignedTreeHead, error) {
 	return sth, nil
 }
 
-func (logState *LogState) StoreVerifiedSTH (sth *ct.SignedTreeHead) error {
+func (logState *LogState) StoreVerifiedSTH(sth *ct.SignedTreeHead) error {
 	return writeJSONFile(logState.VerifiedSTHFilename(), sth, 0666)
 }
 
-func (logState *LogState) GetUnverifiedSTHs () ([]*ct.SignedTreeHead, error) {
+func (logState *LogState) GetUnverifiedSTHs() ([]*ct.SignedTreeHead, error) {
 	dir, err := os.Open(filepath.Join(logState.path, "unverified_sths"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -107,11 +107,11 @@ func (logState *LogState) GetUnverifiedSTHs () ([]*ct.SignedTreeHead, error) {
 	return sths, nil
 }
 
-func (logState *LogState) UnverifiedSTHFilename (sth *ct.SignedTreeHead) string {
+func (logState *LogState) UnverifiedSTHFilename(sth *ct.SignedTreeHead) string {
 	return filepath.Join(logState.path, "unverified_sths", sthFilename(sth))
 }
 
-func (logState *LogState) StoreUnverifiedSTH (sth *ct.SignedTreeHead) error {
+func (logState *LogState) StoreUnverifiedSTH(sth *ct.SignedTreeHead) error {
 	filename := logState.UnverifiedSTHFilename(sth)
 	if fileExists(filename) {
 		return nil
@@ -119,7 +119,7 @@ func (logState *LogState) StoreUnverifiedSTH (sth *ct.SignedTreeHead) error {
 	return writeJSONFile(filename, sth, 0666)
 }
 
-func (logState *LogState) RemoveUnverifiedSTH (sth *ct.SignedTreeHead) error {
+func (logState *LogState) RemoveUnverifiedSTH(sth *ct.SignedTreeHead) error {
 	filename := logState.UnverifiedSTHFilename(sth)
 	err := os.Remove(filepath.Join(filename))
 	if err != nil && !os.IsNotExist(err) {
@@ -128,7 +128,7 @@ func (logState *LogState) RemoveUnverifiedSTH (sth *ct.SignedTreeHead) error {
 	return nil
 }
 
-func (logState *LogState) GetTree () (*certspotter.CollapsedMerkleTree, error) {
+func (logState *LogState) GetTree() (*certspotter.CollapsedMerkleTree, error) {
 	tree := new(certspotter.CollapsedMerkleTree)
 	if err := readJSONFile(filepath.Join(logState.path, "tree.json"), tree); err != nil {
 		if os.IsNotExist(err) {
@@ -140,6 +140,6 @@ func (logState *LogState) GetTree () (*certspotter.CollapsedMerkleTree, error) {
 	return tree, nil
 }
 
-func (logState *LogState) StoreTree (tree *certspotter.CollapsedMerkleTree) error {
+func (logState *LogState) StoreTree(tree *certspotter.CollapsedMerkleTree) error {
 	return writeJSONFile(filepath.Join(logState.path, "tree.json"), tree, 0666)
 }

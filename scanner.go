@@ -62,7 +62,7 @@ type Scanner struct {
 
 	// Public key of the log
 	publicKey crypto.PublicKey
-	LogId []byte
+	LogId     []byte
 
 	// Client used to talk to the CT log instance
 	logClient *client.LogClient
@@ -239,12 +239,12 @@ func (s *Scanner) MakeCollapsedMerkleTree(sth *ct.SignedTreeHead) (*CollapsedMer
 		return &CollapsedMerkleTree{}, nil
 	}
 
-	entries, err := s.logClient.GetEntries(int64(sth.TreeSize - 1), int64(sth.TreeSize - 1))
+	entries, err := s.logClient.GetEntries(int64(sth.TreeSize-1), int64(sth.TreeSize-1))
 	if err != nil {
 		return nil, err
 	}
 	if len(entries) == 0 {
-		return nil, fmt.Errorf("Log did not return entry %d", sth.TreeSize - 1)
+		return nil, fmt.Errorf("Log did not return entry %d", sth.TreeSize-1)
 	}
 	leafHash := hashLeaf(entries[0].LeafBytes)
 
@@ -255,7 +255,7 @@ func (s *Scanner) MakeCollapsedMerkleTree(sth *ct.SignedTreeHead) (*CollapsedMer
 			return nil, err
 		}
 		reverseHashes(auditPath)
-		tree, err = NewCollapsedMerkleTree(auditPath, sth.TreeSize - 1)
+		tree, err = NewCollapsedMerkleTree(auditPath, sth.TreeSize-1)
 		if err != nil {
 			return nil, fmt.Errorf("Error returned bad audit proof for %x to %d", leafHash, sth.TreeSize)
 		}

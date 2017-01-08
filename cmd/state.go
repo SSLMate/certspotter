@@ -14,8 +14,8 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,14 +26,14 @@ import (
 )
 
 type State struct {
-	path	string
+	path string
 }
 
 func legacySTHFilename(logInfo *certspotter.LogInfo) string {
 	return strings.Replace(strings.Replace(logInfo.FullURI(), "://", "_", 1), "/", "_", -1)
 }
 
-func readVersionFile (statePath string) (int, error) {
+func readVersionFile(statePath string) (int, error) {
 	versionFilePath := filepath.Join(statePath, "version")
 	versionBytes, err := ioutil.ReadFile(versionFilePath)
 	if err == nil {
@@ -57,7 +57,7 @@ func readVersionFile (statePath string) (int, error) {
 	}
 }
 
-func writeVersionFile (statePath string) error {
+func writeVersionFile(statePath string) error {
 	version := 1
 	versionString := fmt.Sprintf("%d\n", version)
 	versionFilePath := filepath.Join(statePath, "version")
@@ -67,7 +67,7 @@ func writeVersionFile (statePath string) error {
 	return nil
 }
 
-func makeStateDir (statePath string) error {
+func makeStateDir(statePath string) error {
 	if err := os.Mkdir(statePath, 0777); err != nil && !os.IsExist(err) {
 		return fmt.Errorf("%s: %s", statePath, err)
 	}
@@ -80,7 +80,7 @@ func makeStateDir (statePath string) error {
 	return nil
 }
 
-func OpenState (statePath string) (*State, error) {
+func OpenState(statePath string) (*State, error) {
 	version, err := readVersionFile(statePath)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading version file: %s", err)

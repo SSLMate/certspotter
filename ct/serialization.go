@@ -80,7 +80,7 @@ func readVarBytes(r io.Reader, numLenBytes int) ([]byte, error) {
 		return nil, err
 	}
 	data := make([]byte, l)
-	if n, err := io.ReadFull(r, data);  err != nil {
+	if n, err := io.ReadFull(r, data); err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return nil, fmt.Errorf("short read: expected %d but got %d", l, n)
 		}

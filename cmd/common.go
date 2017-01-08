@@ -80,7 +80,7 @@ func LogEntry(info *certspotter.EntryInfo) {
 	}
 }
 
-func loadLogList () ([]certspotter.LogInfo, error) {
+func loadLogList() ([]certspotter.LogInfo, error) {
 	if *logsFilename != "" {
 		var logFileObj certspotter.LogInfoFile
 		if err := readJSONFile(*logsFilename, &logFileObj); err != nil {
@@ -95,10 +95,10 @@ func loadLogList () ([]certspotter.LogInfo, error) {
 }
 
 type logHandle struct {
-	scanner		*certspotter.Scanner
-	state		*LogState
-	tree		*certspotter.CollapsedMerkleTree
-	verifiedSTH	*ct.SignedTreeHead
+	scanner     *certspotter.Scanner
+	state       *LogState
+	tree        *certspotter.CollapsedMerkleTree
+	verifiedSTH *ct.SignedTreeHead
 }
 
 func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
@@ -128,7 +128,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 	}
 
 	if ctlog.tree == nil && ctlog.verifiedSTH == nil { // This branch can be removed eventually
-		legacySTH, err := state.GetLegacySTH(logInfo);
+		legacySTH, err := state.GetLegacySTH(logInfo)
 		if err != nil {
 			return nil, fmt.Errorf("Error loading legacy STH: %s", err)
 		}
@@ -151,7 +151,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 	return ctlog, nil
 }
 
-func (ctlog *logHandle) refresh () error {
+func (ctlog *logHandle) refresh() error {
 	if *verbose {
 		log.Printf("Retrieving latest STH from log")
 	}
@@ -175,7 +175,7 @@ func (ctlog *logHandle) refresh () error {
 	return nil
 }
 
-func (ctlog *logHandle) audit () error {
+func (ctlog *logHandle) audit() error {
 	sths, err := ctlog.state.GetUnverifiedSTHs()
 	if err != nil {
 		return fmt.Errorf("Error loading unverified STHs: %s", err)
@@ -221,7 +221,7 @@ func (ctlog *logHandle) audit () error {
 	return nil
 }
 
-func (ctlog *logHandle) scan (processCallback certspotter.ProcessCallback) error {
+func (ctlog *logHandle) scan(processCallback certspotter.ProcessCallback) error {
 	startIndex := int64(ctlog.tree.GetSize())
 	endIndex := int64(ctlog.verifiedSTH.TreeSize)
 
@@ -246,7 +246,7 @@ func (ctlog *logHandle) scan (processCallback certspotter.ProcessCallback) error
 	return nil
 }
 
-func processLog(logInfo* certspotter.LogInfo, processCallback certspotter.ProcessCallback) int {
+func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.ProcessCallback) int {
 	log.SetPrefix(os.Args[0] + ": " + logInfo.Url + ": ")
 
 	ctlog, err := makeLogHandle(logInfo)

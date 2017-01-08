@@ -137,7 +137,7 @@ type CollapsedMerkleTree struct {
 	size  uint64
 }
 
-func calculateNumNodes (size uint64) int {
+func calculateNumNodes(size uint64) int {
 	numNodes := 0
 	for size > 0 {
 		numNodes += int(size & 1)
@@ -145,16 +145,16 @@ func calculateNumNodes (size uint64) int {
 	}
 	return numNodes
 }
-func EmptyCollapsedMerkleTree () *CollapsedMerkleTree {
+func EmptyCollapsedMerkleTree() *CollapsedMerkleTree {
 	return &CollapsedMerkleTree{}
 }
-func NewCollapsedMerkleTree (nodes []ct.MerkleTreeNode, size uint64) (*CollapsedMerkleTree, error) {
+func NewCollapsedMerkleTree(nodes []ct.MerkleTreeNode, size uint64) (*CollapsedMerkleTree, error) {
 	if len(nodes) != calculateNumNodes(size) {
 		return nil, errors.New("NewCollapsedMerkleTree: nodes has incorrect size")
 	}
 	return &CollapsedMerkleTree{nodes: nodes, size: size}, nil
 }
-func CloneCollapsedMerkleTree (source *CollapsedMerkleTree) *CollapsedMerkleTree {
+func CloneCollapsedMerkleTree(source *CollapsedMerkleTree) *CollapsedMerkleTree {
 	nodes := make([]ct.MerkleTreeNode, len(source.nodes))
 	copy(nodes, source.nodes)
 	return &CollapsedMerkleTree{nodes: nodes, size: source.size}
@@ -192,14 +192,14 @@ func (tree *CollapsedMerkleTree) GetSize() uint64 {
 func (tree *CollapsedMerkleTree) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"nodes": tree.nodes,
-		"size": tree.size,
+		"size":  tree.size,
 	})
 }
 
 func (tree *CollapsedMerkleTree) UnmarshalJSON(b []byte) error {
 	var rawTree struct {
 		Nodes []ct.MerkleTreeNode `json:"nodes"`
-		Size uint64 `json:"size"`
+		Size  uint64              `json:"size"`
 	}
 	if err := json.Unmarshal(b, &rawTree); err != nil {
 		return errors.New("Failed to unmarshal CollapsedMerkleTree: " + err.Error())
