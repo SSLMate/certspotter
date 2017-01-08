@@ -38,7 +38,7 @@ func sthFilename (sth *ct.SignedTreeHead) string {
 		panic(fmt.Sprintf("Unsupported STH version %d", sth.Version))
 	}
 	// For 6962-bis, we will need to handle a variable-length root hash, and include the signature in the filename hash (since signatures must be deterministic)
-	return strconv.FormatUint(sth.TreeSize, 10) + "-" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
+	return strconv.FormatUint(sth.TreeSize, 10) + "-" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil)) + ".json"
 }
 
 func makeLogStateDir (logStatePath string) error {
@@ -62,7 +62,7 @@ func OpenLogState (logStatePath string) (*LogState, error) {
 }
 
 func (logState *LogState) VerifiedSTHFilename () string {
-	return filepath.Join(logState.path, "verified_sth")
+	return filepath.Join(logState.path, "verified_sth.json")
 }
 
 func (logState *LogState) GetVerifiedSTH () (*ct.SignedTreeHead, error) {
@@ -130,7 +130,7 @@ func (logState *LogState) RemoveUnverifiedSTH (sth *ct.SignedTreeHead) error {
 
 func (logState *LogState) GetTree () (*certspotter.CollapsedMerkleTree, error) {
 	tree := new(certspotter.CollapsedMerkleTree)
-	if err := readJSONFile(filepath.Join(logState.path, "tree"), tree); err != nil {
+	if err := readJSONFile(filepath.Join(logState.path, "tree.json"), tree); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		} else {
@@ -141,5 +141,5 @@ func (logState *LogState) GetTree () (*certspotter.CollapsedMerkleTree, error) {
 }
 
 func (logState *LogState) StoreTree (tree *certspotter.CollapsedMerkleTree) error {
-	return writeJSONFile(filepath.Join(logState.path, "tree"), tree, 0666)
+	return writeJSONFile(filepath.Join(logState.path, "tree.json"), tree, 0666)
 }
