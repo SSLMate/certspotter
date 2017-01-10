@@ -17,6 +17,8 @@ v0.3 (2017-01-??)
       migrated, but migration will be removed in a future version
     - Persist condensed Merkle Tree state between runs, instead of
       reconstructing it from consistency proof every time
+  * Use a lock file to prevent multiple instances of Cert Spotter from
+    running concurrently (which could clobber the state directory).
   * Minor bug fixes and improvements
 
 v0.2 (2016-08-25)
