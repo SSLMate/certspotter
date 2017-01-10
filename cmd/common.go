@@ -309,15 +309,28 @@ func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.Proces
 func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 	var err error
 
-	state, err = OpenState(statePath)
+	logs, err := loadLogList()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		return 1
 	}
 
-	logs, err := loadLogList()
+	state, err = OpenState(statePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		return 1
+	}
+	locked, err := state.Lock()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: Error locking state directory: %s\n", os.Args[0], err)
+		return 1
+	}
+	if !locked {
+		var otherPidInfo string
+		if otherPid := state.LockingPid(); otherPid != 0 {
+			otherPidInfo = fmt.Sprintf(" (as process ID %d)", otherPid)
+		}
+		fmt.Fprintf(os.Stderr, "%s: Another instance of %s is already running%s; remove the file %s if this is not the case\n", os.Args[0], os.Args[0], otherPidInfo, state.LockFilename())
 		return 1
 	}
 
@@ -331,6 +344,11 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 			fmt.Fprintf(os.Stderr, "%s: Error writing once file: %s\n", os.Args[0], err)
 			exitCode |= 1
 		}
+	}
+
+	if err := state.Unlock(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: Error unlocking state directory: %s\n", os.Args[0], err)
+		exitCode |= 1
 	}
 
 	return exitCode

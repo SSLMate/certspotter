@@ -181,3 +181,40 @@ func (state *State) RemoveLegacySTH(logInfo *certspotter.LogInfo) error {
 	os.Remove(filepath.Join(state.path, "legacy_sths"))
 	return err
 }
+func (state *State) LockFilename() string {
+	return filepath.Join(state.path, "lock")
+}
+func (state *State) Lock() (bool, error) {
+	file, err := os.OpenFile(state.LockFilename(), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+	if err != nil {
+		if os.IsExist(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	if _, err := fmt.Fprintf(file, "%d\n", os.Getpid()); err != nil {
+		file.Close()
+		os.Remove(state.LockFilename())
+		return false, err
+	}
+	if err := file.Close(); err != nil {
+		os.Remove(state.LockFilename())
+		return false, err
+	}
+	return true, nil
+}
+func (state *State) Unlock() error {
+	return os.Remove(state.LockFilename())
+}
+func (state *State) LockingPid() int {
+	pidBytes, err := ioutil.ReadFile(state.LockFilename())
+	if err != nil {
+		return 0
+	}
+	pid, err := strconv.Atoi(string(bytes.TrimSpace(pidBytes)))
+	if err != nil {
+		return 0
+	}
+	return pid
+}
