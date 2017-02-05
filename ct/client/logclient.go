@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -88,29 +89,47 @@ func New(uri string) *LogClient {
 // Makes a HTTP call to |uri|, and attempts to parse the response as a JSON
 // representation of the structure in |res|.
 // Returns a non-nil |error| if there was a problem.
-func (c *LogClient) fetchAndParse(uri string, res interface{}) error {
+func (c *LogClient) fetchAndParse(uri string, respBody interface{}) error {
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return fmt.Errorf("GET %s: Sending request failed: %s", uri, err)
 	}
+	return c.doAndParse(req, respBody)
+}
+
+func (c *LogClient) postAndParse(uri string, body interface{}, respBody interface{}) error {
+	bodyReader, bodyWriter := io.Pipe()
+	go func() {
+		json.NewEncoder(bodyWriter).Encode(body)
+		bodyWriter.Close()
+	}()
+	req, err := http.NewRequest("POST", uri, bodyReader)
+	if err != nil {
+		return fmt.Errorf("POST %s: Sending request failed: %s", uri, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return c.doAndParse(req, respBody)
+}
+
+func (c *LogClient) doAndParse(req *http.Request, respBody interface{}) error {
 	//	req.Header.Set("Keep-Alive", "timeout=15, max=100")
 	resp, err := c.httpClient.Do(req)
-	var body []byte
+	var respBodyBytes []byte
 	if resp != nil {
-		body, err = ioutil.ReadAll(resp.Body)
+		respBodyBytes, err = ioutil.ReadAll(resp.Body)
 		resp.Body.Close()
 		if err != nil {
-			return fmt.Errorf("GET %s: Reading response failed: %s", uri, err)
+			return fmt.Errorf("%s %s: Reading response failed: %s", req.Method, req.URL, err)
 		}
 	}
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode/100 != 2 {
-		return fmt.Errorf("GET %s: %s (%s)", uri, resp.Status, string(body))
+		return fmt.Errorf("%s %s: %s (%s)", req.Method, req.URL, resp.Status, string(respBodyBytes))
 	}
-	if err = json.Unmarshal(body, &res); err != nil {
-		return fmt.Errorf("GET %s: Parsing response JSON failed: %s", uri, err)
+	if err = json.Unmarshal(respBodyBytes, &respBody); err != nil {
+		return fmt.Errorf("%s %s: Parsing response JSON failed: %s", req.Method, req.URL, err)
 	}
 	return nil
 }
