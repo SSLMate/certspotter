@@ -73,6 +73,16 @@ type AttributeTypeAndValue struct {
 	Value asn1.RawValue
 }
 
+func ParseRDNSequence(rdnsBytes []byte) (RDNSequence, error) {
+	var rdns RDNSequence
+	if rest, err := asn1.Unmarshal(rdnsBytes, &rdns); err != nil {
+		return nil, errors.New("failed to parse RDNSequence: " + err.Error())
+	} else if len(rest) != 0 {
+		return nil, fmt.Errorf("trailing data after RDNSequence: %v", rest) // XXX: too strict?
+	}
+	return rdns, nil
+}
+
 type TBSCertificate struct {
 	Raw asn1.RawContent
 
@@ -272,21 +282,17 @@ func (tbs *TBSCertificate) GetRawIssuer() []byte {
 }
 
 func (tbs *TBSCertificate) ParseSubject() (RDNSequence, error) {
-	var subject RDNSequence
-	if rest, err := asn1.Unmarshal(tbs.GetRawSubject(), &subject); err != nil {
+	subject, err := ParseRDNSequence(tbs.GetRawSubject())
+	if err != nil {
 		return nil, errors.New("failed to parse certificate subject: " + err.Error())
-	} else if len(rest) != 0 {
-		return nil, fmt.Errorf("trailing data in certificate subject: %v", rest) // XXX: too strict?
 	}
 	return subject, nil
 }
 
 func (tbs *TBSCertificate) ParseIssuer() (RDNSequence, error) {
-	var issuer RDNSequence
-	if rest, err := asn1.Unmarshal(tbs.GetRawIssuer(), &issuer); err != nil {
+	issuer, err := ParseRDNSequence(tbs.GetRawIssuer())
+	if err != nil {
 		return nil, errors.New("failed to parse certificate issuer: " + err.Error())
-	} else if len(rest) != 0 {
-		return nil, fmt.Errorf("trailing data in certificate issuer: %v", rest) // XXX: too strict?
 	}
 	return issuer, nil
 }
