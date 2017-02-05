@@ -29,69 +29,6 @@ import (
 
 var verbose = flag.Bool("v", false, "Enable verbose output")
 
-type CertificateBunch struct {
-	byFingerprint	map[[32]byte]*Certificate
-	bySubject	map[[32]byte]*Certificate
-}
-
-func MakeCertificateBunch() CertificateBunch {
-	return CertificateBunch{
-		byFingerprint:	make(map[[32]byte]*Certificate),
-		bySubject:	make(map[[32]byte]*Certificate),
-	}
-}
-
-func (certs *CertificateBunch) Add(cert *Certificate) {
-	certs.byFingerprint[cert.Fingerprint()] = cert
-	certs.bySubject[sha256.Sum256(cert.Subject)] = cert
-}
-
-func (certs *CertificateBunch) FindBySubject(subject []byte) *Certificate {
-	return certs.bySubject[sha256.Sum256(subject)]
-}
-
-type Chain []*Certificate
-
-func (c Chain) GetRawCerts() [][]byte {
-	rawCerts := make([][]byte, len(c))
-	for i := range c {
-		rawCerts[i] = c[i].Raw
-	}
-	return rawCerts
-}
-
-type Log struct {
-	info   certspotter.LogInfo
-	verify *ct.SignatureVerifier
-	client *client.LogClient
-}
-
-func (ctlog *Log) SubmitChain(chain Chain) (*ct.SignedCertificateTimestamp, error) {
-	rawCerts := chain.GetRawCerts()
-	sct, err := ctlog.client.AddChain(rawCerts)
-	if err != nil {
-		return nil, err
-	}
-
-	entry := ct.LogEntry{
-		Leaf: ct.MerkleTreeLeaf{
-			Version:  0,
-			LeafType: ct.TimestampedEntryLeafType,
-			TimestampedEntry: ct.TimestampedEntry{
-				Timestamp:  sct.Timestamp,
-				EntryType:  ct.X509LogEntryType,
-				X509Entry:  rawCerts[0],
-				Extensions: sct.Extensions,
-			},
-		},
-	}
-
-	if err := ctlog.verify.VerifySCTSignature(*sct, entry); err != nil {
-		return nil, fmt.Errorf("Bad SCT signature: %s", err)
-	}
-	return sct, nil
-}
-
 type Certificate struct {
 	Subject []byte
 	Issuer  []byte
@@ -130,6 +67,69 @@ func parseCertificate(data []byte) (*Certificate, error) {
 		Issuer:  tbs.Issuer.FullBytes,
 		Raw:     data,
 	}, nil
+}
+
+type Chain []*Certificate
+
+func (c Chain) GetRawCerts() [][]byte {
+	rawCerts := make([][]byte, len(c))
+	for i := range c {
+		rawCerts[i] = c[i].Raw
+	}
+	return rawCerts
+}
+
+type CertificateBunch struct {
+	byFingerprint	map[[32]byte]*Certificate
+	bySubject	map[[32]byte]*Certificate
+}
+
+func MakeCertificateBunch() CertificateBunch {
+	return CertificateBunch{
+		byFingerprint:	make(map[[32]byte]*Certificate),
+		bySubject:	make(map[[32]byte]*Certificate),
+	}
+}
+
+func (certs *CertificateBunch) Add(cert *Certificate) {
+	certs.byFingerprint[cert.Fingerprint()] = cert
+	certs.bySubject[sha256.Sum256(cert.Subject)] = cert
+}
+
+func (certs *CertificateBunch) FindBySubject(subject []byte) *Certificate {
+	return certs.bySubject[sha256.Sum256(subject)]
+}
+
+type Log struct {
+	info   certspotter.LogInfo
+	verify *ct.SignatureVerifier
+	client *client.LogClient
+}
+
+func (ctlog *Log) SubmitChain(chain Chain) (*ct.SignedCertificateTimestamp, error) {
+	rawCerts := chain.GetRawCerts()
+	sct, err := ctlog.client.AddChain(rawCerts)
+	if err != nil {
+		return nil, err
+	}
+
+	entry := ct.LogEntry{
+		Leaf: ct.MerkleTreeLeaf{
+			Version:  0,
+			LeafType: ct.TimestampedEntryLeafType,
+			TimestampedEntry: ct.TimestampedEntry{
+				Timestamp:  sct.Timestamp,
+				EntryType:  ct.X509LogEntryType,
+				X509Entry:  rawCerts[0],
+				Extensions: sct.Extensions,
+			},
+		},
+	}
+
+	if err := ctlog.verify.VerifySCTSignature(*sct, entry); err != nil {
+		return nil, fmt.Errorf("Bad SCT signature: %s", err)
+	}
+	return sct, nil
 }
 
 func buildChain(cert *Certificate, certs *CertificateBunch) Chain {
