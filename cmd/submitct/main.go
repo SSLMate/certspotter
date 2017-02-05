@@ -29,6 +29,27 @@ import (
 
 var verbose = flag.Bool("v", false, "Enable verbose output")
 
+type CertificateBunch struct {
+	byFingerprint	map[[32]byte]*Certificate
+	bySubject	map[[32]byte]*Certificate
+}
+
+func MakeCertificateBunch() CertificateBunch {
+	return CertificateBunch{
+		byFingerprint:	make(map[[32]byte]*Certificate),
+		bySubject:	make(map[[32]byte]*Certificate),
+	}
+}
+
+func (certs *CertificateBunch) Add(cert *Certificate) {
+	certs.byFingerprint[cert.Fingerprint()] = cert
+	certs.bySubject[sha256.Sum256(cert.Subject)] = cert
+}
+
+func (certs *CertificateBunch) FindBySubject(subject []byte) *Certificate {
+	return certs.bySubject[sha256.Sum256(subject)]
+}
+
 type Chain []*Certificate
 
 func (c Chain) GetRawCerts() [][]byte {
@@ -77,6 +98,22 @@ type Certificate struct {
 	Raw     []byte
 }
 
+func (cert *Certificate) Fingerprint() [32]byte {
+	return sha256.Sum256(cert.Raw)
+}
+
+func (cert *Certificate) CommonName() string {
+	subject, err := certspotter.ParseRDNSequence(cert.Subject)
+	if err != nil {
+		return "???"
+	}
+	cns, err := subject.ParseCNs()
+	if err != nil || len(cns) == 0 {
+		return "???"
+	}
+	return cns[0]
+}
+
 func parseCertificate(data []byte) (*Certificate, error) {
 	crt, err := certspotter.ParseCertificate(data)
 	if err != nil {
@@ -95,20 +132,11 @@ func parseCertificate(data []byte) (*Certificate, error) {
 	}, nil
 }
 
-func findCertificate(certs []*Certificate, subject []byte) *Certificate {
-	for _, cert := range certs {
-		if bytes.Equal(cert.Subject, subject) {
-			return cert
-		}
-	}
-	return nil
-}
-
-func buildChain(cert *Certificate, certs []*Certificate) Chain {
+func buildChain(cert *Certificate, certs *CertificateBunch) Chain {
 	chain := make([]*Certificate, 0)
 	for len(chain) < 16 && cert != nil && !bytes.Equal(cert.Subject, cert.Issuer) {
 		chain = append(chain, cert)
-		cert = findCertificate(certs, cert.Issuer)
+		cert = certs.FindBySubject(cert.Issuer)
 	}
 	return chain
 }
@@ -139,7 +167,7 @@ func main() {
 		})
 	}
 
-	var certs []*Certificate
+	certs := MakeCertificateBunch()
 	var parseErrors uint32
 	var submitErrors uint32
 
@@ -160,29 +188,29 @@ func main() {
 			parseErrors++
 			continue
 		}
-		certs = append(certs, cert)
+		certs.Add(cert)
 	}
 
 	wg := sync.WaitGroup{}
-	for index, cert := range certs {
-		chain := buildChain(cert, certs)
+	for fingerprint, cert := range certs.byFingerprint {
+		cn := cert.CommonName()
+		chain := buildChain(cert, &certs)
 		if len(chain) == 0 {
 			continue
 		}
-		fingerprint := sha256.Sum256(chain[0].Raw)
 		for _, ctlog := range logs {
 			wg.Add(1)
-			go func(index int, ctlog Log) {
+			go func(fingerprint [32]byte, ctlog Log) {
 				sct, err := ctlog.SubmitChain(chain)
 				if err != nil {
-					log.Printf("%x [%d]: %s: Submission Error: %s", fingerprint, index, ctlog.info.Url, err)
+					log.Printf("%x (%s): %s: Submission Error: %s", fingerprint, cn, ctlog.info.Url, err)
 					atomic.AddUint32(&submitErrors, 1)
 				} else if *verbose {
 					timestamp := time.Unix(int64(sct.Timestamp)/1000, int64(sct.Timestamp%1000)*1000000)
-					log.Printf("%x [%d]: %s: Submitted at %s", fingerprint, index, ctlog.info.Url, timestamp)
+					log.Printf("%x (%s): %s: Submitted at %s", fingerprint, cn, ctlog.info.Url, timestamp)
 				}
 				wg.Done()
-			}(index, ctlog)
+			}(fingerprint, ctlog)
 		}
 	}
 	wg.Wait()
