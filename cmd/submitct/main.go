@@ -164,7 +164,7 @@ func main() {
 	}
 
 	wg := sync.WaitGroup{}
-	for _, cert := range certs {
+	for index, cert := range certs {
 		chain := buildChain(cert, certs)
 		if len(chain) == 0 {
 			continue
@@ -172,17 +172,17 @@ func main() {
 		fingerprint := sha256.Sum256(chain[0].Raw)
 		for _, ctlog := range logs {
 			wg.Add(1)
-			go func(ctlog Log) {
+			go func(index int, ctlog Log) {
 				sct, err := ctlog.SubmitChain(chain)
 				if err != nil {
-					log.Printf("%x: %s: Submission Error: %s", fingerprint, ctlog.info.Url, err)
+					log.Printf("%x [%d]: %s: Submission Error: %s", fingerprint, index, ctlog.info.Url, err)
 					atomic.AddUint32(&submitErrors, 1)
 				} else if *verbose {
 					timestamp := time.Unix(int64(sct.Timestamp)/1000, int64(sct.Timestamp%1000)*1000000)
-					log.Printf("%x: %s: Submitted at %s", fingerprint, ctlog.info.Url, timestamp)
+					log.Printf("%x [%d]: %s: Submitted at %s", fingerprint, index, ctlog.info.Url, timestamp)
 				}
 				wg.Done()
-			}(ctlog)
+			}(index, ctlog)
 		}
 	}
 	wg.Wait()
