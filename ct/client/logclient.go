@@ -26,6 +26,7 @@ const (
 	GetEntriesPath        = "/ct/v1/get-entries"
 	GetSTHConsistencyPath = "/ct/v1/get-sth-consistency"
 	GetProofByHashPath    = "/ct/v1/get-proof-by-hash"
+	AddChainPath          = "/ct/v1/add-chain"
 )
 
 // LogClient represents a client for a given CT Log instance
@@ -67,6 +68,18 @@ type getConsistencyProofResponse struct {
 type getAuditProofResponse struct {
 	LeafIndex uint64   `json:"leaf_index"`
 	AuditPath [][]byte `json:"audit_path"`
+}
+
+type addChainRequest struct {
+	Chain [][]byte `json:"chain"`
+}
+
+type addChainResponse struct {
+	SCTVersion uint8  `json:"sct_version"`
+	ID         []byte `json:"id"`
+	Timestamp  uint64 `json:"timestamp"`
+	Extensions []byte `json:"extensions"`
+	Signature  []byte `json:"signature"`
 }
 
 // New constructs a new LogClient instance.
@@ -239,4 +252,31 @@ func (c *LogClient) GetAuditProof(hash ct.MerkleTreeNode, treeSize uint64) (ct.A
 		path[index] = nodeBytes
 	}
 	return path, resp.LeafIndex, nil
+}
+
+func (c *LogClient) AddChain(chain [][]byte) (*ct.SignedCertificateTimestamp, error) {
+	req := addChainRequest{Chain: chain}
+
+	var resp addChainResponse
+	if err := c.postAndParse(c.uri+AddChainPath, &req, &resp); err != nil {
+		return nil, err
+	}
+
+	sct := &ct.SignedCertificateTimestamp{
+		SCTVersion: ct.Version(resp.SCTVersion),
+		Timestamp:  resp.Timestamp,
+		Extensions: resp.Extensions,
+	}
+
+	if len(resp.ID) != sha256.Size {
+		return nil, fmt.Errorf("SCT returned by server has invalid id (expected length %d got %d)", sha256.Size, len(resp.ID))
+	}
+	copy(sct.LogID[:], resp.ID)
+
+	ds, err := ct.UnmarshalDigitallySigned(bytes.NewReader(resp.Signature))
+	if err != nil {
+		return nil, err
+	}
+	sct.Signature = *ds
+	return sct, nil
 }
