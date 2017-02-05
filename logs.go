@@ -128,6 +128,20 @@ var UnderwaterLogs = []LogInfo{
 	},
 }
 
+// Logs which accept submissions from anyone
+var OpenLogs = []LogInfo{
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfahLEimAoz2t01p3uMziiLOl/fHTDM0YDOhBRuiBARsV4UvxG2LdNgoIGLrtCzWE0J5APC2em4JlvR8EEEFMoA=="),
+		Url: "ct.googleapis.com/pilot",
+		MMD: 86400,
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIFsYyDzBi7MxCAC/oJBXK7dHjG+1aLCOkHjpoHPqTyghLpzA9BYbqvnV16mAw04vUjyYASVGJCUoI3ctBcJAeg=="),
+		Url: "ct.googleapis.com/rocketeer",
+		MMD: 86400,
+	},
+}
+
 func mustDecodeBase64(str string) []byte {
 	bytes, err := base64.StdEncoding.DecodeString(str)
 	if err != nil {
