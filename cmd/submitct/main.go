@@ -80,14 +80,14 @@ func (c Chain) GetRawCerts() [][]byte {
 }
 
 type CertificateBunch struct {
-	byFingerprint	map[[32]byte]*Certificate
-	bySubject	map[[32]byte]*Certificate
+	byFingerprint map[[32]byte]*Certificate
+	bySubject     map[[32]byte]*Certificate
 }
 
 func MakeCertificateBunch() CertificateBunch {
 	return CertificateBunch{
-		byFingerprint:	make(map[[32]byte]*Certificate),
-		bySubject:	make(map[[32]byte]*Certificate),
+		byFingerprint: make(map[[32]byte]*Certificate),
+		bySubject:     make(map[[32]byte]*Certificate),
 	}
 }
 
