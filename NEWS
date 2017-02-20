@@ -1,4 +1,4 @@
-v0.3 (2017-01-??)
+v0.3 (2017-02-20)
   * Revise -all_time flag (behavior change):
     - If -all_time is specified, scan the entirety of all logs, even
       existing logs
