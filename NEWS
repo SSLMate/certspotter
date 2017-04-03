@@ -1,3 +1,7 @@
+v0.4 (2017-04-03)
+  * Add PuChuangSiDa 1 log
+  * Remove Venafi log due to fork and disqualification from Chrome
+
 v0.3 (2017-02-20)
   * Revise -all_time flag (behavior change):
     - If -all_time is specified, scan the entirety of all logs, even
