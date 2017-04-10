@@ -214,24 +214,23 @@ func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
 }
 
 func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, error) {
-	var proof ct.ConsistencyProof
-
-	if first.TreeSize > second.TreeSize {
-		// No way this can be valid
-		return false, nil
-	} else if first.TreeSize == second.TreeSize {
-		// The proof *should* be empty, so don't bother contacting the server.
-		// This is necessary because the digicert server returns a 400 error if first==second.
-		proof = []ct.MerkleTreeNode{}
-	} else {
-		var err error
-		proof, err = s.logClient.GetConsistencyProof(int64(first.TreeSize), int64(second.TreeSize))
+	if first.TreeSize < second.TreeSize {
+		proof, err := s.logClient.GetConsistencyProof(int64(first.TreeSize), int64(second.TreeSize))
 		if err != nil {
 			return false, err
 		}
+		return VerifyConsistencyProof(proof, first, second), nil
+	} else if first.TreeSize > second.TreeSize {
+		proof, err := s.logClient.GetConsistencyProof(int64(second.TreeSize), int64(first.TreeSize))
+		if err != nil {
+			return false, err
+		}
+		return VerifyConsistencyProof(proof, second, first), nil
+	} else {
+		// There is no need to ask the server for a consistency proof if the trees
+		// are the same size, and the DigiCert log returns a 400 error if we try.
+		return bytes.Equal(first.SHA256RootHash[:], second.SHA256RootHash[:]), nil
 	}
-
-	return VerifyConsistencyProof(proof, first, second), nil
 }
 
 func (s *Scanner) MakeCollapsedMerkleTree(sth *ct.SignedTreeHead) (*CollapsedMerkleTree, error) {

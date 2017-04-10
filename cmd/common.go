@@ -175,6 +175,17 @@ func (ctlog *logHandle) refresh() error {
 	return nil
 }
 
+func (ctlog *logHandle) verifySTH(sth *ct.SignedTreeHead) error {
+	isValid, err := ctlog.scanner.CheckConsistency(ctlog.verifiedSTH, sth)
+	if err != nil {
+		return fmt.Errorf("Error fetching consistency proof: %s", err)
+	}
+	if !isValid {
+		return fmt.Errorf("Consistency proof between %d and %d is invalid", ctlog.verifiedSTH.TreeSize, sth.TreeSize)
+	}
+	return nil
+}
+
 func (ctlog *logHandle) audit() error {
 	sths, err := ctlog.state.GetUnverifiedSTHs()
 	if err != nil {
@@ -183,34 +194,19 @@ func (ctlog *logHandle) audit() error {
 
 	for _, sth := range sths {
 		if *verbose {
-			log.Printf("Verifying consistency between STH %d (%x) and STH %d (%x)", sth.TreeSize, sth.SHA256RootHash, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
+			log.Printf("Verifying consistency of STH %d (%x) with previously-verified STH %d (%x)", sth.TreeSize, sth.SHA256RootHash, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
+		}
+		if err := ctlog.verifySTH(sth); err != nil {
+			log.Printf("Unable to verify consistency of STH %d (%s) (if this error persists, it should be construed as misbehavior by the log): %s", sth.TreeSize, ctlog.state.UnverifiedSTHFilename(sth), err)
+			continue
 		}
 		if sth.TreeSize > ctlog.verifiedSTH.TreeSize {
-			isValid, err := ctlog.scanner.CheckConsistency(ctlog.verifiedSTH, sth)
-			if err != nil {
-				return fmt.Errorf("Error fetching consistency proof between %d and %d (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.verifiedSTH.TreeSize, sth.TreeSize, err)
-			}
-			if !isValid {
-				return fmt.Errorf("Log has misbehaved: STH in '%s' is not consistent with STH in '%s'", ctlog.state.VerifiedSTHFilename(), ctlog.state.UnverifiedSTHFilename(sth))
-			}
 			if *verbose {
 				log.Printf("STH %d (%x) is now the latest verified STH", sth.TreeSize, sth.SHA256RootHash)
 			}
 			ctlog.verifiedSTH = sth
 			if err := ctlog.state.StoreVerifiedSTH(ctlog.verifiedSTH); err != nil {
 				return fmt.Errorf("Error storing verified STH: %s", err)
-			}
-		} else if sth.TreeSize < ctlog.verifiedSTH.TreeSize {
-			isValid, err := ctlog.scanner.CheckConsistency(sth, ctlog.verifiedSTH)
-			if err != nil {
-				return fmt.Errorf("Error fetching consistency proof between %d and %d (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.verifiedSTH.TreeSize, sth.TreeSize, err)
-			}
-			if !isValid {
-				return fmt.Errorf("Log has misbehaved: STH in '%s' is not consistent with STH in '%s'", ctlog.state.VerifiedSTHFilename(), ctlog.state.UnverifiedSTHFilename(sth))
-			}
-		} else {
-			if !bytes.Equal(sth.SHA256RootHash[:], ctlog.verifiedSTH.SHA256RootHash[:]) {
-				return fmt.Errorf("Log has misbehaved: STH in '%s' is not consistent with STH in '%s'", ctlog.state.VerifiedSTHFilename(), ctlog.state.UnverifiedSTHFilename(sth))
 			}
 		}
 		if err := ctlog.state.RemoveUnverifiedSTH(sth); err != nil {
