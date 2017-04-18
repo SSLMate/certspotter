@@ -26,18 +26,24 @@ var (
 	oidExtensionCTPoison       = []int{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
 )
 
-func ValidatePrecert(precertBytes []byte, tbsBytes []byte) error {
+type PrecertInfo struct {
+	SameIssuer		bool	// The pre-certificate was issued from the same CA as the final certificate
+	Issuer			[]byte	// The pre-certificate's issuer, if different from the final certificate
+	AKI			[]byte	// The pre-certificate's AKI, if present and different from the final certificate
+}
+
+func ValidatePrecert(precertBytes []byte, tbsBytes []byte) (*PrecertInfo, error) {
 	precert, err := ParseCertificate(precertBytes)
 	if err != nil {
-		return errors.New("failed to parse pre-certificate: " + err.Error())
+		return nil, errors.New("failed to parse pre-certificate: " + err.Error())
 	}
 	precertTBS, err := precert.ParseTBSCertificate()
 	if err != nil {
-		return errors.New("failed to parse pre-certificate TBS: " + err.Error())
+		return nil, errors.New("failed to parse pre-certificate TBS: " + err.Error())
 	}
 	tbs, err := ParseTBSCertificate(tbsBytes)
 	if err != nil {
-		return errors.New("failed to parse TBS: " + err.Error())
+		return nil, errors.New("failed to parse TBS: " + err.Error())
 	}
 
 	// Everything must be equal except:
@@ -45,39 +51,40 @@ func ValidatePrecert(precertBytes []byte, tbsBytes []byte) error {
 	//  Authority Key Identifier extension (both must have it OR neither can have it)
 	//  CT poison extension (precert must have it, TBS must not have it)
 	if precertTBS.Version != tbs.Version {
-		return errors.New("version not equal")
+		return nil, errors.New("version not equal")
 	}
 	if !bytes.Equal(precertTBS.SerialNumber.FullBytes, tbs.SerialNumber.FullBytes) {
-		return errors.New("serial number not equal")
+		return nil, errors.New("serial number not equal")
 	}
 	sameIssuer := bytes.Equal(precertTBS.Issuer.FullBytes, tbs.Issuer.FullBytes)
 	if !bytes.Equal(precertTBS.SignatureAlgorithm.FullBytes, tbs.SignatureAlgorithm.FullBytes) {
-		return errors.New("SignatureAlgorithm not equal")
+		return nil, errors.New("SignatureAlgorithm not equal")
 	}
 	if !bytes.Equal(precertTBS.Validity.FullBytes, tbs.Validity.FullBytes) {
-		return errors.New("Validity not equal")
+		return nil, errors.New("Validity not equal")
 	}
 	if !bytes.Equal(precertTBS.Subject.FullBytes, tbs.Subject.FullBytes) {
-		return errors.New("Subject not equal")
+		return nil, errors.New("Subject not equal")
 	}
 	if !bytes.Equal(precertTBS.PublicKey.FullBytes, tbs.PublicKey.FullBytes) {
-		return errors.New("PublicKey not equal")
+		return nil, errors.New("PublicKey not equal")
 	}
 	if !bitStringEqual(&precertTBS.UniqueId, &tbs.UniqueId) {
-		return errors.New("UniqueId not equal")
+		return nil, errors.New("UniqueId not equal")
 	}
 	if !bitStringEqual(&precertTBS.SubjectUniqueId, &tbs.SubjectUniqueId) {
-		return errors.New("SubjectUniqueId not equal")
+		return nil, errors.New("SubjectUniqueId not equal")
 	}
 
 	precertHasPoison := false
 	tbsIndex := 0
+	var aki []byte
 	for precertIndex := range precertTBS.Extensions {
 		precertExt := &precertTBS.Extensions[precertIndex]
 
 		if precertExt.Id.Equal(oidExtensionCTPoison) {
 			if !precertExt.Critical {
-				return errors.New("pre-cert poison extension is not critical")
+				return nil, errors.New("pre-cert poison extension is not critical")
 			}
 			/* CAs can't even get this right, and Google's logs don't check.  Fortunately,
 			   it's not that important.
@@ -90,32 +97,34 @@ func ValidatePrecert(precertBytes []byte, tbsBytes []byte) error {
 		}
 
 		if tbsIndex >= len(tbs.Extensions) {
-			return errors.New("pre-cert contains extension not in TBS")
+			return nil, errors.New("pre-cert contains extension not in TBS")
 		}
 		tbsExt := &tbs.Extensions[tbsIndex]
 
 		if !precertExt.Id.Equal(tbsExt.Id) {
-			return fmt.Errorf("pre-cert and TBS contain different extensions (%v vs %v)", precertExt.Id, tbsExt.Id)
+			return nil, fmt.Errorf("pre-cert and TBS contain different extensions (%v vs %v)", precertExt.Id, tbsExt.Id)
 		}
 		if precertExt.Critical != tbsExt.Critical {
-			return fmt.Errorf("pre-cert and TBS %v extension differs in criticality", precertExt.Id)
+			return nil, fmt.Errorf("pre-cert and TBS %v extension differs in criticality", precertExt.Id)
 		}
-		if !precertExt.Id.Equal(oidExtensionAuthorityKeyId) || sameIssuer {
+		if !sameIssuer && precertExt.Id.Equal(oidExtensionAuthorityKeyId) {
+			aki = precertExt.Value
+		} else {
 			if !bytes.Equal(precertExt.Value, tbsExt.Value) {
-				return fmt.Errorf("pre-cert and TBS %v extension differs in value", precertExt.Id)
+				return nil, fmt.Errorf("pre-cert and TBS %v extension differs in value", precertExt.Id)
 			}
 		}
 
 		tbsIndex++
 	}
 	if tbsIndex < len(tbs.Extensions) {
-		return errors.New("TBS contains extension not in pre-cert")
+		return nil, errors.New("TBS contains extension not in pre-cert")
 	}
 	if !precertHasPoison {
-		return errors.New("pre-cert does not have poison extension")
+		return nil, errors.New("pre-cert does not have poison extension")
 	}
 
-	return nil
+	return &PrecertInfo{SameIssuer: sameIssuer, Issuer: precertTBS.Issuer.FullBytes, AKI: aki}, nil
 }
 func ReconstructPrecertTBS(tbs *TBSCertificate) (*TBSCertificate, error) {
 	precertTBS := TBSCertificate{
