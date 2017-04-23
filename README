@@ -105,7 +105,7 @@ certificates are logged:
 * Certificates that are detected when crawling web pages and doing
   Internet-wide scans.
 
-Starting from October 2017, all new certificates must be logged (and
+Starting from April 2018, all new certificates must be logged (and
 therefore detectable by Cert Spotter) to be trusted by Google Chrome.
 
 
