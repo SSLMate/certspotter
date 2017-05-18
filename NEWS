@@ -1,3 +1,11 @@
+v0.5 (2017-05-18)
+  * Remove PuChuangSiDa 1 log due to excessive downtime and presumptive
+    disqualification from Chrome
+  * Add Venafi Gen2 log
+  * Improve monitoring robustness under certain pathological behavior
+    by logs
+  * Minor documentation improvements
+
 v0.4 (2017-04-03)
   * Add PuChuangSiDa 1 log
   * Remove Venafi log due to fork and disqualification from Chrome
