@@ -128,6 +128,11 @@ var OpenLogs = []LogInfo{
 		Url: "ct.googleapis.com/rocketeer",
 		MMD: 86400,
 	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELPXCMfVjQ2oWSgrewu4fIW4Sfh3lco90CwKZ061pvAI1eflh6c8ACE90pKM0muBDHCN+j0HV7scco4KKQPqq4A=="),
+		Url: "dodo.ct.comodo.com",
+		MMD: 86400,
+	},
 }
 
 func mustDecodeBase64(str string) []byte {
