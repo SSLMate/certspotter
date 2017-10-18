@@ -104,6 +104,16 @@ var DefaultLogs = []LogInfo{
 		Url: "ctlog-gen2.api.venafi.com",
 		MMD: 86400,
 	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7+R9dC4VFbbpuyOL+yy14ceAmEf7QGlo/EmtYU6DRzwat43f/3swtLr/L8ugFOOt1YU/RFmMjGCL17ixv66MZw=="),
+		Url: "mammoth.ct.comodo.com",
+		MMD: 86400,
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE8m/SiQ8/xfiHHqtls9m7FyOMBg4JVZY9CgiixXGz0akvKD6DEL8S0ERmFe9U4ZiA0M4kbT5nmuk3I85Sk4bagA=="),
+		Url: "sabre.ct.comodo.com",
+		MMD: 86400,
+	},
 }
 
 // Logs which monitor certs from distrusted roots
