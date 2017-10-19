@@ -1,3 +1,7 @@
+v0.6 (2017-10-19)
+  * Add Comodo Mammoth and Comodo Sabre logs
+  * Minor bug fixes and improvements
+
 v0.5 (2017-05-18)
   * Remove PuChuangSiDa 1 log due to excessive downtime and presumptive
     disqualification from Chrome
