@@ -6,6 +6,7 @@ package client
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -94,6 +95,16 @@ func New(uri string) *LogClient {
 		ResponseHeaderTimeout: 30 * time.Second,
 		MaxIdleConnsPerHost:   10,
 		DisableKeepAlives:     false,
+		TLSClientConfig: &tls.Config{
+			// We have to disable TLS certificate validation because because several logs
+			// (WoSign, StartCom, GDCA) use certificates that are not widely trusted.
+			// Since we verify that every response we receive from the log is signed
+			// by the log's CT public key (either directly, or indirectly via the Merkle Tree),
+			// TLS certificate validation is not actually necessary.  (We don't want to ship
+			// our own trust store because that adds undesired complexity and would require
+			// updating should a log ever change to a different CA.)
+			InsecureSkipVerify: true,
+		},
 	}
 	c.httpClient = &http.Client{Transport: transport}
 	return &c
