@@ -69,9 +69,6 @@ type Scanner struct {
 
 	// Configuration options for this Scanner instance
 	opts ScannerOptions
-
-	// Stats
-	certsProcessed int64
 }
 
 // fetchRange represents a range of certs to fetch from a CT log
@@ -83,9 +80,9 @@ type fetchRange struct {
 // Worker function to process certs.
 // Accepts ct.LogEntries over the |entries| channel, and invokes processCert on them.
 // Returns true over the |done| channel when the |entries| channel is closed.
-func (s *Scanner) processerJob(id int, entries <-chan ct.LogEntry, processCert ProcessCallback, wg *sync.WaitGroup) {
+func (s *Scanner) processerJob(id int, certsProcessed *int64, entries <-chan ct.LogEntry, processCert ProcessCallback, wg *sync.WaitGroup) {
 	for entry := range entries {
-		atomic.AddInt64(&s.certsProcessed, 1)
+		atomic.AddInt64(certsProcessed, 1)
 		processCert(s, &entry)
 	}
 	wg.Done()
@@ -273,7 +270,7 @@ func (s *Scanner) MakeCollapsedMerkleTree(sth *ct.SignedTreeHead) (*CollapsedMer
 func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCallback, tree *CollapsedMerkleTree) error {
 	s.Log("Starting scan...")
 
-	s.certsProcessed = 0
+	certsProcessed := new(int64)
 	startTime := time.Now()
 	/* TODO: only launch ticker goroutine if in verbose mode; kill the goroutine when the scanner finishes
 	ticker := time.NewTicker(time.Second)
@@ -294,7 +291,7 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 	var processorWG sync.WaitGroup
 	for w := 0; w < s.opts.NumWorkers; w++ {
 		processorWG.Add(1)
-		go s.processerJob(w, jobs, processCert, &processorWG)
+		go s.processerJob(w, certsProcessed, jobs, processCert, &processorWG)
 	}
 
 	for start := startIndex; start < int64(endIndex); {
@@ -306,7 +303,7 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 	}
 	close(jobs)
 	processorWG.Wait()
-	s.Log(fmt.Sprintf("Completed %d certs in %s", s.certsProcessed, humanTime(int(time.Since(startTime).Seconds()))))
+	s.Log(fmt.Sprintf("Completed %d certs in %s", *certsProcessed, humanTime(int(time.Since(startTime).Seconds()))))
 
 	return nil
 }
