@@ -14,16 +14,19 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"time"
 )
 
 type LogInfoFile struct {
 	Logs []LogInfo `json:"logs"`
 }
 type LogInfo struct {
-	Description string `json:"description"`
-	Key         []byte `json:"key"`
-	Url         string `json:"url"`
-	MMD         int    `json:"maximum_merge_delay"`
+	Description     string     `json:"description"`
+	Key             []byte     `json:"key"`
+	Url             string     `json:"url"`
+	MMD             int        `json:"maximum_merge_delay"`
+	CertExpiryBegin *time.Time `json:"cert_expiry_begin"`
+	CertExpiryEnd   *time.Time `json:"cert_expiry_end"`
 }
 
 func (info *LogInfo) FullURI() string {
@@ -151,4 +154,8 @@ func mustDecodeBase64(str string) []byte {
 		panic("MustDecodeBase64: " + err.Error())
 	}
 	return bytes
+}
+func makeTime(seconds int64) *time.Time {
+	t := time.Unix(seconds, 0)
+	return &t
 }
