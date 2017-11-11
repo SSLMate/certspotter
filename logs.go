@@ -117,6 +117,41 @@ var DefaultLogs = []LogInfo{
 		Url: "sabre.ct.comodo.com",
 		MMD: 86400,
 	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVG18id3qnfC6X/RtYHo3TwIlvxz2b4WurxXfaW7t26maKZfymXYe5jNGHif0vnDdWde6z/7Qco6wVw+dN4liow=="),
+		Url: "ct.googleapis.com/logs/argon2017",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1483228800),
+		CertExpiryEnd: makeTime(1514764800),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0gBVBa3VR7QZu82V+ynXWD14JM3ORp37MtRxTmACJV5ZPtfUA7htQ2hofuigZQs+bnFZkje+qejxoyvk2Q1VaA=="),
+		Url: "ct.googleapis.com/logs/argon2018",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1514764800),
+		CertExpiryEnd: makeTime(1546300800),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEI3MQm+HzXvaYa2mVlhB4zknbtAT8cSxakmBoJcBKGqGwYS0bhxSpuvABM1kdBTDpQhXnVdcq+LSiukXJRpGHVg=="),
+		Url: "ct.googleapis.com/logs/argon2019",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1546300800),
+		CertExpiryEnd: makeTime(1577836800),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6Tx2p1yKY4015NyIYvdrk36es0uAc1zA4PQ+TGRY+3ZjUTIYY9Wyu+3q/147JG4vNVKLtDWarZwVqGkg6lAYzA=="),
+		Url: "ct.googleapis.com/logs/argon2020",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1577836800),
+		CertExpiryEnd: makeTime(1609459200),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETeBmZOrzZKo4xYktx9gI2chEce3cw/tbr5xkoQlmhB18aKfsxD+MnILgGNl0FOm0eYGilFVi85wLRIOhK8lxKw=="),
+		Url: "ct.googleapis.com/logs/argon2021",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1609459200),
+		CertExpiryEnd: makeTime(1640995200),
+	},
 }
 
 // Logs which monitor certs from distrusted roots
