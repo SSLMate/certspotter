@@ -1,3 +1,7 @@
+v0.7 (2017-11-13)
+  * Add Google Argon logs
+  * Fix bug that caused crash on 32 bit architectures
+
 v0.6 (2017-10-19)
   * Add Comodo Mammoth and Comodo Sabre logs
   * Minor bug fixes and improvements
