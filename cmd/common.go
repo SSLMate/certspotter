@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"os/signal"
 	"path/filepath"
 	"sync"
 
@@ -329,6 +330,16 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 		fmt.Fprintf(os.Stderr, "%s: Another instance of %s is already running%s; remove the file %s if this is not the case\n", os.Args[0], os.Args[0], otherPidInfo, state.LockFilename())
 		return 1
 	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		if err := state.Unlock(); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: Error unlocking state directory: %s\n", os.Args[0], err)
+		}
+		os.Exit(1)
+	}()
 
 	exitCode := 0
 	for i := range logs {
