@@ -1,3 +1,7 @@
+v0.8 (2017-12-08)
+  * Add Symantec Sirius log
+  * Add DigiCert 2 log
+
 v0.7 (2017-11-13)
   * Add Google Argon logs
   * Fix bug that caused crash on 32 bit architectures
