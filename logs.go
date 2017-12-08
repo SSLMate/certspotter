@@ -157,6 +157,11 @@ var DefaultLogs = []LogInfo{
 		Url: "sirius.ws.symantec.com",
 		MMD: 86400,
 	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzF05L2a4TH/BLgOhNKPoioYCrkoRxvcmajeb8Dj4XQmNY+gxa4Zmz3mzJTwe33i0qMVp+rfwgnliQ/bM/oFmhA=="),
+		Url: "ct2.digicert-ct.com/log",
+		MMD: 86400,
+	},
 }
 
 // Logs which monitor certs from distrusted roots
