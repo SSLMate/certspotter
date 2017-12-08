@@ -152,6 +152,11 @@ var DefaultLogs = []LogInfo{
 		CertExpiryBegin: makeTime(1609459200),
 		CertExpiryEnd: makeTime(1640995200),
 	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEowJkhCK7JewN47zCyYl93UXQ7uYVhY/Z5xcbE4Dq7bKFN61qxdglnfr0tPNuFiglN+qjN2Syxwv9UeXBBfQOtQ=="),
+		Url: "sirius.ws.symantec.com",
+		MMD: 86400,
+	},
 }
 
 // Logs which monitor certs from distrusted roots
