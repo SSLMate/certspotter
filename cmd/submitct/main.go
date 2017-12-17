@@ -113,20 +113,7 @@ func (ctlog *Log) SubmitChain(chain Chain) (*ct.SignedCertificateTimestamp, erro
 		return nil, err
 	}
 
-	entry := ct.LogEntry{
-		Leaf: ct.MerkleTreeLeaf{
-			Version:  0,
-			LeafType: ct.TimestampedEntryLeafType,
-			TimestampedEntry: ct.TimestampedEntry{
-				Timestamp:  sct.Timestamp,
-				EntryType:  ct.X509LogEntryType,
-				X509Entry:  rawCerts[0],
-				Extensions: sct.Extensions,
-			},
-		},
-	}
-
-	if err := ctlog.verify.VerifySCTSignature(*sct, entry); err != nil {
+	if err := certspotter.VerifyX509SCT(sct, rawCerts[0], ctlog.verify); err != nil {
 		return nil, fmt.Errorf("Bad SCT signature: %s", err)
 	}
 	return sct, nil
