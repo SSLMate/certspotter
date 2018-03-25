@@ -118,13 +118,6 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVG18id3qnfC6X/RtYHo3TwIlvxz2b4WurxXfaW7t26maKZfymXYe5jNGHif0vnDdWde6z/7Qco6wVw+dN4liow=="),
-		Url: "ct.googleapis.com/logs/argon2017",
-		MMD: 86400,
-		CertExpiryBegin: makeTime(1483228800),
-		CertExpiryEnd: makeTime(1514764800),
-	},
-	{
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0gBVBa3VR7QZu82V+ynXWD14JM3ORp37MtRxTmACJV5ZPtfUA7htQ2hofuigZQs+bnFZkje+qejxoyvk2Q1VaA=="),
 		Url: "ct.googleapis.com/logs/argon2018",
 		MMD: 86400,
