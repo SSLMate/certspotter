@@ -88,25 +88,13 @@ COMMAND LINE FLAGS
 WHAT CERTIFICATES ARE DETECTED BY CERT SPOTTER?
 
 Any certificate that is logged to a Certificate Transparency log trusted
-by Chromium will be detected by Cert Spotter.  Currently, the following
-certificates are logged:
+by Chromium will be detected by Cert Spotter.  All certificates issued
+after April 30, 2018 must be logged to such a log to be trusted by Chromium.
 
-* EV certificates
-
-* All certificates issued by the following CAs:
-
-	* Let's Encrypt <https://letsencrypt.org/certificates/#certificate-transparency>
-	* StartCom <https://www.startssl.com/NewsDetails?date=20160323>
-	* Symantec <https://security.googleblog.com/2015/10/sustaining-digital-certificate-security.html>
-	* WoSign <https://www.wosign.com/english/News/2016_wosign_CT.htm>
-
-* All DV certificates issued by GlobalSign <https://www.globalsign.com/en/blog/google-updates-certificate-transparency-policy/>.
-
-* Certificates that are detected when crawling web pages and doing
-  Internet-wide scans.
-
-Starting from April 2018, all new certificates must be logged (and
-therefore detectable by Cert Spotter) to be trusted by Google Chrome.
+Generally, certificate authorities will automatically submit certificates
+to logs so that they will work in Chromium.  In addition, certificates
+that are discovered during Internet-wide scans are submitted to Certificate
+Transparency logs.
 
 
 SECURITY
