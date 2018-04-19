@@ -93,16 +93,6 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESPNZ8/YFGNPbsu1Gfs/IEbVXsajWTOaft0oaFIZDqUiwy1o/PErK38SCFFWa+PeOQFXc9NKv6nV0+05/YIYuUQ=="),
-		Url: "ct.startssl.com",
-		MMD: 86400,
-	},
-	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzBGIey1my66PTTBmJxklIpMhRrQvAdPG+SvVyLpzmwai8IoCnNBrRhgwhbrpJIsO0VtwKAx+8TpFf1rzgkJgMQ=="),
-		Url: "ctlog.wosign.com",
-		MMD: 86400,
-	},
-	{
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjicnerZVCXTrbEuUhGW85BXx6lrYfA43zro/bAna5ymW00VQb94etBzSg4j/KS/Oqf/fNN51D8DMGA2ULvw3AQ=="),
 		Url: "ctlog-gen2.api.venafi.com",
 		MMD: 86400,
