@@ -81,6 +81,8 @@ COMMAND LINE FLAGS
 	Default: use the logs trusted by Chromium.
   -state_dir PATH
 	Directory for storing state. Default: ~/.certspotter
+  -bygonessl
+    Only print certificates which predate domain registration and live into it (requires 'issued_before' option in watchlist)
   -verbose
 	Be verbose.
 
@@ -130,3 +132,17 @@ Cert Spotter is not just a log monitor, but also a log auditor which
 checks that the log is obeying its append-only property.  A future
 release of Cert Spotter will support gossiping with other log monitors
 to ensure the log is presenting a single view.
+
+
+BygoneSSL
+
+Cert Spotter can also notify users of bygone SSL certificates, which are SSL
+certificates that outlived their prior domain owner's registration into the
+next owners registration. To detect these certificates add an issued_before
+argument to each domain in the watchlist followed by the date the domain was
+registered in t he following format YYYY-MM-DD. For example:
+example.com issued_before:2014-05-02
+
+The optional -bygonessl flag will cause Cert Spotter to only match bygone SSL
+certificates.
+

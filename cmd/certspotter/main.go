@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/net/idna"
 
@@ -50,35 +51,71 @@ func trimTrailingDots(value string) string {
 
 var stateDir = flag.String("state_dir", defaultStateDir(), "Directory for storing state")
 var watchlistFilename = flag.String("watchlist", filepath.Join(defaultConfigDir(), "watchlist"), "File containing identifiers to watch (- for stdin)")
+var bygoneSSL = flag.Bool("bygonessl", false, "Only print certificates which predate domain registration and live into it (requires 'issued_before' option in watchlist)")
 
 type watchlistItem struct {
 	Domain       []string
 	AcceptSuffix bool
+	NotBefore    *time.Time // optional
 }
 
 var watchlist []watchlistItem
 
 func parseWatchlistItem(str string) (watchlistItem, error) {
-	if str == "." { // "." as in root zone (matches everything)
+	fields := strings.Fields(str)
+	if len(fields) == 0 {
+		return watchlistItem{}, fmt.Errorf("Empty domain")
+	}
+	domain := fields[0]
+	var notBefore *time.Time = nil
+
+	// parse options
+	for i := 1; i < len(fields); i++ {
+		chunks := strings.SplitN(fields[i], ":", 2)
+		if len(chunks) != 2 {
+			return watchlistItem{}, fmt.Errorf("Missing Value `%s'", fields[i])
+		}
+		switch chunks[0] {
+		case "issued_before":
+			notBeforeTime, err := time.Parse("2006-01-02", chunks[1])
+			if err != nil {
+				return watchlistItem{}, fmt.Errorf("Invalid Date `%s': %s", chunks[1], err)
+			}
+			notBefore = &notBeforeTime
+		default:
+			return watchlistItem{}, fmt.Errorf("Unknown Option `%s'", fields[i])
+		}
+	}
+
+	if *bygoneSSL && notBefore == nil {
+		return watchlistItem{}, fmt.Errorf("`%s' must have issued_before argument when using -bygonessl", domain)
+	}
+
+	// parse domain
+	// "." as in root zone (matches everything)
+	if domain == "." {
 		return watchlistItem{
 			Domain:       []string{},
 			AcceptSuffix: true,
-		}, nil
-	} else {
-		acceptSuffix := false
-		if strings.HasPrefix(str, ".") {
-			acceptSuffix = true
-			str = str[1:]
-		}
-		asciiDomain, err := idna.ToASCII(strings.ToLower(trimTrailingDots(str)))
-		if err != nil {
-			return watchlistItem{}, fmt.Errorf("Invalid domain `%s': %s", str, err)
-		}
-		return watchlistItem{
-			Domain:       strings.Split(asciiDomain, "."),
-			AcceptSuffix: acceptSuffix,
+			NotBefore:    notBefore,
 		}, nil
 	}
+
+	acceptSuffix := false
+	if strings.HasPrefix(domain, ".") {
+		acceptSuffix = true
+		domain = domain[1:]
+	}
+
+	asciiDomain, err := idna.ToASCII(strings.ToLower(trimTrailingDots(domain)))
+	if err != nil {
+		return watchlistItem{}, fmt.Errorf("Invalid domain `%s': %s", domain, err)
+	}
+	return watchlistItem{
+		Domain:       strings.Split(asciiDomain, "."),
+		AcceptSuffix: acceptSuffix,
+		NotBefore:    notBefore,
+	}, nil
 }
 
 func readWatchlist(reader io.Reader) ([]watchlistItem, error) {
@@ -125,20 +162,23 @@ func dnsNameMatches(dnsName []string, watchDomain []string, acceptSuffix bool) b
 	return len(watchDomain) == 0 && (acceptSuffix || len(dnsName) == 0)
 }
 
-func dnsNameIsWatched(dnsName string) bool {
-	labels := strings.Split(dnsName, ".")
-	for _, item := range watchlist {
-		if dnsNameMatches(labels, item.Domain, item.AcceptSuffix) {
-			return true
-		}
-	}
-	return false
-}
-
-func anyDnsNameIsWatched(dnsNames []string) bool {
+func anyDnsNameIsWatched(info *certspotter.EntryInfo) bool {
+	dnsNames := info.Identifiers.DNSNames
 	for _, dnsName := range dnsNames {
-		if dnsNameIsWatched(dnsName) {
-			return true
+		labels := strings.Split(dnsName, ".")
+		for _, item := range watchlist {
+			if dnsNameMatches(labels, item.Domain, item.AcceptSuffix) {
+				if item.NotBefore != nil {
+					// BygoneSSL Check
+					// was the SSL certificate issued before the domain was registered
+					// and valid after
+					if item.NotBefore.Before(*info.CertInfo.NotAfter()) &&
+						item.NotBefore.After(*info.CertInfo.NotBefore()) {
+						info.Bygone = true
+					}
+				}
+				return true
+			}
 		}
 	}
 	return false
@@ -162,8 +202,10 @@ func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
 	// parse error), report the certificate because we can't say for sure it
 	// doesn't match a domain we care about.  We try very hard to make sure
 	// parsing identifiers always succeeds, so false alarms should be rare.
-	if info.Identifiers == nil || anyDnsNameIsWatched(info.Identifiers.DNSNames) {
-		cmd.LogEntry(&info)
+	if info.Identifiers == nil || anyDnsNameIsWatched(&info) {
+		if !*bygoneSSL || info.Bygone {
+			cmd.LogEntry(&info)
+		}
 	}
 }
 

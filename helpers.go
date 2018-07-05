@@ -106,6 +106,7 @@ type EntryInfo struct {
 	Identifiers           *Identifiers
 	IdentifiersParseError error
 	Filename              string
+	Bygone                bool
 }
 
 type CertInfo struct {
@@ -335,6 +336,9 @@ func (info *EntryInfo) Write(out io.Writer) {
 		writeField(out, "Issuer", info.CertInfo.Issuer, info.CertInfo.IssuerParseError)
 		writeField(out, "Not Before", info.CertInfo.NotBefore(), info.CertInfo.ValidityParseError)
 		writeField(out, "Not After", info.CertInfo.NotAfter(), info.CertInfo.ValidityParseError)
+		if info.Bygone {
+			writeField(out, "BygoneSSL", "True", info.CertInfo.ValidityParseError)
+		}
 	}
 	writeField(out, "Log Entry", fmt.Sprintf("%d @ %s (%s)", info.Entry.Index, info.LogUri, info.typeFriendlyString()), nil)
 	writeField(out, "crt.sh", "https://crt.sh/?sha256="+fingerprint, nil)
