@@ -14,8 +14,11 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"flag"
 	"time"
 )
+
+var http_flag = flag.Bool("http", false, "Connect to CT logs over http instead of https, useful for testing")
 
 type LogInfoFile struct {
 	Logs []LogInfo `json:"logs"`
@@ -30,6 +33,9 @@ type LogInfo struct {
 }
 
 func (info *LogInfo) FullURI() string {
+	if *http_flag {
+		return "http://" + info.Url
+	}
 	return "https://" + info.Url
 }
 
@@ -108,32 +114,32 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0gBVBa3VR7QZu82V+ynXWD14JM3ORp37MtRxTmACJV5ZPtfUA7htQ2hofuigZQs+bnFZkje+qejxoyvk2Q1VaA=="),
-		Url: "ct.googleapis.com/logs/argon2018",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0gBVBa3VR7QZu82V+ynXWD14JM3ORp37MtRxTmACJV5ZPtfUA7htQ2hofuigZQs+bnFZkje+qejxoyvk2Q1VaA=="),
+		Url:             "ct.googleapis.com/logs/argon2018",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1514764800),
-		CertExpiryEnd: makeTime(1546300800),
+		CertExpiryEnd:   makeTime(1546300800),
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEI3MQm+HzXvaYa2mVlhB4zknbtAT8cSxakmBoJcBKGqGwYS0bhxSpuvABM1kdBTDpQhXnVdcq+LSiukXJRpGHVg=="),
-		Url: "ct.googleapis.com/logs/argon2019",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEI3MQm+HzXvaYa2mVlhB4zknbtAT8cSxakmBoJcBKGqGwYS0bhxSpuvABM1kdBTDpQhXnVdcq+LSiukXJRpGHVg=="),
+		Url:             "ct.googleapis.com/logs/argon2019",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1546300800),
-		CertExpiryEnd: makeTime(1577836800),
+		CertExpiryEnd:   makeTime(1577836800),
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6Tx2p1yKY4015NyIYvdrk36es0uAc1zA4PQ+TGRY+3ZjUTIYY9Wyu+3q/147JG4vNVKLtDWarZwVqGkg6lAYzA=="),
-		Url: "ct.googleapis.com/logs/argon2020",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6Tx2p1yKY4015NyIYvdrk36es0uAc1zA4PQ+TGRY+3ZjUTIYY9Wyu+3q/147JG4vNVKLtDWarZwVqGkg6lAYzA=="),
+		Url:             "ct.googleapis.com/logs/argon2020",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1577836800),
-		CertExpiryEnd: makeTime(1609459200),
+		CertExpiryEnd:   makeTime(1609459200),
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETeBmZOrzZKo4xYktx9gI2chEce3cw/tbr5xkoQlmhB18aKfsxD+MnILgGNl0FOm0eYGilFVi85wLRIOhK8lxKw=="),
-		Url: "ct.googleapis.com/logs/argon2021",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETeBmZOrzZKo4xYktx9gI2chEce3cw/tbr5xkoQlmhB18aKfsxD+MnILgGNl0FOm0eYGilFVi85wLRIOhK8lxKw=="),
+		Url:             "ct.googleapis.com/logs/argon2021",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1609459200),
-		CertExpiryEnd: makeTime(1640995200),
+		CertExpiryEnd:   makeTime(1640995200),
 	},
 	{
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEowJkhCK7JewN47zCyYl93UXQ7uYVhY/Z5xcbE4Dq7bKFN61qxdglnfr0tPNuFiglN+qjN2Syxwv9UeXBBfQOtQ=="),
@@ -146,32 +152,32 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAsVpWvrH3Ke0VRaMg9ZQoQjb5g/xh1z3DDa6IuxY5DyPsk6brlvrUNXZzoIg0DcvFiAn2kd6xmu4Obk5XA/nRg=="),
-		Url: "ct.cloudflare.com/logs/nimbus2018",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAsVpWvrH3Ke0VRaMg9ZQoQjb5g/xh1z3DDa6IuxY5DyPsk6brlvrUNXZzoIg0DcvFiAn2kd6xmu4Obk5XA/nRg=="),
+		Url:             "ct.cloudflare.com/logs/nimbus2018",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1514764800),
-		CertExpiryEnd: makeTime(1546300800),
+		CertExpiryEnd:   makeTime(1546300800),
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkZHz1v5r8a9LmXSMegYZAg4UW+Ug56GtNfJTDNFZuubEJYgWf4FcC5D+ZkYwttXTDSo4OkanG9b3AI4swIQ28g=="),
-		Url: "ct.cloudflare.com/logs/nimbus2019",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkZHz1v5r8a9LmXSMegYZAg4UW+Ug56GtNfJTDNFZuubEJYgWf4FcC5D+ZkYwttXTDSo4OkanG9b3AI4swIQ28g=="),
+		Url:             "ct.cloudflare.com/logs/nimbus2019",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1546300800),
-		CertExpiryEnd: makeTime(1577836800),
+		CertExpiryEnd:   makeTime(1577836800),
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE01EAhx4o0zPQrXTcYjgCt4MVFsT0Pwjzb1RwrM0lhWDlxAYPP6/gyMCXNkOn/7KFsjL7rwk78tHMpY8rXn8AYg=="),
-		Url: "ct.cloudflare.com/logs/nimbus2020",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE01EAhx4o0zPQrXTcYjgCt4MVFsT0Pwjzb1RwrM0lhWDlxAYPP6/gyMCXNkOn/7KFsjL7rwk78tHMpY8rXn8AYg=="),
+		Url:             "ct.cloudflare.com/logs/nimbus2020",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1577836800),
-		CertExpiryEnd: makeTime(1609459200),
+		CertExpiryEnd:   makeTime(1609459200),
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExpon7ipsqehIeU1bmpog9TFo4Pk8+9oN8OYHl1Q2JGVXnkVFnuuvPgSo2Ep+6vLffNLcmEbxOucz03sFiematg=="),
-		Url: "ct.cloudflare.com/logs/nimbus2021",
-		MMD: 86400,
+		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExpon7ipsqehIeU1bmpog9TFo4Pk8+9oN8OYHl1Q2JGVXnkVFnuuvPgSo2Ep+6vLffNLcmEbxOucz03sFiematg=="),
+		Url:             "ct.cloudflare.com/logs/nimbus2021",
+		MMD:             86400,
 		CertExpiryBegin: makeTime(1609459200),
-		CertExpiryEnd: makeTime(1640995200),
+		CertExpiryEnd:   makeTime(1640995200),
 	},
 }
 
