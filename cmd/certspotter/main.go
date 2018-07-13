@@ -51,12 +51,12 @@ func trimTrailingDots(value string) string {
 
 var stateDir = flag.String("state_dir", defaultStateDir(), "Directory for storing state")
 var watchlistFilename = flag.String("watchlist", filepath.Join(defaultConfigDir(), "watchlist"), "File containing identifiers to watch (- for stdin)")
-var bygoneSSL = flag.Bool("bygonessl", false, "Only print certificates which predate domain registration and live into it (requires 'issued_before' option in watchlist)")
+var bygoneSSL = flag.Bool("bygonessl", false, "Only print certificates which predate domain registration and live into it (requires 'valid_at' option in watchlist)")
 
 type watchlistItem struct {
 	Domain       []string
 	AcceptSuffix bool
-	NotBefore    *time.Time // optional
+	ValidAt      *time.Time // optional
 }
 
 var watchlist []watchlistItem
@@ -67,7 +67,7 @@ func parseWatchlistItem(str string) (watchlistItem, error) {
 		return watchlistItem{}, fmt.Errorf("Empty domain")
 	}
 	domain := fields[0]
-	var notBefore *time.Time = nil
+	var validAt *time.Time = nil
 
 	// parse options
 	for i := 1; i < len(fields); i++ {
@@ -76,19 +76,19 @@ func parseWatchlistItem(str string) (watchlistItem, error) {
 			return watchlistItem{}, fmt.Errorf("Missing Value `%s'", fields[i])
 		}
 		switch chunks[0] {
-		case "issued_before":
-			notBeforeTime, err := time.Parse("2006-01-02", chunks[1])
+		case "valid_at":
+			validAtTime, err := time.Parse("2006-01-02", chunks[1])
 			if err != nil {
 				return watchlistItem{}, fmt.Errorf("Invalid Date `%s': %s", chunks[1], err)
 			}
-			notBefore = &notBeforeTime
+			validAt = &validAtTime
 		default:
 			return watchlistItem{}, fmt.Errorf("Unknown Option `%s'", fields[i])
 		}
 	}
 
-	if *bygoneSSL && notBefore == nil {
-		return watchlistItem{}, fmt.Errorf("`%s' must have issued_before argument when using -bygonessl", domain)
+	if *bygoneSSL && validAt == nil {
+		return watchlistItem{}, fmt.Errorf("`%s' must have valid_at argument when using -bygonessl", domain)
 	}
 
 	// parse domain
@@ -97,7 +97,7 @@ func parseWatchlistItem(str string) (watchlistItem, error) {
 		return watchlistItem{
 			Domain:       []string{},
 			AcceptSuffix: true,
-			NotBefore:    notBefore,
+			ValidAt:      validAt,
 		}, nil
 	}
 
@@ -114,7 +114,7 @@ func parseWatchlistItem(str string) (watchlistItem, error) {
 	return watchlistItem{
 		Domain:       strings.Split(asciiDomain, "."),
 		AcceptSuffix: acceptSuffix,
-		NotBefore:    notBefore,
+		ValidAt:      validAt,
 	}, nil
 }
 
@@ -168,12 +168,12 @@ func anyDnsNameIsWatched(info *certspotter.EntryInfo) bool {
 		labels := strings.Split(dnsName, ".")
 		for _, item := range watchlist {
 			if dnsNameMatches(labels, item.Domain, item.AcceptSuffix) {
-				if item.NotBefore != nil {
+				if item.ValidAt != nil {
 					// BygoneSSL Check
 					// was the SSL certificate issued before the domain was registered
 					// and valid after
-					if item.NotBefore.Before(*info.CertInfo.NotAfter()) &&
-						item.NotBefore.After(*info.CertInfo.NotBefore()) {
+					if item.ValidAt.Before(*info.CertInfo.NotAfter()) &&
+						item.ValidAt.After(*info.CertInfo.NotBefore()) {
 						info.Bygone = true
 					}
 				}
