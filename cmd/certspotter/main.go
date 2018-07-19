@@ -51,7 +51,6 @@ func trimTrailingDots(value string) string {
 
 var stateDir = flag.String("state_dir", defaultStateDir(), "Directory for storing state")
 var watchlistFilename = flag.String("watchlist", filepath.Join(defaultConfigDir(), "watchlist"), "File containing identifiers to watch (- for stdin)")
-var bygoneSSL = flag.Bool("bygonessl", false, "Only print certificates which predate domain registration and live into it (requires 'valid_at' option in watchlist)")
 
 type watchlistItem struct {
 	Domain       []string
@@ -85,10 +84,6 @@ func parseWatchlistItem(str string) (watchlistItem, error) {
 		default:
 			return watchlistItem{}, fmt.Errorf("Unknown Option `%s'", fields[i])
 		}
-	}
-
-	if *bygoneSSL && validAt == nil {
-		return watchlistItem{}, fmt.Errorf("`%s' must have valid_at argument when using -bygonessl", domain)
 	}
 
 	// parse domain
@@ -164,6 +159,7 @@ func dnsNameMatches(dnsName []string, watchDomain []string, acceptSuffix bool) b
 
 func anyDnsNameIsWatched(info *certspotter.EntryInfo) bool {
 	dnsNames := info.Identifiers.DNSNames
+	matched := false
 	for _, dnsName := range dnsNames {
 		labels := strings.Split(dnsName, ".")
 		for _, item := range watchlist {
@@ -175,13 +171,15 @@ func anyDnsNameIsWatched(info *certspotter.EntryInfo) bool {
 					if item.ValidAt.Before(*info.CertInfo.NotAfter()) &&
 						item.ValidAt.After(*info.CertInfo.NotBefore()) {
 						info.Bygone = true
+						return true
 					}
 				}
-				return true
+				// keep iterating in case another domain watched matches valid_at
+				matched = true
 			}
 		}
 	}
-	return false
+	return matched
 }
 
 func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
@@ -203,9 +201,7 @@ func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
 	// doesn't match a domain we care about.  We try very hard to make sure
 	// parsing identifiers always succeeds, so false alarms should be rare.
 	if info.Identifiers == nil || anyDnsNameIsWatched(&info) {
-		if !*bygoneSSL || info.Bygone {
-			cmd.LogEntry(&info)
-		}
+		cmd.LogEntry(&info)
 	}
 }
 
