@@ -120,7 +120,8 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 		BatchSize:  *batchSize,
 		NumWorkers: *numWorkers,
 		Quiet:      !*verbose,
-		ProxyURL:   proxyURL})
+		ProxyURL:   proxyURL,
+	})
 
 	ctlog.state, err = state.OpenLogState(logInfo)
 	if err != nil {
