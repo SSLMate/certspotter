@@ -164,6 +164,55 @@ var DefaultLogs = []LogInfo{
 		CertExpiryBegin: makeTime(1609459200),
 		CertExpiryEnd:   makeTime(1640995200),
 	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESLJHTlAycmJKDQxIv60pZG8g33lSYxYpCi5gteI6HLevWbFVCdtZx+m9b+0LrwWWl/87mkNN6xE0M4rnrIPA/w=="),
+		Url: "ct.cloudflare.com/logs/nimbus2022",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1640995200),
+		CertExpiryEnd: makeTime(1672531200),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEi/8tkhjLRp0SXrlZdTzNkTd6HqmcmXiDJz3fAdWLgOhjmv4mohvRhwXul9bgW0ODgRwC9UGAgH/vpGHPvIS1qA=="),
+		Url: "ct.cloudflare.com/logs/nimbus2023",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1672531200),
+		CertExpiryEnd: makeTime(1704067200),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESYlKFDLLFmA9JScaiaNnqlU8oWDytxIYMfswHy9Esg0aiX+WnP/yj4O0ViEHtLwbmOQeSWBGkIu9YK9CLeer+g=="),
+		Url: "yeti2018.ct.digicert.com/log",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1513036800),
+		CertExpiryEnd: makeTime(1546300800),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkZd/ow8X+FSVWAVSf8xzkFohcPph/x6pS1JHh7g1wnCZ5y/8Hk6jzJxs6t3YMAWz2CPd4VkCdxwKexGhcFxD9A=="),
+		Url: "yeti2019.ct.digicert.com/log",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1546300800),
+		CertExpiryEnd: makeTime(1577836800),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEURAG+Zo0ac3n37ifZKUhBFEV6jfcCzGIRz3tsq8Ca9BP/5XUHy6ZiqsPaAEbVM0uI3Tm9U24RVBHR9JxDElPmg=="),
+		Url: "yeti2020.ct.digicert.com/log",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1577836800),
+		CertExpiryEnd: makeTime(1609459200),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6J4EbcpIAl1+AkSRsbhoY5oRTj3VoFfaf1DlQkfi7Rbe/HcjfVtrwN8jaC+tQDGjF+dqvKhWJAQ6Q6ev6q9Mew=="),
+		Url: "yeti2021.ct.digicert.com/log",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1609459200),
+		CertExpiryEnd: makeTime(1640995200),
+	},
+	{
+		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEn/jYHd77W1G1+131td5mEbCdX/1v/KiYW5hPLcOROvv+xA8Nw2BDjB7y+RGyutD2vKXStp/5XIeiffzUfdYTJg=="),
+		Url: "yeti2022.ct.digicert.com/log",
+		MMD: 86400,
+		CertExpiryBegin: makeTime(1640995200),
+		CertExpiryEnd: makeTime(1672531200),
+	},
 }
 
 // Logs which monitor certs from distrusted roots
