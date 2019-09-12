@@ -83,6 +83,10 @@ func ParseRDNSequence(rdnsBytes []byte) (RDNSequence, error) {
 	return rdns, nil
 }
 
+func MarshalRDNSequence(rdns RDNSequence) ([]byte, error) {
+	return asn1.Marshal(rdns)
+}
+
 type TBSCertificate struct {
 	Raw asn1.RawContent
 
