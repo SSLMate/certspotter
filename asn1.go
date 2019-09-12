@@ -49,10 +49,11 @@ func decodeASN1String(value *asn1.RawValue) (string, error) {
 				return "", errors.New("Malformed UTF8String")
 			}
 			return string(value.Bytes), nil
-		} else if value.Tag == 19 || value.Tag == 22 || value.Tag == 20 {
+		} else if value.Tag == 19 || value.Tag == 22 || value.Tag == 20 || value.Tag == 26 {
 			// * PrintableString - subset of ASCII
 			// * IA5String - ASCII
 			// * TeletexString - 8 bit charset; not quite ISO-8859-1, but often treated as such
+			// * VisibleString - subset of ASCII
 
 			// Don't enforce character set rules. Allow any 8 bit character, since
 			// CAs routinely mess this up
