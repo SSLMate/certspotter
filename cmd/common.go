@@ -246,7 +246,7 @@ func (ctlog *logHandle) scan(processCallback certspotter.ProcessCallback) error 
 
 func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.ProcessCallback) int {
 	defer wg.Done()
-	log.SetPrefix(os.Args[0] + ": " + logInfo.Url + ": ")
+	log.SetPrefix(os.Args[0] + ": ")
 
 	ctlog, err := makeLogHandle(logInfo)
 	if err != nil {
