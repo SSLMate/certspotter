@@ -347,11 +347,13 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 		go processLog(&logs[i], processCallback)
 	}
 
-	wg.Wait()
+	go func() {
+		for i := range rcode {
+			exitCode |= i
+		}
+	}()
 
-	for i := range rcode {
-		exitCode |= i
-	}
+	wg.Wait()
 
 	if state.IsFirstRun() && exitCode == 0 {
 		if err := state.WriteOnceFile(); err != nil {
