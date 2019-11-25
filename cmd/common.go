@@ -34,6 +34,8 @@ var allTime = flag.Bool("all_time", false, "Scan certs from all time, not just s
 var state *State
 
 var printMutex sync.Mutex
+var wg sync.WaitGroup
+var rcode = make(chan int)
 
 func homedir() string {
 	home := os.Getenv("HOME")
@@ -243,21 +245,25 @@ func (ctlog *logHandle) scan(processCallback certspotter.ProcessCallback) error 
 }
 
 func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.ProcessCallback) int {
+	defer wg.Done()
 	log.SetPrefix(os.Args[0] + ": " + logInfo.Url + ": ")
 
 	ctlog, err := makeLogHandle(logInfo)
 	if err != nil {
 		log.Printf("%s\n", err)
+		rcode <- 1
 		return 1
 	}
 
 	if err := ctlog.refresh(); err != nil {
 		log.Printf("%s\n", err)
+		rcode <- 1
 		return 1
 	}
 
 	if err := ctlog.audit(); err != nil {
 		log.Printf("%s\n", err)
+		rcode <- 1
 		return 1
 	}
 
@@ -274,6 +280,7 @@ func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.Proces
 		ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
 		if err != nil {
 			log.Printf("Error reconstructing Merkle Tree: %s", err)
+			rcode <- 1
 			return 1
 		}
 		if *verbose {
@@ -287,11 +294,13 @@ func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.Proces
 	}
 	if err := ctlog.state.StoreTree(ctlog.tree); err != nil {
 		log.Printf("Error storing tree: %s\n", err)
+		rcode <- 1
 		return 1
 	}
 
 	if err := ctlog.scan(processCallback); err != nil {
 		log.Printf("%s\n", err)
+		rcode <- 1
 		return 1
 	}
 
@@ -299,6 +308,7 @@ func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.Proces
 		log.Printf("Final log size = %d, final root hash = %x", ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
 	}
 
+	rcode <- 0
 	return 0
 }
 
@@ -331,8 +341,16 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 	}
 
 	exitCode := 0
+	wg.Add(len(logs))
+
 	for i := range logs {
-		exitCode |= processLog(&logs[i], processCallback)
+		go processLog(&logs[i], processCallback)
+	}
+
+	wg.Wait()
+
+	for i := range rcode {
+		exitCode |= i
 	}
 
 	if state.IsFirstRun() && exitCode == 0 {
