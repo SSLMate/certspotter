@@ -104,13 +104,6 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 	},
 	{
-		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0gBVBa3VR7QZu82V+ynXWD14JM3ORp37MtRxTmACJV5ZPtfUA7htQ2hofuigZQs+bnFZkje+qejxoyvk2Q1VaA=="),
-		Url:             "ct.googleapis.com/logs/argon2018",
-		MMD:             86400,
-		CertExpiryBegin: makeTime(1514764800),
-		CertExpiryEnd:   makeTime(1546300800),
-	},
-	{
 		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEI3MQm+HzXvaYa2mVlhB4zknbtAT8cSxakmBoJcBKGqGwYS0bhxSpuvABM1kdBTDpQhXnVdcq+LSiukXJRpGHVg=="),
 		Url:             "ct.googleapis.com/logs/argon2019",
 		MMD:             86400,
@@ -135,13 +128,6 @@ var DefaultLogs = []LogInfo{
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzF05L2a4TH/BLgOhNKPoioYCrkoRxvcmajeb8Dj4XQmNY+gxa4Zmz3mzJTwe33i0qMVp+rfwgnliQ/bM/oFmhA=="),
 		Url: "ct2.digicert-ct.com/log",
 		MMD: 86400,
-	},
-	{
-		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAsVpWvrH3Ke0VRaMg9ZQoQjb5g/xh1z3DDa6IuxY5DyPsk6brlvrUNXZzoIg0DcvFiAn2kd6xmu4Obk5XA/nRg=="),
-		Url:             "ct.cloudflare.com/logs/nimbus2018",
-		MMD:             86400,
-		CertExpiryBegin: makeTime(1514764800),
-		CertExpiryEnd:   makeTime(1546300800),
 	},
 	{
 		Key:             mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkZHz1v5r8a9LmXSMegYZAg4UW+Ug56GtNfJTDNFZuubEJYgWf4FcC5D+ZkYwttXTDSo4OkanG9b3AI4swIQ28g=="),
@@ -177,13 +163,6 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 		CertExpiryBegin: makeTime(1672531200),
 		CertExpiryEnd: makeTime(1704067200),
-	},
-	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESYlKFDLLFmA9JScaiaNnqlU8oWDytxIYMfswHy9Esg0aiX+WnP/yj4O0ViEHtLwbmOQeSWBGkIu9YK9CLeer+g=="),
-		Url: "yeti2018.ct.digicert.com/log",
-		MMD: 86400,
-		CertExpiryBegin: makeTime(1513036800),
-		CertExpiryEnd: makeTime(1546300800),
 	},
 	{
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkZd/ow8X+FSVWAVSf8xzkFohcPph/x6pS1JHh7g1wnCZ5y/8Hk6jzJxs6t3YMAWz2CPd4VkCdxwKexGhcFxD9A=="),
