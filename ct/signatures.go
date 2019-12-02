@@ -10,7 +10,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 )
 
@@ -79,7 +78,7 @@ func (s SignatureVerifier) verifySignature(data []byte, sig DigitallySigned) err
 			return fmt.Errorf("failed to unmarshal ECDSA signature: %v", err)
 		}
 		if len(rest) != 0 {
-			log.Printf("Garbage following signature %v", rest)
+			return fmt.Errorf("Garbage following signature %v", rest)
 		}
 
 		if !ecdsa.Verify(ecdsaKey, hash, ecdsaSig.R, ecdsaSig.S) {
