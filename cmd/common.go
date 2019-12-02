@@ -328,9 +328,16 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 		return 1
 	}
 
-	exitCode := 0
+	processLogResults := make(chan int)
 	for i := range logs {
-		exitCode |= processLog(&logs[i], processCallback)
+		go func(logInfo *certspotter.LogInfo) {
+			processLogResults <- processLog(logInfo, processCallback)
+		}(&logs[i])
+	}
+
+	exitCode := 0
+	for range logs {
+		exitCode |= <-processLogResults
 	}
 
 	if state.IsFirstRun() && exitCode == 0 {
