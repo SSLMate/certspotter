@@ -133,7 +133,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 			return nil, fmt.Errorf("Error loading legacy STH: %s", err)
 		}
 		if legacySTH != nil {
-			log.Printf("Initializing log state from legacy state directory")
+			log.Print(logInfo.Url, ": Initializing log state from legacy state directory")
 			ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(legacySTH)
 			if err != nil {
 				return nil, fmt.Errorf("Error reconstructing Merkle Tree for legacy STH: %s", err)
@@ -153,7 +153,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 
 func (ctlog *logHandle) refresh() error {
 	if *verbose {
-		log.Printf("Retrieving latest STH from log")
+		log.Print(ctlog.scanner.LogUri, ": Retrieving latest STH from log")
 	}
 	latestSTH, err := ctlog.scanner.GetSTH()
 	if err != nil {
@@ -161,7 +161,7 @@ func (ctlog *logHandle) refresh() error {
 	}
 	if ctlog.verifiedSTH == nil {
 		if *verbose {
-			log.Printf("No existing STH is known; presuming latest STH (%d) is valid", latestSTH.TreeSize)
+			log.Printf("%s: No existing STH is known; presuming latest STH (%d) is valid", ctlog.scanner.LogUri, latestSTH.TreeSize)
 		}
 		ctlog.verifiedSTH = latestSTH
 		if err := ctlog.state.StoreVerifiedSTH(ctlog.verifiedSTH); err != nil {
@@ -194,15 +194,15 @@ func (ctlog *logHandle) audit() error {
 
 	for _, sth := range sths {
 		if *verbose {
-			log.Printf("Verifying consistency of STH %d (%x) with previously-verified STH %d (%x)", sth.TreeSize, sth.SHA256RootHash, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
+			log.Printf("%s: Verifying consistency of STH %d (%x) with previously-verified STH %d (%x)", ctlog.scanner.LogUri, sth.TreeSize, sth.SHA256RootHash, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
 		}
 		if err := ctlog.verifySTH(sth); err != nil {
-			log.Printf("Unable to verify consistency of STH %d (%s) (if this error persists, it should be construed as misbehavior by the log): %s", sth.TreeSize, ctlog.state.UnverifiedSTHFilename(sth), err)
+			log.Printf("%s: Unable to verify consistency of STH %d (%s) (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.scanner.LogUri, sth.TreeSize, ctlog.state.UnverifiedSTHFilename(sth), err)
 			continue
 		}
 		if sth.TreeSize > ctlog.verifiedSTH.TreeSize {
 			if *verbose {
-				log.Printf("STH %d (%x) is now the latest verified STH", sth.TreeSize, sth.SHA256RootHash)
+				log.Printf("%s: STH %d (%x) is now the latest verified STH", ctlog.scanner.LogUri, sth.TreeSize, sth.SHA256RootHash)
 			}
 			ctlog.verifiedSTH = sth
 			if err := ctlog.state.StoreVerifiedSTH(ctlog.verifiedSTH); err != nil {
@@ -243,60 +243,58 @@ func (ctlog *logHandle) scan(processCallback certspotter.ProcessCallback) error 
 }
 
 func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.ProcessCallback) int {
-	log.SetPrefix(os.Args[0] + ": " + logInfo.Url + ": ")
-
 	ctlog, err := makeLogHandle(logInfo)
 	if err != nil {
-		log.Printf("%s\n", err)
+		log.Print(logInfo.Url, ": ", err)
 		return 1
 	}
 
 	if err := ctlog.refresh(); err != nil {
-		log.Printf("%s\n", err)
+		log.Print(logInfo.Url, ": ", err)
 		return 1
 	}
 
 	if err := ctlog.audit(); err != nil {
-		log.Printf("%s\n", err)
+		log.Print(logInfo.Url, ": ", err)
 		return 1
 	}
 
 	if *allTime {
 		ctlog.tree = certspotter.EmptyCollapsedMerkleTree()
 		if *verbose {
-			log.Printf("Scanning all %d entries in the log because -all_time option specified", ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: Scanning all %d entries in the log because -all_time option specified", logInfo.Url, ctlog.verifiedSTH.TreeSize)
 		}
 	} else if ctlog.tree != nil {
 		if *verbose {
-			log.Printf("Existing log; scanning %d new entries since previous scan", ctlog.verifiedSTH.TreeSize-ctlog.tree.GetSize())
+			log.Printf("%s: Existing log; scanning %d new entries since previous scan", logInfo.Url, ctlog.verifiedSTH.TreeSize-ctlog.tree.GetSize())
 		}
 	} else if state.IsFirstRun() {
 		ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
 		if err != nil {
-			log.Printf("Error reconstructing Merkle Tree: %s", err)
+			log.Print("%s: Error reconstructing Merkle Tree: %s", logInfo.Url, err)
 			return 1
 		}
 		if *verbose {
-			log.Printf("First run of Cert Spotter; not scanning %d existing entries because -all_time option not specified", ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: First run of Cert Spotter; not scanning %d existing entries because -all_time option not specified", logInfo.Url, ctlog.verifiedSTH.TreeSize)
 		}
 	} else {
 		ctlog.tree = certspotter.EmptyCollapsedMerkleTree()
 		if *verbose {
-			log.Printf("New log; scanning all %d entries in the log", ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: New log; scanning all %d entries in the log", logInfo.Url, ctlog.verifiedSTH.TreeSize)
 		}
 	}
 	if err := ctlog.state.StoreTree(ctlog.tree); err != nil {
-		log.Printf("Error storing tree: %s\n", err)
+		log.Printf("%s: Error storing tree: %s\n", logInfo.Url, err)
 		return 1
 	}
 
 	if err := ctlog.scan(processCallback); err != nil {
-		log.Printf("%s\n", err)
+		log.Print(logInfo.Url, ": ", err)
 		return 1
 	}
 
 	if *verbose {
-		log.Printf("Final log size = %d, final root hash = %x", ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
+		log.Printf("%s: Final log size = %d, final root hash = %x", logInfo.Url, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
 	}
 
 	return 0
