@@ -11,17 +11,17 @@ to sign up.
 
 You can use Cert Spotter to detect:
 
+* Certificates issued to attackers who have compromised your DNS and
+  are redirecting your visitors to their malicious site.
+
+* Certificates issued to attackers who have taken over an abandonned
+  sub-domain in order to serve malware under your name.
+
 * Certificates issued to attackers who have compromised a certificate
   authority and want to impersonate your site.
 
-* Certificates issued to attackers who are using your infrastructure
-  to serve malware.
-
 * Certificates issued in violation of your corporate policy
   or outside of your centralized certificate procurement process.
-
-* Certificates issued to your infrastructure providers without your
-  consent.
 
 
 USING CERT SPOTTER
@@ -42,22 +42,36 @@ Cert Spotter requires Go version 1.5 or higher.
    name with a dot (e.g. ".example.com").  To monitor a single DNS name
    only, do not prefix the name with a dot.
 
-3. Create a cron job to periodically run:
+3. Create a cron job to periodically run `certspotter`.  See below for
+   command line options.
 
-	certspotter
+Every time you run Cert Spotter, it scans all browser-recognized
+Certificate Transparency logs for certificates matching domains on
+your watch list.  When Cert Spotter detects a matching certificate, it
+writes a report to standard out, which the Cron daemon emails to you.
+Make sure you are able to receive emails sent by Cron.
 
-   When Cert Spotter detects a certificate for a name on your watchlist,
-   it writes a report to standard out, which the Cron daemon emails
-   to you.  Make sure you are able to receive emails sent by Cron.
+Cert Spotter also saves a copy of matching certificates in
+~/.certspotter/certs (unless you specify the -no_save option).
 
-   Cert Spotter also saves a copy of matching certificates in
-   ~/.certspotter/certs.
+When Cert Spotter has previously monitored a log, it scans the log
+from the previous position, to avoid downloading the same log entry
+more than once.  (To override this behavior and scan all logs from the
+beginning, specify the -all_time option.)
+
+When Cert Spotter has not previously monitored a log, it can either start
+monitoring the log from the beginning, or seek to the end of the log and
+start monitoring from there.  Monitoring from the beginning guarantees
+detection of all certificates, but requires downloading hundreds of
+millions of certificates, which takes days.  The default behavior is to
+monitor from the beginning.  To start monitoring new logs from the end,
+specify the -start_at_end option.
 
 You can add and remove domains on your watchlist at any time.  However,
 the certspotter command only notifies you of certificates that were
 logged since adding a domain to the watchlist, unless you specify the
 -all_time option, which requires scanning the entirety of every log
-and takes several hours to complete with a fast Internet connection.
+and takes many days to complete with a fast Internet connection.
 To examine preexisting certificates, it's better to use the Cert
 Spotter service <https://sslmate.com/certspotter>, the Cert Spotter
 API <https://sslmate.com/certspotter/api>, or a CT search engine such
@@ -71,10 +85,14 @@ COMMAND LINE FLAGS
 	above (use - to read from stdin).  Default: ~/.certspotter/watchlist
   -no_save
 	Do not save a copy of matching certificates.
+  -start_at_end
+	Start monitoring logs from the end, rather than the beginning.
+	This significantly reduces the time to run Cert Spotter, but
+	you will miss certificates that were added to a log before Cert
+	Spotter started monitoring it.
   -all_time
-	Scan for certificates from all time, not just those added since
-	the last run of Cert Spotter.  Unless this option is specified,
-	no certificates are scanned the first time Cert Spotter is run.
+	Scan for certificates from all time, not just those logged since
+	the previous run of Cert Spotter.
   -logs FILENAME
 	JSON file containing logs to scan, in the format documented at
 	<https://www.certificate-transparency.org/known-logs>.
