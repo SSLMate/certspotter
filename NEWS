@@ -1,3 +1,13 @@
+v0.10 (not yet released)
+  * Improve speed by processing logs in parallel
+  * Add -start_et_end option to begin monitoring new logs at the end,
+    which significantly speeds up Cert Spotter, at the cost of missing
+    certificates that were added to a log before Cert Spotter starts
+    monitoring it
+  * (Behavior change) Scan logs in their entirety the first time Cert
+    Spotter is run, unless -start_at_end specified (behavior change)
+  * Add/remove logs to match latest Chromium/Apple lists
+
 v0.9 (2018-04-19)
   * Add Cloudflare Nimbus logs
   * Remove Google Argon 2017 log
