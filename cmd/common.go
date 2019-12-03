@@ -30,6 +30,7 @@ var logsFilename = flag.String("logs", "", "JSON file containing log information
 var underwater = flag.Bool("underwater", false, "Monitor certificates from distrusted CAs instead of trusted CAs")
 var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certificates")
 var verbose = flag.Bool("verbose", false, "Be verbose")
+var startAtEnd = flag.Bool("start_at_end", false, "Start monitoring logs from the end rather than the beginning")
 var allTime = flag.Bool("all_time", false, "Scan certs from all time, not just since last scan")
 var state *State
 
@@ -268,19 +269,19 @@ func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.Proces
 		if *verbose {
 			log.Printf("%s: Existing log; scanning %d new entries since previous scan", logInfo.Url, ctlog.verifiedSTH.TreeSize-ctlog.tree.GetSize())
 		}
-	} else if state.IsFirstRun() {
+	} else if *startAtEnd {
 		ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
 		if err != nil {
 			log.Print("%s: Error reconstructing Merkle Tree: %s", logInfo.Url, err)
 			return 1
 		}
 		if *verbose {
-			log.Printf("%s: First run of Cert Spotter; not scanning %d existing entries because -all_time option not specified", logInfo.Url, ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: New log; not scanning %d existing entries because -start_at_end option was specified", logInfo.Url, ctlog.verifiedSTH.TreeSize)
 		}
 	} else {
 		ctlog.tree = certspotter.EmptyCollapsedMerkleTree()
 		if *verbose {
-			log.Printf("%s: New log; scanning all %d entries in the log", logInfo.Url, ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: New log; scanning all %d entries in the log (use the -start_at_end option to scan new logs from the end rather than the beginning)", logInfo.Url, ctlog.verifiedSTH.TreeSize)
 		}
 	}
 	if err := ctlog.state.StoreTree(ctlog.tree); err != nil {
