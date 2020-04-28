@@ -11,6 +11,7 @@ package certspotter
 
 import (
 	"bytes"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
 	"fmt"
@@ -354,6 +355,26 @@ func (cert *Certificate) GetRawTBSCertificate() []byte {
 
 func (cert *Certificate) ParseTBSCertificate() (*TBSCertificate, error) {
 	return ParseTBSCertificate(cert.GetRawTBSCertificate())
+}
+
+func (cert *Certificate) ParseSignatureAlgorithm() (*pkix.AlgorithmIdentifier, error) {
+	signatureAlgorithm := new(pkix.AlgorithmIdentifier)
+	if rest, err := asn1.Unmarshal(cert.SignatureAlgorithm.FullBytes, signatureAlgorithm); err != nil {
+		return nil, errors.New("failed to parse signature algorithm: " + err.Error())
+	} else if len(rest) > 0 {
+		return nil, fmt.Errorf("trailing data after signature algorithm: %v", rest)
+	}
+	return signatureAlgorithm, nil
+}
+
+func (cert *Certificate) ParseSignatureValue() ([]byte, error) {
+	var signatureValue asn1.BitString
+	if rest, err := asn1.Unmarshal(cert.SignatureValue.FullBytes, &signatureValue); err != nil {
+		return nil, errors.New("failed to parse signature value: " + err.Error())
+	} else if len(rest) > 0 {
+		return nil, fmt.Errorf("trailing data after signature value: %v", rest)
+	}
+	return signatureValue.RightAlign(), nil
 }
 
 func parseSANExtension(sans []SubjectAltName, value []byte) ([]SubjectAltName, error) {
