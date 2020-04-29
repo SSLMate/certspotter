@@ -13,26 +13,33 @@ import (
 	"software.sslmate.com/src/certspotter"
 	"software.sslmate.com/src/certspotter/ct"
 	"software.sslmate.com/src/certspotter/ct/client"
+	"software.sslmate.com/src/certspotter/loglist"
 
 	"bytes"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/pem"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
+const defaultLogList = "https://loglist.certspotter.org/submit.json"
+
 var verbose = flag.Bool("v", false, "Enable verbose output")
+var logsURL = flag.String("logs", defaultLogList, "File path or URL of JSON list of logs to submit to")
 
 type Certificate struct {
 	Subject []byte
 	Issuer  []byte
 	Raw     []byte
+	Expiration time.Time
 }
 
 func (cert *Certificate) Fingerprint() [32]byte {
@@ -62,10 +69,16 @@ func parseCertificate(data []byte) (*Certificate, error) {
 		return nil, err
 	}
 
+	validity, err := tbs.ParseValidity()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Certificate{
 		Subject: tbs.Subject.FullBytes,
 		Issuer:  tbs.Issuer.FullBytes,
 		Raw:     data,
+		Expiration: validity.NotAfter,
 	}, nil
 }
 
@@ -101,19 +114,19 @@ func (certs *CertificateBunch) FindBySubject(subject []byte) *Certificate {
 }
 
 type Log struct {
-	info   certspotter.LogInfo
-	verify *ct.SignatureVerifier
-	client *client.LogClient
+	*loglist.Log
+	*ct.SignatureVerifier
+	*client.LogClient
 }
 
 func (ctlog *Log) SubmitChain(chain Chain) (*ct.SignedCertificateTimestamp, error) {
 	rawCerts := chain.GetRawCerts()
-	sct, err := ctlog.client.AddChain(rawCerts)
+	sct, err := ctlog.AddChain(rawCerts)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := certspotter.VerifyX509SCT(sct, rawCerts[0], ctlog.verify); err != nil {
+	if err := certspotter.VerifyX509SCT(sct, rawCerts[0], ctlog.SignatureVerifier); err != nil {
 		return nil, fmt.Errorf("Bad SCT signature: %s", err)
 	}
 	return sct, nil
@@ -137,20 +150,25 @@ func main() {
 		log.Fatalf("Error reading stdin: %s", err)
 	}
 
-	logs := make([]Log, 0, len(certspotter.OpenLogs))
-	for _, loginfo := range certspotter.OpenLogs {
-		pubkey, err := loginfo.ParsedPublicKey()
+	list, err := loglist.Load(*logsURL)
+	if err != nil {
+		log.Fatalf("Error loading log list: %s", err)
+	}
+
+	var logs []Log
+	for _, ctlog := range list.AllLogs() {
+		pubkey, err := x509.ParsePKIXPublicKey(ctlog.Key)
 		if err != nil {
-			log.Fatalf("%s: Failed to parse log public key: %s", loginfo.Url, err)
+			log.Fatalf("%s: Failed to parse log public key: %s", ctlog.URL, err)
 		}
-		verify, err := ct.NewSignatureVerifier(pubkey)
+		verifier, err := ct.NewSignatureVerifier(pubkey)
 		if err != nil {
-			log.Fatalf("%s: Failed to create signature verifier for log: %s", loginfo.Url, err)
+			log.Fatalf("%s: Failed to create signature verifier for log: %s", ctlog.URL, err)
 		}
 		logs = append(logs, Log{
-			info:   loginfo,
-			verify: verify,
-			client: client.New(loginfo.FullURI()),
+			Log: ctlog,
+			SignatureVerifier: verifier,
+			LogClient: client.New(strings.TrimRight(ctlog.URL, "/")),
 		})
 	}
 
@@ -186,15 +204,18 @@ func main() {
 			continue
 		}
 		for _, ctlog := range logs {
+			if !ctlog.AcceptsExpiration(chain[0].Expiration) {
+				continue
+			}
 			wg.Add(1)
 			go func(fingerprint [32]byte, ctlog Log) {
 				sct, err := ctlog.SubmitChain(chain)
 				if err != nil {
-					log.Printf("%x (%s): %s: Submission Error: %s", fingerprint, cn, ctlog.info.Url, err)
+					log.Printf("%x (%s): %s: Submission Error: %s", fingerprint, cn, ctlog.URL, err)
 					atomic.AddUint32(&submitErrors, 1)
 				} else if *verbose {
 					timestamp := time.Unix(int64(sct.Timestamp)/1000, int64(sct.Timestamp%1000)*1000000)
-					log.Printf("%x (%s): %s: Submitted at %s", fingerprint, cn, ctlog.info.Url, timestamp)
+					log.Printf("%x (%s): %s: Submitted at %s", fingerprint, cn, ctlog.URL, timestamp)
 				}
 				wg.Done()
 			}(fingerprint, ctlog)

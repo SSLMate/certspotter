@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -315,7 +316,7 @@ func NewScanner(logUri string, logId []byte, publicKey crypto.PublicKey, opts *S
 	scanner.LogUri = logUri
 	scanner.LogId = logId
 	scanner.publicKey = publicKey
-	scanner.logClient = client.New(logUri)
+	scanner.logClient = client.New(strings.TrimRight(logUri, "/"))
 	scanner.opts = *opts
 	return &scanner
 }

@@ -21,16 +21,16 @@ import (
 	"strconv"
 	"strings"
 
-	"software.sslmate.com/src/certspotter"
 	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/loglist"
 )
 
 type State struct {
 	path string
 }
 
-func legacySTHFilename(logInfo *certspotter.LogInfo) string {
-	return strings.Replace(strings.Replace(logInfo.FullURI(), "://", "_", 1), "/", "_", -1)
+func legacySTHFilename(logInfo *loglist.Log) string {
+	return strings.Replace(strings.Replace(logInfo.URL, "://", "_", 1), "/", "_", -1)
 }
 
 func readVersionFile(statePath string) (int, error) {
@@ -161,11 +161,11 @@ func (state *State) SaveCert(isPrecert bool, certs [][]byte) (bool, string, erro
 	return false, path, nil
 }
 
-func (state *State) OpenLogState(logInfo *certspotter.LogInfo) (*LogState, error) {
-	return OpenLogState(filepath.Join(state.path, "logs", base64.RawURLEncoding.EncodeToString(logInfo.ID())))
+func (state *State) OpenLogState(logInfo *loglist.Log) (*LogState, error) {
+	return OpenLogState(filepath.Join(state.path, "logs", base64.RawURLEncoding.EncodeToString(logInfo.LogID)))
 }
 
-func (state *State) GetLegacySTH(logInfo *certspotter.LogInfo) (*ct.SignedTreeHead, error) {
+func (state *State) GetLegacySTH(logInfo *loglist.Log) (*ct.SignedTreeHead, error) {
 	sth, err := readSTHFile(filepath.Join(state.path, "legacy_sths", legacySTHFilename(logInfo)))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -176,7 +176,7 @@ func (state *State) GetLegacySTH(logInfo *certspotter.LogInfo) (*ct.SignedTreeHe
 	}
 	return sth, nil
 }
-func (state *State) RemoveLegacySTH(logInfo *certspotter.LogInfo) error {
+func (state *State) RemoveLegacySTH(logInfo *loglist.Log) error {
 	err := os.Remove(filepath.Join(state.path, "legacy_sths", legacySTHFilename(logInfo)))
 	os.Remove(filepath.Join(state.path, "legacy_sths"))
 	return err

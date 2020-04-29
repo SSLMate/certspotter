@@ -11,6 +11,7 @@ package cmd
 
 import (
 	"bytes"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"log"
@@ -21,13 +22,15 @@ import (
 
 	"software.sslmate.com/src/certspotter"
 	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/loglist"
 )
+
+const defaultLogList = "https://loglist.certspotter.org/monitor.json"
 
 var batchSize = flag.Int("batch_size", 1000, "Max number of entries to request at per call to get-entries (advanced)")
 var numWorkers = flag.Int("num_workers", 2, "Number of concurrent matchers (advanced)")
 var script = flag.String("script", "", "Script to execute when a matching certificate is found")
-var logsFilename = flag.String("logs", "", "JSON file containing log information")
-var underwater = flag.Bool("underwater", false, "Monitor certificates from distrusted CAs instead of trusted CAs")
+var logsURL = flag.String("logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
 var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certificates")
 var verbose = flag.Bool("verbose", false, "Be verbose")
 var startAtEnd = flag.Bool("start_at_end", false, "Start monitoring logs from the end rather than the beginning")
@@ -81,18 +84,12 @@ func LogEntry(info *certspotter.EntryInfo) {
 	}
 }
 
-func loadLogList() ([]certspotter.LogInfo, error) {
-	if *logsFilename != "" {
-		var logFileObj certspotter.LogInfoFile
-		if err := readJSONFile(*logsFilename, &logFileObj); err != nil {
-			return nil, fmt.Errorf("Error reading logs file: %s: %s", *logsFilename, err)
-		}
-		return logFileObj.Logs, nil
-	} else if *underwater {
-		return certspotter.UnderwaterLogs, nil
-	} else {
-		return certspotter.DefaultLogs, nil
+func loadLogList() ([]*loglist.Log, error) {
+	list, err := loglist.Load(*logsURL)
+	if err != nil {
+		return nil, fmt.Errorf("Error loading log list: %s", err)
 	}
+	return list.AllLogs(), nil
 }
 
 type logHandle struct {
@@ -102,14 +99,14 @@ type logHandle struct {
 	verifiedSTH *ct.SignedTreeHead
 }
 
-func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
+func makeLogHandle(logInfo *loglist.Log) (*logHandle, error) {
 	ctlog := new(logHandle)
 
-	logKey, err := logInfo.ParsedPublicKey()
+	logKey, err := x509.ParsePKIXPublicKey(logInfo.Key)
 	if err != nil {
 		return nil, fmt.Errorf("Bad public key: %s", err)
 	}
-	ctlog.scanner = certspotter.NewScanner(logInfo.FullURI(), logInfo.ID(), logKey, &certspotter.ScannerOptions{
+	ctlog.scanner = certspotter.NewScanner(logInfo.URL, logInfo.LogID, logKey, &certspotter.ScannerOptions{
 		BatchSize:  *batchSize,
 		NumWorkers: *numWorkers,
 		Quiet:      !*verbose,
@@ -134,7 +131,7 @@ func makeLogHandle(logInfo *certspotter.LogInfo) (*logHandle, error) {
 			return nil, fmt.Errorf("Error loading legacy STH: %s", err)
 		}
 		if legacySTH != nil {
-			log.Print(logInfo.Url, ": Initializing log state from legacy state directory")
+			log.Print(logInfo.URL, ": Initializing log state from legacy state directory")
 			ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(legacySTH)
 			if err != nil {
 				return nil, fmt.Errorf("Error reconstructing Merkle Tree for legacy STH: %s", err)
@@ -243,59 +240,59 @@ func (ctlog *logHandle) scan(processCallback certspotter.ProcessCallback) error 
 	return nil
 }
 
-func processLog(logInfo *certspotter.LogInfo, processCallback certspotter.ProcessCallback) int {
+func processLog(logInfo *loglist.Log, processCallback certspotter.ProcessCallback) int {
 	ctlog, err := makeLogHandle(logInfo)
 	if err != nil {
-		log.Print(logInfo.Url, ": ", err)
+		log.Print(logInfo.URL, ": ", err)
 		return 1
 	}
 
 	if err := ctlog.refresh(); err != nil {
-		log.Print(logInfo.Url, ": ", err)
+		log.Print(logInfo.URL, ": ", err)
 		return 1
 	}
 
 	if err := ctlog.audit(); err != nil {
-		log.Print(logInfo.Url, ": ", err)
+		log.Print(logInfo.URL, ": ", err)
 		return 1
 	}
 
 	if *allTime {
 		ctlog.tree = certspotter.EmptyCollapsedMerkleTree()
 		if *verbose {
-			log.Printf("%s: Scanning all %d entries in the log because -all_time option specified", logInfo.Url, ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: Scanning all %d entries in the log because -all_time option specified", logInfo.URL, ctlog.verifiedSTH.TreeSize)
 		}
 	} else if ctlog.tree != nil {
 		if *verbose {
-			log.Printf("%s: Existing log; scanning %d new entries since previous scan", logInfo.Url, ctlog.verifiedSTH.TreeSize-ctlog.tree.GetSize())
+			log.Printf("%s: Existing log; scanning %d new entries since previous scan", logInfo.URL, ctlog.verifiedSTH.TreeSize-ctlog.tree.GetSize())
 		}
 	} else if *startAtEnd {
 		ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
 		if err != nil {
-			log.Print("%s: Error reconstructing Merkle Tree: %s", logInfo.Url, err)
+			log.Print("%s: Error reconstructing Merkle Tree: %s", logInfo.URL, err)
 			return 1
 		}
 		if *verbose {
-			log.Printf("%s: New log; not scanning %d existing entries because -start_at_end option was specified", logInfo.Url, ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: New log; not scanning %d existing entries because -start_at_end option was specified", logInfo.URL, ctlog.verifiedSTH.TreeSize)
 		}
 	} else {
 		ctlog.tree = certspotter.EmptyCollapsedMerkleTree()
 		if *verbose {
-			log.Printf("%s: New log; scanning all %d entries in the log (use the -start_at_end option to scan new logs from the end rather than the beginning)", logInfo.Url, ctlog.verifiedSTH.TreeSize)
+			log.Printf("%s: New log; scanning all %d entries in the log (use the -start_at_end option to scan new logs from the end rather than the beginning)", logInfo.URL, ctlog.verifiedSTH.TreeSize)
 		}
 	}
 	if err := ctlog.state.StoreTree(ctlog.tree); err != nil {
-		log.Printf("%s: Error storing tree: %s\n", logInfo.Url, err)
+		log.Printf("%s: Error storing tree: %s\n", logInfo.URL, err)
 		return 1
 	}
 
 	if err := ctlog.scan(processCallback); err != nil {
-		log.Print(logInfo.Url, ": ", err)
+		log.Print(logInfo.URL, ": ", err)
 		return 1
 	}
 
 	if *verbose {
-		log.Printf("%s: Final log size = %d, final root hash = %x", logInfo.Url, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
+		log.Printf("%s: Final log size = %d, final root hash = %x", logInfo.URL, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
 	}
 
 	return 0
@@ -330,10 +327,10 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 	}
 
 	processLogResults := make(chan int)
-	for i := range logs {
-		go func(logInfo *certspotter.LogInfo) {
+	for _, logInfo := range logs {
+		go func(logInfo *loglist.Log) {
 			processLogResults <- processLog(logInfo, processCallback)
-		}(&logs[i])
+		}(logInfo)
 	}
 
 	exitCode := 0
