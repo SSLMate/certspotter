@@ -14,7 +14,7 @@ You can use Cert Spotter to detect:
 * Certificates issued to attackers who have compromised your DNS and
   are redirecting your visitors to their malicious site.
 
-* Certificates issued to attackers who have taken over an abandonned
+* Certificates issued to attackers who have taken over an abandoned
   sub-domain in order to serve malware under your name.
 
 * Certificates issued to attackers who have compromised a certificate
