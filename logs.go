@@ -89,11 +89,6 @@ var DefaultLogs = []LogInfo{
 		MMD: 86400,
 	},
 	{
-		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjicnerZVCXTrbEuUhGW85BXx6lrYfA43zro/bAna5ymW00VQb94etBzSg4j/KS/Oqf/fNN51D8DMGA2ULvw3AQ=="),
-		Url: "ctlog-gen2.api.venafi.com",
-		MMD: 86400,
-	},
-	{
 		Key: mustDecodeBase64("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7+R9dC4VFbbpuyOL+yy14ceAmEf7QGlo/EmtYU6DRzwat43f/3swtLr/L8ugFOOt1YU/RFmMjGCL17ixv66MZw=="),
 		Url: "mammoth.ct.comodo.com",
 		MMD: 86400,
