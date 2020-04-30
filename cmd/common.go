@@ -269,7 +269,7 @@ func processLog(logInfo *loglist.Log, processCallback certspotter.ProcessCallbac
 	} else if *startAtEnd {
 		ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
 		if err != nil {
-			log.Print("%s: Error reconstructing Merkle Tree: %s", logInfo.URL, err)
+			log.Printf("%s: Error reconstructing Merkle Tree: %s", logInfo.URL, err)
 			return 1
 		}
 		if *verbose {
