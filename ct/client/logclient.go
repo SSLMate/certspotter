@@ -90,6 +90,7 @@ func New(uri string) *LogClient {
 	var c LogClient
 	c.uri = uri
 	transport := &httpclient.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
 		ConnectTimeout:        10 * time.Second,
 		RequestTimeout:        60 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,
