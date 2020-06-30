@@ -98,6 +98,8 @@ COMMAND LINE FLAGS
 	documented at <https://www.certificate-transparency.org/known-logs>.
 	Default: https://loglist.certspotter.org/monitor.json which includes the union
 	of active logs recognized by Chrome and Apple.
+  -proxyurl
+	Proxy URL to use for http connections (eg. http://my.proxy.com:8080) 
   -state_dir PATH
 	Directory for storing state. Default: ~/.certspotter
   -verbose

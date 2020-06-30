@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -35,6 +36,7 @@ var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certifi
 var verbose = flag.Bool("verbose", false, "Be verbose")
 var startAtEnd = flag.Bool("start_at_end", false, "Start monitoring logs from the end rather than the beginning")
 var allTime = flag.Bool("all_time", false, "Scan certs from all time, not just since last scan")
+var proxy = flag.String("proxyurl", "", "Proxy URL to use for http connections (eg. http://my.proxy.com:8080)")
 var state *State
 
 var printMutex sync.Mutex
@@ -106,10 +108,17 @@ func makeLogHandle(logInfo *loglist.Log) (*logHandle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Bad public key: %s", err)
 	}
+	
+	proxyURL, err := url.Parse(*proxy)
+	if *proxy == "" {
+		proxyURL = nil
+	}
+
 	ctlog.scanner = certspotter.NewScanner(logInfo.URL, logInfo.LogID, logKey, &certspotter.ScannerOptions{
 		BatchSize:  *batchSize,
 		NumWorkers: *numWorkers,
 		Quiet:      !*verbose,
+		ProxyURL:   proxyURL,
 	})
 
 	ctlog.state, err = state.OpenLogState(logInfo)

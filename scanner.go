@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,6 +46,9 @@ type ScannerOptions struct {
 
 	// Don't print any status messages to stdout
 	Quiet bool
+
+	// Proxy stuff
+	ProxyURL *url.URL
 }
 
 // Creates a new ScannerOptions struct with sensible defaults
@@ -53,6 +57,7 @@ func DefaultScannerOptions() *ScannerOptions {
 		BatchSize:  1000,
 		NumWorkers: 1,
 		Quiet:      false,
+		ProxyURL:   nil,
 	}
 }
 
@@ -316,7 +321,7 @@ func NewScanner(logUri string, logId []byte, publicKey crypto.PublicKey, opts *S
 	scanner.LogUri = logUri
 	scanner.LogId = logId
 	scanner.publicKey = publicKey
-	scanner.logClient = client.New(strings.TrimRight(logUri, "/"))
+	scanner.logClient = client.New(strings.TrimRight(logUri, "/"), opts.ProxyURL)
 	scanner.opts = *opts
 	return &scanner
 }

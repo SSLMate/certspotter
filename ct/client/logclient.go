@@ -86,7 +86,7 @@ type addChainResponse struct {
 // New constructs a new LogClient instance.
 // |uri| is the base URI of the CT log instance to interact with, e.g.
 // http://ct.googleapis.com/pilot
-func New(uri string) *LogClient {
+func New(uri string, proxyURL *url.URL) *LogClient {
 	var c LogClient
 	c.uri = uri
 	transport := &httpclient.Transport{
@@ -105,6 +105,9 @@ func New(uri string) *LogClient {
 			// updating should a log ever change to a different CA.)
 			InsecureSkipVerify: true,
 		},
+	}
+	if proxyURL != nil {
+		transport.Proxy = http.ProxyURL(proxyURL)
 	}
 	c.httpClient = &http.Client{Transport: transport}
 	return &c
