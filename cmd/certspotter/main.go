@@ -221,8 +221,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", os.Args[0], *watchlistFilename, err)
 			os.Exit(1)
 		}
-		defer file.Close()
 		watchlist, err = readWatchlist(file)
+		file.Close()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", os.Args[0], *watchlistFilename, err)
 			os.Exit(1)
