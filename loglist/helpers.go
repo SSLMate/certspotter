@@ -10,7 +10,6 @@
 package loglist
 
 import (
-	"encoding/base64"
 	"time"
 )
 
@@ -25,7 +24,7 @@ func (list *List) AllLogs() []*Log {
 }
 
 func (log *Log) LogIDString() string {
-	return base64.StdEncoding.EncodeToString(log.LogID)
+	return log.LogID.Base64String()
 }
 
 func (log *Log) AcceptsExpiration(expiration time.Time) bool {

@@ -10,7 +10,6 @@
 package loglist
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"fmt"
 )
@@ -35,7 +34,7 @@ func (operator *Operator) Validate() error {
 
 func (log *Log) Validate() error {
 	realLogID := sha256.Sum256(log.Key)
-	if !bytes.Equal(log.LogID, realLogID[:]) {
+	if log.LogID != realLogID {
 		return fmt.Errorf("log ID does not match log key")
 	}
 	return nil

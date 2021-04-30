@@ -63,7 +63,7 @@ type Scanner struct {
 
 	// Public key of the log
 	publicKey crypto.PublicKey
-	LogId     []byte
+	LogId     ct.SHA256Hash
 
 	// Client used to talk to the CT log instance
 	logClient *client.LogClient
@@ -207,7 +207,7 @@ func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
 			return nil, errors.New("STH signature is invalid: " + err.Error())
 		}
 	}
-	copy(latestSth.LogID[:], s.LogId)
+	latestSth.LogID = s.LogId
 	return latestSth, nil
 }
 
@@ -311,7 +311,7 @@ func (s *Scanner) Scan(startIndex int64, endIndex int64, processCert ProcessCall
 
 // Creates a new Scanner instance using |client| to talk to the log, and taking
 // configuration options from |opts|.
-func NewScanner(logUri string, logId []byte, publicKey crypto.PublicKey, opts *ScannerOptions) *Scanner {
+func NewScanner(logUri string, logId ct.SHA256Hash, publicKey crypto.PublicKey, opts *ScannerOptions) *Scanner {
 	var scanner Scanner
 	scanner.LogUri = logUri
 	scanner.LogId = logId

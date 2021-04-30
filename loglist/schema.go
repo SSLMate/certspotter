@@ -11,6 +11,8 @@ package loglist
 
 import (
 	"time"
+
+	"software.sslmate.com/src/certspotter/ct"
 )
 
 type List struct {
@@ -25,14 +27,14 @@ type Operator struct {
 }
 
 type Log struct {
-	Key              []byte  `json:"key"`
-	LogID            []byte  `json:"log_id"`
-	MMD              int     `json:"mmd"`
-	URL              string  `json:"url"`
-	Description      string  `json:"description"`
-	State            State   `json:"state"`
-	DNS              string  `json:"dns"`
-	LogType          LogType `json:"log_type"`
+	Key              []byte        `json:"key"`
+	LogID            ct.SHA256Hash `json:"log_id"`
+	MMD              int           `json:"mmd"`
+	URL              string        `json:"url"`
+	Description      string        `json:"description"`
+	State            State         `json:"state"`
+	DNS              string        `json:"dns"`
+	LogType          LogType       `json:"log_type"`
 	TemporalInterval *struct {
 		StartInclusive time.Time `json:"start_inclusive"`
 		EndExclusive   time.Time `json:"end_exclusive"`

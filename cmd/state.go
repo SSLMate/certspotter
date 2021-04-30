@@ -162,7 +162,7 @@ func (state *State) SaveCert(isPrecert bool, certs [][]byte) (bool, string, erro
 }
 
 func (state *State) OpenLogState(logInfo *loglist.Log) (*LogState, error) {
-	return OpenLogState(filepath.Join(state.path, "logs", base64.RawURLEncoding.EncodeToString(logInfo.LogID)))
+	return OpenLogState(filepath.Join(state.path, "logs", base64.RawURLEncoding.EncodeToString(logInfo.LogID[:])))
 }
 
 func (state *State) GetLegacySTH(logInfo *loglist.Log) (*ct.SignedTreeHead, error) {
