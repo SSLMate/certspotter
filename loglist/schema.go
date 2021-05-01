@@ -71,6 +71,14 @@ type State struct {
 	} `json:"rejected"`
 }
 
+func (state *State) IsApproved() bool {
+	return state.Qualified != nil || state.Usable != nil || state.Readonly != nil
+}
+
+func (state *State) WasApprovedAt(t time.Time) bool {
+	return state.Retired != nil && t.Before(state.Retired.Timestamp)
+}
+
 type LogType string
 
 const (
