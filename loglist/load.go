@@ -38,7 +38,7 @@ func Fetch(url string) (*List, error) {
 	if response.StatusCode != 200 {
 		return nil, fmt.Errorf("%s: %s", url, response.Status)
 	}
-	return unmarshal(content)
+	return Unmarshal(content)
 }
 
 func ReadFile(filename string) (*List, error) {
@@ -46,10 +46,10 @@ func ReadFile(filename string) (*List, error) {
 	if err != nil {
 		return nil, err
 	}
-	return unmarshal(content)
+	return Unmarshal(content)
 }
 
-func unmarshal(jsonBytes []byte) (*List, error) {
+func Unmarshal(jsonBytes []byte) (*List, error) {
 	list := new(List)
 	if err := json.Unmarshal(jsonBytes, list); err != nil {
 		return nil, err
