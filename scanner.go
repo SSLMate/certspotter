@@ -212,7 +212,12 @@ func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
 }
 
 func (s *Scanner) CheckConsistency(first *ct.SignedTreeHead, second *ct.SignedTreeHead) (bool, error) {
-	if first.TreeSize < second.TreeSize {
+	if first.TreeSize == 0 || second.TreeSize == 0 {
+		// RFC 6962 doesn't define how to generate a consistency proof in this case,
+		// and it doesn't matter anyways since the tree is empty.  The DigiCert logs
+		// return a 400 error if we ask for such a proof.
+		return true, nil
+	} else if first.TreeSize < second.TreeSize {
 		proof, err := s.logClient.GetConsistencyProof(int64(first.TreeSize), int64(second.TreeSize))
 		if err != nil {
 			return false, err
