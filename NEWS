@@ -1,3 +1,10 @@
+v0.11 (2021-08-17)
+  * Add support for contacting logs via HTTP proxies;
+    just set the appropriate environment variable as documented at
+    https://golang.org/pkg/net/http/#ProxyFromEnvironment
+  * Work around RFC 6962 ambiguity related to consistency proofs
+    for empty trees.
+
 v0.10 (2020-04-29)
   * Improve speed by processing logs in parallel
   * Add -start_at_end option to begin monitoring new logs at the end,
