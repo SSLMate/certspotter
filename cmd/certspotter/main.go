@@ -206,7 +206,7 @@ func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
 }
 
 func main() {
-	flag.Parse()
+	cmd.ParseFlags()
 
 	if *watchlistFilename == "-" {
 		var err error

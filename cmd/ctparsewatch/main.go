@@ -47,6 +47,6 @@ func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
 }
 
 func main() {
-	flag.Parse()
+	cmd.ParseFlags()
 	os.Exit(cmd.Main(*stateDir, processEntry))
 }

@@ -33,6 +33,7 @@ var script = flag.String("script", "", "Script to execute when a matching certif
 var logsURL = flag.String("logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
 var noSave = flag.Bool("no_save", false, "Do not save a copy of matching certificates")
 var verbose = flag.Bool("verbose", false, "Be verbose")
+var showVersion = flag.Bool("version", false, "Print version and exit")
 var startAtEnd = flag.Bool("start_at_end", false, "Start monitoring logs from the end rather than the beginning")
 var allTime = flag.Bool("all_time", false, "Scan certs from all time, not just since last scan")
 var state *State
@@ -296,6 +297,14 @@ func processLog(logInfo *loglist.Log, processCallback certspotter.ProcessCallbac
 	}
 
 	return 0
+}
+
+func ParseFlags() {
+	flag.Parse()
+	if *showVersion {
+		fmt.Fprintf(os.Stdout, "Cert Spotter %s\n", certspotter.Version)
+		os.Exit(0)
+	}
 }
 
 func Main(statePath string, processCallback certspotter.ProcessCallback) int {
