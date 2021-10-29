@@ -124,6 +124,7 @@ type CertInfo struct {
 	ValidityParseError     error
 	IsCA                   *bool
 	IsCAParseError         error
+	IsPreCert              bool
 }
 
 func MakeCertInfoFromTBS(tbs *TBSCertificate) *CertInfo {
@@ -135,6 +136,7 @@ func MakeCertInfoFromTBS(tbs *TBSCertificate) *CertInfo {
 	info.SerialNumber, info.SerialNumberParseError = tbs.ParseSerialNumber()
 	info.Validity, info.ValidityParseError = tbs.ParseValidity()
 	info.IsCA, info.IsCAParseError = tbs.ParseBasicConstraints()
+	info.IsPreCert = len(tbs.GetExtension(oidExtensionCTPoison)) > 0
 
 	return info
 }
