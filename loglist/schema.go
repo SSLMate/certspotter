@@ -16,8 +16,9 @@ import (
 )
 
 type List struct {
-	Version   string     `json:"version"`
-	Operators []Operator `json:"operators"`
+	Version          string     `json:"version"`
+	LogListTimestamp time.Time  `json:"log_list_timestamp"` // Only present in v3 of schema
+	Operators        []Operator `json:"operators"`
 }
 
 type Operator struct {
@@ -39,6 +40,8 @@ type Log struct {
 		StartInclusive time.Time `json:"start_inclusive"`
 		EndExclusive   time.Time `json:"end_exclusive"`
 	} `json:"temporal_interval"`
+
+	// TODO: add previous_operators
 }
 
 type State struct {
