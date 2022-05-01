@@ -17,7 +17,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/mreiferson/go-httpclient"
 	"software.sslmate.com/src/certspotter/ct"
 )
 
@@ -89,13 +88,15 @@ type addChainResponse struct {
 func New(uri string) *LogClient {
 	var c LogClient
 	c.uri = uri
-	transport := &httpclient.Transport{
+	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
-		ConnectTimeout:        10 * time.Second,
-		RequestTimeout:        60 * time.Second,
+		TLSHandshakeTimeout:   15 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,
 		MaxIdleConnsPerHost:   10,
 		DisableKeepAlives:     false,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       15 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig: &tls.Config{
 			// We have to disable TLS certificate validation because because several logs
 			// (WoSign, StartCom, GDCA) use certificates that are not widely trusted.
@@ -107,7 +108,7 @@ func New(uri string) *LogClient {
 			InsecureSkipVerify: true,
 		},
 	}
-	c.httpClient = &http.Client{Transport: transport}
+	c.httpClient = &http.Client{Timeout: 60 * time.Second, Transport: transport}
 	return &c
 }
 
