@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -124,12 +123,11 @@ func (c *LogClient) fetchAndParse(uri string, respBody interface{}) error {
 }
 
 func (c *LogClient) postAndParse(uri string, body interface{}, respBody interface{}) error {
-	bodyReader, bodyWriter := io.Pipe()
-	go func() {
-		json.NewEncoder(bodyWriter).Encode(body)
-		bodyWriter.Close()
-	}()
-	req, err := http.NewRequest("POST", uri, bodyReader)
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", uri, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("POST %s: Sending request failed: %s", uri, err)
 	}
