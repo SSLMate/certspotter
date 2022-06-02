@@ -16,6 +16,7 @@ import (
 	"software.sslmate.com/src/certspotter/loglist"
 
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
@@ -121,7 +122,7 @@ type Log struct {
 
 func (ctlog *Log) SubmitChain(chain Chain) (*ct.SignedCertificateTimestamp, error) {
 	rawCerts := chain.GetRawCerts()
-	sct, err := ctlog.AddChain(rawCerts)
+	sct, err := ctlog.AddChain(context.Background(), rawCerts)
 	if err != nil {
 		return nil, err
 	}
