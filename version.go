@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Opsmate, Inc.
+// Copyright (C) 2022 Opsmate, Inc.
 //
 // This Source Code Form is subject to the terms of the Mozilla
 // Public License, v. 2.0. If a copy of the MPL was not distributed
@@ -9,4 +9,4 @@
 
 package certspotter
 
-const Version = "0.11"
+const Version = "0.12"
