@@ -9,4 +9,4 @@
 
 package certspotter
 
-const Version = "0.13"
+const Version = "0.14.0"

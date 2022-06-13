@@ -1,3 +1,6 @@
+v0.14.0 (2022-06-13)
+  * Switch to Go module versioning conventions.
+
 v0.13 (2022-06-13)
   * Reduce minimum Go version to 1.17.
   * Update install instructions.
