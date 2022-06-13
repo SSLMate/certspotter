@@ -1,3 +1,7 @@
+v0.13 (2022-06-13)
+  * Reduce minimum Go version to 1.17.
+  * Update install instructions.
+
 v0.12 (2022-06-07)
   * Retry failed log requests.  This should make certspotter resilient
     to rate limiting by logs.
