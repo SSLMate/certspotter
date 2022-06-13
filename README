@@ -30,11 +30,11 @@ The easiest way to use Cert Spotter is to sign up for an account at
 <https://sslmate.com/certspotter>.  If you want to run Cert Spotter on
 your own server, follow these instructions.
 
-Cert Spotter requires Go version 1.5 or higher.
+Cert Spotter requires Go version 1.17 or higher.
 
-1. Install Cert Spotter using go get:
+1. Install Cert Spotter using the `go` command:
 
-	go get software.sslmate.com/src/certspotter/cmd/certspotter
+	go install software.sslmate.com/src/certspotter/cmd/certspotter@latest
 
 2. Create a file called ~/.certspotter/watchlist listing the DNS names
    you want to monitor, one per line.  To monitor an entire domain tree
