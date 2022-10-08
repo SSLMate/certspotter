@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/user"
 	"path/filepath"
 	"sync"
 
@@ -41,15 +40,11 @@ var state *State
 var printMutex sync.Mutex
 
 func homedir() string {
-	home := os.Getenv("HOME")
-	if home != "" {
-		return home
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		panic(fmt.Errorf("unable to determine home directory: %w", err))
 	}
-	user, err := user.Current()
-	if err == nil {
-		return user.HomeDir
-	}
-	panic("Unable to determine home directory")
+	return homedir
 }
 
 func DefaultStateDir(programName string) string {
