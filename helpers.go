@@ -285,7 +285,6 @@ func yesnoString(value bool) string {
 func (info *EntryInfo) Environ() []string {
 	env := []string{
 		"FINGERPRINT=" + info.Fingerprint(),
-		"CERT_TYPE=" + info.typeString(),
 		"CERT_PARSEABLE=" + yesnoString(info.ParseError == nil),
 		"LOG_URI=" + info.LogUri,
 		"ENTRY_INDEX=" + strconv.FormatInt(info.Entry.Index, 10),
