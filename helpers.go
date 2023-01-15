@@ -197,7 +197,8 @@ func (info *CertInfo) PubkeyHashBytes() []byte {
 func (info *CertInfo) Environ() []string {
 	env := make([]string, 0, 10)
 
-	env = append(env, "PUBKEY_HASH="+info.PubkeyHash())
+	env = append(env, "PUBKEY_HASH="+info.PubkeyHash()) // deprecated, not documented
+	env = append(env, "PUBKEY_SHA256="+info.PubkeyHash())
 
 	if info.SerialNumberParseError != nil {
 		env = append(env, "SERIAL_PARSE_ERROR="+info.SerialNumberParseError.Error())
@@ -282,7 +283,8 @@ func yesnoString(value bool) string {
 
 func (info *EntryInfo) Environ() []string {
 	env := []string{
-		"FINGERPRINT=" + info.Fingerprint(),
+		"FINGERPRINT=" + info.Fingerprint(), // deprecated, not documented
+		"CERT_SHA256=" + info.Fingerprint(),
 		"CERT_PARSEABLE=" + yesnoString(info.ParseError == nil),
 		"LOG_URI=" + info.LogUri,
 		"ENTRY_INDEX=" + strconv.FormatInt(info.Entry.Index, 10),
