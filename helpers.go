@@ -226,8 +226,6 @@ func (info *CertInfo) Environ() []string {
 		env = append(env, "ISSUER_DN="+info.Issuer.String())
 	}
 
-	// TODO: include SANs in environment
-
 	return env
 }
 
