@@ -165,10 +165,6 @@ func (s Scanner) Log(msg string) {
 	}
 }
 
-func (s Scanner) Warn(msg string) {
-	log.Print(s.LogUri, ": ", msg)
-}
-
 func (s *Scanner) GetSTH() (*ct.SignedTreeHead, error) {
 	latestSth, err := s.logClient.GetSTH(context.Background())
 	if err != nil {
