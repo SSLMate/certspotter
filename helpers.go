@@ -203,7 +203,7 @@ func (info *CertInfo) Environ() []string {
 	if info.SerialNumberParseError != nil {
 		env = append(env, "SERIAL_PARSE_ERROR="+info.SerialNumberParseError.Error())
 	} else {
-		env = append(env, "SERIAL="+formatSerialNumber(info.SerialNumber))
+		env = append(env, "SERIAL="+formatSerialNumber(info.SerialNumber)) // generally unsafe to use
 	}
 
 	if info.ValidityParseError != nil {
@@ -285,9 +285,9 @@ func (info *EntryInfo) Environ() []string {
 	env := []string{
 		"FINGERPRINT=" + info.Fingerprint(), // deprecated, not documented
 		"CERT_SHA256=" + info.Fingerprint(),
-		"CERT_PARSEABLE=" + yesnoString(info.ParseError == nil),
-		"LOG_URI=" + info.LogUri,
-		"ENTRY_INDEX=" + strconv.FormatInt(info.Entry.Index, 10),
+		"CERT_PARSEABLE=" + yesnoString(info.ParseError == nil), // seems redundant with PARSE_ERROR
+		"LOG_URI=" + info.LogUri, // questionable utility
+		"ENTRY_INDEX=" + strconv.FormatInt(info.Entry.Index, 10), // questionable utility
 	}
 
 	if info.Filename != "" {
