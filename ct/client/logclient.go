@@ -71,6 +71,7 @@ const (
 type LogClient struct {
 	uri        string       // the base URI of the log. e.g. http://ct.googleapis/pilot
 	httpClient *http.Client // used to interact with the log via HTTP
+	verifier   *ct.SignatureVerifier // if non-nil, used to verify STH signatures
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -124,8 +125,13 @@ type addChainResponse struct {
 // |uri| is the base URI of the CT log instance to interact with, e.g.
 // http://ct.googleapis.com/pilot
 func New(uri string) *LogClient {
+	return NewWithVerifier(uri, nil)
+}
+
+func NewWithVerifier(uri string, verifier *ct.SignatureVerifier) *LogClient {
 	var c LogClient
 	c.uri = uri
+	c.verifier = verifier
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		TLSHandshakeTimeout:   15 * time.Second,
@@ -264,8 +270,12 @@ func (c *LogClient) GetSTH(ctx context.Context) (sth *ct.SignedTreeHead, err err
 	if err != nil {
 		return nil, err
 	}
-	// TODO(alcutter): Verify signature
 	sth.TreeHeadSignature = *ds
+	if c.verifier != nil {
+		if err := c.verifier.VerifySTHSignature(*sth); err != nil {
+			return nil, fmt.Errorf("STH returned by server has invalid signature: %w", err)
+		}
+	}
 	return
 }
 
