@@ -269,6 +269,34 @@ func (c *LogClient) GetSTH(ctx context.Context) (sth *ct.SignedTreeHead, err err
 	return
 }
 
+type GetEntriesItem struct {
+	LeafInput []byte `json:"leaf_input"`
+	ExtraData []byte `json:"extra_data"`
+}
+
+// Retrieve the entries in the sequence [start, end] from the CT log server.
+// If error is nil, at least one entry is returned, and no excess entries are returned.
+// Fewer entries than requested may be returned.
+func (c *LogClient) GetRawEntries(ctx context.Context, start, end uint64) ([]GetEntriesItem, error) {
+	if end < start {
+		panic("LogClient.GetRawEntries: end < start")
+	}
+	var response struct {
+		Entries []GetEntriesItem `json:"entries"`
+	}
+	err := c.fetchAndParse(ctx, fmt.Sprintf("%s%s?start=%d&end=%d", c.uri, GetEntriesPath, start, end), &response)
+	if err != nil {
+		return nil, err
+	}
+	if len(response.Entries) == 0 {
+		return nil, fmt.Errorf("log server returned an empty get-entries response")
+	}
+	if uint64(len(response.Entries)) > end-start+1 {
+		return nil, fmt.Errorf("log server returned a get-entries response with extraneous entries")
+	}
+	return response.Entries, nil
+}
+
 // GetEntries attempts to retrieve the entries in the sequence [|start|, |end|] from the CT
 // log server. (see section 4.6.)
 // Returns a slice of LeafInputs or a non-nil error.
