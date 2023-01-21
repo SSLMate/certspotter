@@ -13,10 +13,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"os/exec"
@@ -26,41 +24,6 @@ import (
 
 	"software.sslmate.com/src/certspotter/ct"
 )
-
-func ReadSTHFile(path string) (*ct.SignedTreeHead, error) {
-	content, err := ioutil.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	var sth ct.SignedTreeHead
-	if err := json.Unmarshal(content, &sth); err != nil {
-		return nil, err
-	}
-
-	return &sth, nil
-}
-
-func WriteSTHFile(path string, sth *ct.SignedTreeHead) error {
-	sthJson, err := json.MarshalIndent(sth, "", "\t")
-	if err != nil {
-		return err
-	}
-	sthJson = append(sthJson, byte('\n'))
-	return ioutil.WriteFile(path, sthJson, 0666)
-}
-
-func WriteProofFile(path string, proof ct.ConsistencyProof) error {
-	proofJson, err := json.MarshalIndent(proof, "", "\t")
-	if err != nil {
-		return err
-	}
-	proofJson = append(proofJson, byte('\n'))
-	return ioutil.WriteFile(path, proofJson, 0666)
-}
 
 func IsPrecert(entry *ct.LogEntry) bool {
 	return entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType
