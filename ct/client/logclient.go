@@ -188,6 +188,7 @@ retry:
 	if err != nil {
 		return fmt.Errorf("%s %s: error creating request: %w", method, uri, err)
 	}
+	req.Header.Set("User-Agent", "") // Don't send a User-Agent to make life harder for malicious logs
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		if c.shouldRetry(ctx, numRetries, nil) {
