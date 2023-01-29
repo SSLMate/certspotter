@@ -295,15 +295,16 @@ func (c *LogClient) GetRawEntries(ctx context.Context, start, end uint64) ([]Get
 	var response struct {
 		Entries []GetEntriesItem `json:"entries"`
 	}
-	err := c.fetchAndParse(ctx, fmt.Sprintf("%s%s?start=%d&end=%d", c.uri, GetEntriesPath, start, end), &response)
+	uri := fmt.Sprintf("%s%s?start=%d&end=%d", c.uri, GetEntriesPath, start, end)
+	err := c.fetchAndParse(ctx, uri, &response)
 	if err != nil {
 		return nil, err
 	}
 	if len(response.Entries) == 0 {
-		return nil, fmt.Errorf("log server returned an empty get-entries response")
+		return nil, fmt.Errorf("GET %s: log server returned an empty get-entries response", uri)
 	}
 	if uint64(len(response.Entries)) > end-start+1 {
-		return nil, fmt.Errorf("log server returned a get-entries response with extraneous entries")
+		return nil, fmt.Errorf("GET %s: log server returned a get-entries response with extraneous entries", uri)
 	}
 	return response.Entries, nil
 }
