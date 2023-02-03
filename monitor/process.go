@@ -111,7 +111,7 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.LeafSHA256, err)
 		}
 
-		notifiedPath = filepath.Join(prefixPath, hexFingerprint+".notified") // TODO-3: maybe this should be a hidden file?
+		notifiedPath = filepath.Join(prefixPath, "."+hexFingerprint+".notified")
 		cert.CertPath = filepath.Join(prefixPath, hexFingerprint+".pem")
 		cert.JSONPath = filepath.Join(prefixPath, hexFingerprint+".json") // TODO-3: consider using .v1.json extension in case I change the format later?
 		cert.TextPath = filepath.Join(prefixPath, hexFingerprint+".txt")
