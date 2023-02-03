@@ -47,14 +47,12 @@ func getRetryAfter(resp *http.Response) (time.Duration, bool) {
 	return time.Duration(seconds) * time.Second, true
 }
 
-func sleep(ctx context.Context, duration time.Duration) bool {
+func sleep(ctx context.Context, duration time.Duration) {
 	timer := time.NewTimer(duration)
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
-		return false
 	case <-timer.C:
-		return true
 	}
 }
 
@@ -184,6 +182,9 @@ func (c *LogClient) makeRequest(ctx context.Context, method string, uri string, 
 func (c *LogClient) doAndParse(ctx context.Context, method string, uri string, reqBody interface{}, respBody interface{}) error {
 	numRetries := 0
 retry:
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	req, err := c.makeRequest(ctx, method, uri, reqBody)
 	if err != nil {
 		return fmt.Errorf("%s %s: error creating request: %w", method, uri, err)
@@ -220,10 +221,6 @@ retry:
 }
 
 func (c *LogClient) shouldRetry(ctx context.Context, numRetries int, resp *http.Response) bool {
-	if ctx.Err() != nil {
-		return false
-	}
-
 	if numRetries == maxRetries {
 		return false
 	}
@@ -247,7 +244,8 @@ func (c *LogClient) shouldRetry(ctx context.Context, numRetries int, resp *http.
 		return false
 	}
 
-	return sleep(ctx, delay)
+	sleep(ctx, delay)
+	return true
 }
 
 // GetSTH retrieves the current STH from the log.
