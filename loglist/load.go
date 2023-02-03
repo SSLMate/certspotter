@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Opsmate, Inc.
+// Copyright (C) 2020, 2023 Opsmate, Inc.
 //
 // This Source Code Form is subject to the terms of the Mozilla
 // Public License, v. 2.0. If a copy of the MPL was not distributed
@@ -10,27 +10,33 @@
 package loglist
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
-func Load(urlOrFile string) (*List, error) {
+func Load(ctx context.Context, urlOrFile string) (*List, error) {
 	if strings.HasPrefix(urlOrFile, "https://") {
-		return Fetch(urlOrFile)
+		return Fetch(ctx, urlOrFile)
 	} else {
 		return ReadFile(urlOrFile)
 	}
 }
 
-func Fetch(url string) (*List, error) {
-	response, err := http.Get(url)
+func Fetch(ctx context.Context, url string) (*List, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	content, err := ioutil.ReadAll(response.Body)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	content, err := io.ReadAll(response.Body)
 	response.Body.Close()
 	if err != nil {
 		return nil, err
@@ -42,7 +48,7 @@ func Fetch(url string) (*List, error) {
 }
 
 func ReadFile(filename string) (*List, error) {
-	content, err := ioutil.ReadFile(filename)
+	content, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

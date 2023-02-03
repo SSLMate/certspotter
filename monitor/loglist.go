@@ -19,9 +19,8 @@ import (
 type LogID = ct.SHA256Hash
 
 func getLogList(ctx context.Context, source string) (map[LogID]*loglist.Log, error) {
-	// TODO-4: pass context to loglist.Load
 	// TODO-3: If-Modified-Since / If-None-Match support
-	list, err := loglist.Load(source)
+	list, err := loglist.Load(ctx, source)
 	if err != nil {
 		return nil, err
 	}

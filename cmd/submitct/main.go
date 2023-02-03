@@ -151,7 +151,7 @@ func main() {
 		log.Fatalf("Error reading stdin: %s", err)
 	}
 
-	list, err := loglist.Load(*logsURL)
+	list, err := loglist.Load(context.Background(), *logsURL)
 	if err != nil {
 		log.Fatalf("Error loading log list: %s", err)
 	}
