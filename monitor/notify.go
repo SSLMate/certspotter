@@ -12,12 +12,9 @@ package monitor
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -86,49 +83,10 @@ func sendEmail(ctx context.Context, to []string, notif notification) error {
 	}
 }
 
-func execScript(ctx context.Context, scriptPath string, notif notification) error {
-	// TODO-3: consider removing directory support (for now), and supporting $PATH lookups
-	info, err := os.Stat(scriptPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("script %q does not exist", scriptPath)
-	} else if err != nil {
-		return fmt.Errorf("error executing script %q: %w", scriptPath, err)
-	} else if info.IsDir() {
-		return execScriptDir(ctx, scriptPath, notif)
-	} else {
-		return execScriptFile(ctx, scriptPath, notif)
-	}
-
-}
-
-func execScriptDir(ctx context.Context, dirPath string, notif notification) error {
-	dirents, err := os.ReadDir(dirPath)
-	if err != nil {
-		return fmt.Errorf("error executing scripts in directory %q: %w", dirPath, err)
-	}
-	for _, dirent := range dirents {
-		if strings.HasPrefix(dirent.Name(), ".") {
-			continue
-		}
-		scriptPath := filepath.Join(dirPath, dirent.Name())
-		info, err := os.Stat(scriptPath)
-		if errors.Is(err, fs.ErrNotExist) {
-			continue
-		} else if err != nil {
-			return fmt.Errorf("error executing %q in directory %q: %w", dirent.Name(), dirPath, err)
-		} else if info.Mode().IsRegular() && isExecutable(info.Mode()) {
-			if err := execScriptFile(ctx, scriptPath, notif); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func execScriptFile(ctx context.Context, scriptPath string, notif notification) error {
+func execScript(ctx context.Context, scriptName string, notif notification) error {
 	stderr := new(bytes.Buffer)
 
-	cmd := exec.CommandContext(ctx, scriptPath)
+	cmd := exec.CommandContext(ctx, scriptName)
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, notif.Environ()...)
 	cmd.Stderr = stderr
@@ -138,11 +96,11 @@ func execScriptFile(ctx context.Context, scriptPath string, notif notification) 
 	} else if ctx.Err() != nil {
 		return ctx.Err()
 	} else if exitErr, isExitError := err.(*exec.ExitError); isExitError && exitErr.Exited() {
-		return fmt.Errorf("script %q exited with code %d and error %q", scriptPath, exitErr.ExitCode(), strings.TrimSpace(stderr.String()))
+		return fmt.Errorf("script %q exited with code %d and error %q", scriptName, exitErr.ExitCode(), strings.TrimSpace(stderr.String()))
 	} else if isExitError {
-		return fmt.Errorf("script %q terminated by signal with error %q", scriptPath, strings.TrimSpace(stderr.String()))
+		return fmt.Errorf("script %q terminated by signal with error %q", scriptName, strings.TrimSpace(stderr.String()))
 	} else {
-		return fmt.Errorf("error executing script %q: %w", scriptPath, err)
+		return fmt.Errorf("error executing script %q: %w", scriptName, err)
 	}
 }
 
