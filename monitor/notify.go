@@ -100,7 +100,7 @@ func execScript(ctx context.Context, scriptName string, notif notification) erro
 	} else if isExitError {
 		return fmt.Errorf("script %q terminated by signal with error %q", scriptName, strings.TrimSpace(stderr.String()))
 	} else {
-		return fmt.Errorf("error executing script %q: %w", scriptName, err)
+		return fmt.Errorf("error executing script: %w", err)
 	}
 }
 
