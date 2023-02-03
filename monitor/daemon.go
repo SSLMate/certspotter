@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	reloadLogListIntervalMin = 3 * time.Second // TODO-3: use 30 * time.Minute
-	reloadLogListIntervalMax = 9 * time.Second // TODO-3: use 90 * time.Minute
+	reloadLogListIntervalMin = 30 * time.Minute
+	reloadLogListIntervalMax = 90 * time.Minute
 	healthCheckInterval      = 24 * time.Hour
 )
 

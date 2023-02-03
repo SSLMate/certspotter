@@ -29,8 +29,7 @@ import (
 
 const (
 	maxGetEntriesSize = 1000
-	//monitorLogInterval = 5 * time.Minute // TODO-3
-	monitorLogInterval = 15 * time.Second
+	monitorLogInterval = 5 * time.Minute
 )
 
 func isFatalLogError(err error) bool {
