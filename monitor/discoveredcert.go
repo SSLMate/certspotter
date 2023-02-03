@@ -146,7 +146,7 @@ func (cert *discoveredCert) Environ() []string {
 }
 
 func (cert *discoveredCert) Text() string {
-	// TODO-3: improve the output: include WatchItem, indicate hash algorithm. look at sslmate email for inspiration
+	// TODO-4: improve the output: include WatchItem, indicate hash algorithm used for fingerprints, ... (look at SSLMate email for inspiration)
 
 	text := new(strings.Builder)
 	writeField := func(name string, value any) { fmt.Fprintf(text, "\t%13s = %s\n", name, value) }
