@@ -27,7 +27,7 @@ func (malformed *malformedLogEntry) Environ() []string {
 		"ENTRY_INDEX=" + fmt.Sprint(malformed.Entry.Index),
 		"LEAF_HASH=" + malformed.Entry.LeafHash.Base64String(),
 		"PARSE_ERROR=" + malformed.Error,
-		"CERT_PARSEABLE=no", // backwards compat; not documented (TODO-3: consider removing)
+		"CERT_PARSEABLE=no", // backwards compat with pre-0.15.0; not documented
 	}
 }
 

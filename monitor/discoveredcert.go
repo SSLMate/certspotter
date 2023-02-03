@@ -100,14 +100,14 @@ func (cert *discoveredCert) Environ() []string {
 	env := []string{
 		"EVENT=discovered_cert",
 		"SUMMARY=certificate discovered for " + cert.WatchItem.String(),
-		"CERT_PARSEABLE=yes", // backwards compat; not documented (TODO-3: consider removing)
+		"CERT_PARSEABLE=yes", // backwards compat with pre-0.15.0; not documented
 		"LOG_URI=" + cert.LogEntry.Log.URL,
 		"ENTRY_INDEX=" + fmt.Sprint(cert.LogEntry.Index),
 		"WATCH_ITEM=" + cert.WatchItem.String(),
 		"CERT_SHA256=" + hex.EncodeToString(cert.LeafSHA256[:]),
-		"FINGERPRINT=" + hex.EncodeToString(cert.LeafSHA256[:]), // backwards compat; not documented (TODO-3: consider removing)
+		"FINGERPRINT=" + hex.EncodeToString(cert.LeafSHA256[:]), // backwards compat with pre-0.15.0; not documented
 		"PUBKEY_SHA256=" + hex.EncodeToString(pubkeySha256[:]),
-		"PUBKEY_HASH=" + hex.EncodeToString(pubkeySha256[:]), // backwards compat; not documented (TODO-3: consider removing)
+		"PUBKEY_HASH=" + hex.EncodeToString(pubkeySha256[:]), // backwards compat with pre-0.15.0; not documented
 		"CERT_FILENAME=" + cert.CertPath,
 		"JSON_FILENAME=" + cert.JSONPath,
 		"TEXT_FILENAME=" + cert.TextPath,
@@ -136,7 +136,6 @@ func (cert *discoveredCert) Environ() []string {
 		env = append(env, "ISSUER_PARSE_ERROR="+cert.Info.IssuerParseError.Error())
 	}
 
-	// TODO-3: consider removing $SERIAL due to misuse potential, or renaming to $SERIAL_NUMBER
 	if cert.Info.SerialNumberParseError == nil {
 		env = append(env, "SERIAL="+fmt.Sprintf("%x", cert.Info.SerialNumber))
 	} else {
@@ -174,7 +173,7 @@ func (cert *discoveredCert) Text() string {
 		writeField("Not Before", fmt.Sprintf("[unable to parse: %s]", cert.Info.ValidityParseError))
 		writeField("Not After", fmt.Sprintf("[unable to parse: %s]", cert.Info.ValidityParseError))
 	}
-	writeField("Log Entry", fmt.Sprintf("%d @ %s", cert.LogEntry.Index, cert.LogEntry.Log.URL)) // TODO-3: include entry type here?
+	writeField("Log Entry", fmt.Sprintf("%d @ %s", cert.LogEntry.Index, cert.LogEntry.Log.URL))
 	writeField("crt.sh", "https://crt.sh/?sha256="+hex.EncodeToString(cert.LeafSHA256[:]))
 	if cert.CertPath != "" {
 		writeField("Filename", cert.CertPath)
