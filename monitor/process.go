@@ -113,7 +113,7 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 
 		notifiedPath = filepath.Join(prefixPath, "."+hexFingerprint+".notified")
 		cert.CertPath = filepath.Join(prefixPath, hexFingerprint+".pem")
-		cert.JSONPath = filepath.Join(prefixPath, hexFingerprint+".json") // TODO-3: consider using .v1.json extension in case I change the format later?
+		cert.JSONPath = filepath.Join(prefixPath, hexFingerprint+".v1.json")
 		cert.TextPath = filepath.Join(prefixPath, hexFingerprint+".txt")
 
 		if err := cert.save(); err != nil {
