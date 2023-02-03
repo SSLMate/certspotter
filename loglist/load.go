@@ -21,6 +21,8 @@ import (
 	"time"
 )
 
+var UserAgent = "certspotter"
+
 type ModificationToken struct {
 	etag     string
 	modified time.Time
@@ -70,6 +72,7 @@ func FetchIfModified(ctx context.Context, url string, token *ModificationToken) 
 	if err != nil {
 		return nil, nil, err
 	}
+	request.Header.Set("User-Agent", UserAgent)
 	if token != nil {
 		token.setRequestHeaders(request)
 	}

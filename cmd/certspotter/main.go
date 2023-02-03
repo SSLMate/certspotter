@@ -19,11 +19,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
 
+	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/monitor"
 )
 
@@ -103,7 +105,7 @@ func appendFunc(slice *[]string) func(string) error {
 func main() {
 	insecurerand.Seed(time.Now().UnixNano()) // TODO: remove after upgrading to Go 1.20
 
-	// TODO-3: set loglist.UserAgent
+	loglist.UserAgent = fmt.Sprintf("certspotter/%s (%s; %s; %s)", certspotterVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
 
 	var flags struct {
 		batchSize  int // TODO-4: respect this option
