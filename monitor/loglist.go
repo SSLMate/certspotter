@@ -18,11 +18,10 @@ import (
 
 type LogID = ct.SHA256Hash
 
-func getLogList(ctx context.Context, source string) (map[LogID]*loglist.Log, error) {
-	// TODO-3: If-Modified-Since / If-None-Match support
-	list, err := loglist.Load(ctx, source)
+func getLogList(ctx context.Context, source string, token *loglist.ModificationToken) (map[LogID]*loglist.Log, *loglist.ModificationToken, error) {
+	list, newToken, err := loglist.LoadIfModified(ctx, source, token)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	logs := make(map[LogID]*loglist.Log)
@@ -30,10 +29,10 @@ func getLogList(ctx context.Context, source string) (map[LogID]*loglist.Log, err
 		for logIndex := range list.Operators[operatorIndex].Logs {
 			log := &list.Operators[operatorIndex].Logs[logIndex]
 			if _, exists := logs[log.LogID]; exists {
-				return nil, fmt.Errorf("log list contains more than one entry with ID %s", log.LogID.Base64String())
+				return nil, nil, fmt.Errorf("log list contains more than one entry with ID %s", log.LogID.Base64String())
 			}
 			logs[log.LogID] = log
 		}
 	}
-	return logs, nil
+	return logs, newToken, nil
 }

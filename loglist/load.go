@@ -12,39 +12,87 @@ package loglist
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
+type ModificationToken struct {
+	etag     string
+	modified time.Time
+}
+
+var ErrNotModified = errors.New("loglist has not been modified")
+
+func newModificationToken(response *http.Response) *ModificationToken {
+	token := &ModificationToken{
+		etag: response.Header.Get("ETag"),
+	}
+	if t, err := time.Parse(http.TimeFormat, response.Header.Get("Last-Modified")); err == nil {
+		token.modified = t
+	}
+	return token
+}
+
+func (token *ModificationToken) setRequestHeaders(request *http.Request) {
+	if token.etag != "" {
+		request.Header.Set("If-None-Match", token.etag)
+	} else if !token.modified.IsZero() {
+		request.Header.Set("If-Modified-Since", token.modified.Format(http.TimeFormat))
+	}
+}
+
 func Load(ctx context.Context, urlOrFile string) (*List, error) {
+	list, _, err := LoadIfModified(ctx, urlOrFile, nil)
+	return list, err
+}
+
+func LoadIfModified(ctx context.Context, urlOrFile string, token *ModificationToken) (*List, *ModificationToken, error) {
 	if strings.HasPrefix(urlOrFile, "https://") {
-		return Fetch(ctx, urlOrFile)
+		return FetchIfModified(ctx, urlOrFile, token)
 	} else {
-		return ReadFile(urlOrFile)
+		list, err := ReadFile(urlOrFile)
+		return list, nil, err
 	}
 }
 
 func Fetch(ctx context.Context, url string) (*List, error) {
+	list, _, err := FetchIfModified(ctx, url, nil)
+	return list, err
+}
+
+func FetchIfModified(ctx context.Context, url string, token *ModificationToken) (*List, *ModificationToken, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	if token != nil {
+		token.setRequestHeaders(request)
 	}
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	content, err := io.ReadAll(response.Body)
 	response.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	if token != nil && response.StatusCode == http.StatusNotModified {
+		return nil, nil, ErrNotModified
 	}
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("%s: %s", url, response.Status)
+		return nil, nil, fmt.Errorf("%s: %s", url, response.Status)
 	}
-	return Unmarshal(content)
+	list, err := Unmarshal(content)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing %s: %w", url, err)
+	}
+	return list, newModificationToken(response), err
 }
 
 func ReadFile(filename string) (*List, error) {

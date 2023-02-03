@@ -43,6 +43,7 @@ type daemon struct {
 	taskgroup    *errgroup.Group
 	tasks        map[LogID]task
 	logsLoadedAt time.Time
+	logListToken *loglist.ModificationToken
 }
 
 func (daemon *daemon) healthCheck(ctx context.Context) error { // TODO-2
@@ -67,16 +68,20 @@ func (daemon *daemon) startTask(ctx context.Context, ctlog *loglist.Log) task {
 }
 
 func (daemon *daemon) loadLogList(ctx context.Context) error {
-	loglist, err := getLogList(ctx, daemon.config.LogListSource)
-	if err != nil {
+	newLogList, newToken, err := getLogList(ctx, daemon.config.LogListSource, daemon.logListToken)
+	if errors.Is(err, loglist.ErrNotModified) {
+		log.Printf("log list %q not modified", daemon.config.LogListSource)
+		return nil
+	} else if err != nil {
 		return err
 	}
+
 	if daemon.config.Verbose {
-		log.Printf("fetched %d logs from %q", len(loglist), daemon.config.LogListSource)
+		log.Printf("fetched %d logs from %q", len(newLogList), daemon.config.LogListSource)
 	}
 
 	for logID, task := range daemon.tasks {
-		if _, exists := loglist[logID]; exists {
+		if _, exists := newLogList[logID]; exists {
 			continue
 		}
 		if daemon.config.Verbose {
@@ -85,7 +90,7 @@ func (daemon *daemon) loadLogList(ctx context.Context) error {
 		task.stop()
 		delete(daemon.tasks, logID)
 	}
-	for logID, ctlog := range loglist {
+	for logID, ctlog := range newLogList {
 		if _, isRunning := daemon.tasks[logID]; isRunning {
 			continue
 		}
@@ -95,6 +100,7 @@ func (daemon *daemon) loadLogList(ctx context.Context) error {
 		daemon.tasks[logID] = daemon.startTask(ctx, ctlog)
 	}
 	daemon.logsLoadedAt = time.Now()
+	daemon.logListToken = newToken
 	return nil
 }
 
