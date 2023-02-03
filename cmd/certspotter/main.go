@@ -1,4 +1,4 @@
-// Copyright (C) 2016 Opsmate, Inc.
+// Copyright (C) 2016, 2023 Opsmate, Inc.
 //
 // This Source Code Form is subject to the terms of the Mozilla
 // Public License, v. 2.0. If a copy of the MPL was not distributed
@@ -10,224 +10,169 @@
 package main
 
 import (
-	"bufio"
+	"context"
+	"errors"
 	"flag"
 	"fmt"
-	"io"
+	"io/fs"
+	insecurerand "math/rand"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
+	"syscall"
 	"time"
 
-	"golang.org/x/net/idna"
-
-	"software.sslmate.com/src/certspotter"
-	"software.sslmate.com/src/certspotter/cmd"
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/monitor"
 )
 
+var programName = os.Args[0]
+
+const defaultLogList = "https://loglist.certspotter.org/monitor.json"
+
+func certspotterVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	if strings.HasPrefix(info.Main.Version, "v") {
+		return info.Main.Version
+	}
+	var vcs, vcsRevision, vcsModified string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs":
+			vcs = s.Value
+		case "vcs.revision":
+			vcsRevision = s.Value
+		case "vcs.modified":
+			vcsModified = s.Value
+		}
+	}
+	if vcs == "git" && vcsRevision != "" && vcsModified == "true" {
+		return vcsRevision + "+"
+	} else if vcs == "git" && vcsRevision != "" {
+		return vcsRevision
+	}
+	return "unknown"
+}
+
+func homedir() string {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		panic(fmt.Errorf("unable to determine home directory: %w", err))
+	}
+	return homedir
+}
 func defaultStateDir() string {
 	if envVar := os.Getenv("CERTSPOTTER_STATE_DIR"); envVar != "" {
 		return envVar
 	} else {
-		return cmd.DefaultStateDir("certspotter")
+		return filepath.Join(homedir(), ".certspotter")
 	}
 }
 func defaultConfigDir() string {
 	if envVar := os.Getenv("CERTSPOTTER_CONFIG_DIR"); envVar != "" {
 		return envVar
 	} else {
-		return cmd.DefaultConfigDir("certspotter")
+		return filepath.Join(homedir(), ".certspotter")
 	}
 }
 
-func trimTrailingDots(value string) string {
-	length := len(value)
-	for length > 0 && value[length-1] == '.' {
-		length--
-	}
-	return value[0:length]
-}
-
-var stateDir = flag.String("state_dir", defaultStateDir(), "Directory for storing state")
-var watchlistFilename = flag.String("watchlist", filepath.Join(defaultConfigDir(), "watchlist"), "File containing identifiers to watch (- for stdin)")
-
-type watchlistItem struct {
-	Domain       []string
-	AcceptSuffix bool
-	ValidAt      *time.Time // optional
-}
-
-var watchlist []watchlistItem
-
-func parseWatchlistItem(str string) (watchlistItem, error) {
-	fields := strings.Fields(str)
-	if len(fields) == 0 {
-		return watchlistItem{}, fmt.Errorf("Empty domain")
-	}
-	domain := fields[0]
-	var validAt *time.Time = nil
-
-	// parse options
-	for i := 1; i < len(fields); i++ {
-		chunks := strings.SplitN(fields[i], ":", 2)
-		if len(chunks) != 2 {
-			return watchlistItem{}, fmt.Errorf("Missing Value `%s'", fields[i])
-		}
-		switch chunks[0] {
-		case "valid_at":
-			validAtTime, err := time.Parse("2006-01-02", chunks[1])
-			if err != nil {
-				return watchlistItem{}, fmt.Errorf("Invalid Date `%s': %s", chunks[1], err)
-			}
-			validAt = &validAtTime
-		default:
-			return watchlistItem{}, fmt.Errorf("Unknown Option `%s'", fields[i])
-		}
-	}
-
-	// parse domain
-	// "." as in root zone (matches everything)
-	if domain == "." {
-		return watchlistItem{
-			Domain:       []string{},
-			AcceptSuffix: true,
-			ValidAt:      validAt,
-		}, nil
-	}
-
-	acceptSuffix := false
-	if strings.HasPrefix(domain, ".") {
-		acceptSuffix = true
-		domain = domain[1:]
-	}
-
-	asciiDomain, err := idna.ToASCII(strings.ToLower(trimTrailingDots(domain)))
+func readWatchListFile(filename string) (monitor.WatchList, error) {
+	file, err := os.Open(filename)
 	if err != nil {
-		return watchlistItem{}, fmt.Errorf("Invalid domain `%s': %s", domain, err)
-	}
-	return watchlistItem{
-		Domain:       strings.Split(asciiDomain, "."),
-		AcceptSuffix: acceptSuffix,
-		ValidAt:      validAt,
-	}, nil
-}
-
-func readWatchlist(reader io.Reader) ([]watchlistItem, error) {
-	items := []watchlistItem{}
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) {
+			err = pathErr.Err
 		}
-		item, err := parseWatchlistItem(line)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
+		return nil, err
 	}
-	return items, scanner.Err()
+	defer file.Close()
+	return monitor.ReadWatchList(file)
 }
 
-func dnsLabelMatches(certLabel string, watchLabel string) bool {
-	// For fail-safe behavior, if a label was unparsable, it matches everything.
-	// Similarly, redacted labels match everything, since the label _might_ be
-	// for a name we're interested in.
-
-	return certLabel == "*" ||
-		certLabel == "?" ||
-		certLabel == certspotter.UnparsableDNSLabelPlaceholder ||
-		certspotter.MatchesWildcard(watchLabel, certLabel)
-}
-
-func dnsNameMatches(dnsName []string, watchDomain []string, acceptSuffix bool) bool {
-	for len(dnsName) > 0 && len(watchDomain) > 0 {
-		certLabel := dnsName[len(dnsName)-1]
-		watchLabel := watchDomain[len(watchDomain)-1]
-
-		if !dnsLabelMatches(certLabel, watchLabel) {
-			return false
-		}
-
-		dnsName = dnsName[:len(dnsName)-1]
-		watchDomain = watchDomain[:len(watchDomain)-1]
-	}
-
-	return len(watchDomain) == 0 && (acceptSuffix || len(dnsName) == 0)
-}
-
-func anyDnsNameIsWatched(info *certspotter.EntryInfo) bool {
-	dnsNames := info.Identifiers.DNSNames
-	matched := false
-	for _, dnsName := range dnsNames {
-		labels := strings.Split(dnsName, ".")
-		for _, item := range watchlist {
-			if dnsNameMatches(labels, item.Domain, item.AcceptSuffix) {
-				if item.ValidAt != nil {
-					// BygoneSSL Check
-					// was the SSL certificate issued before the domain was registered
-					// and valid after
-					if item.ValidAt.Before(*info.CertInfo.NotAfter()) &&
-						item.ValidAt.After(*info.CertInfo.NotBefore()) {
-						info.Bygone = true
-						return true
-					}
-				}
-				// keep iterating in case another domain watched matches valid_at
-				matched = true
-			}
-		}
-	}
-	return matched
-}
-
-func processEntry(scanner *certspotter.Scanner, entry *ct.LogEntry) {
-	info := certspotter.EntryInfo{
-		LogUri:    scanner.LogUri,
-		Entry:     entry,
-		IsPrecert: certspotter.IsPrecert(entry),
-		FullChain: certspotter.GetFullChain(entry),
-	}
-
-	info.CertInfo, info.ParseError = certspotter.MakeCertInfoFromLogEntry(entry)
-
-	if info.CertInfo != nil {
-		info.Identifiers, info.IdentifiersParseError = info.CertInfo.ParseIdentifiers()
-	}
-
-	// Fail safe behavior: if info.Identifiers is nil (which is caused by a
-	// parse error), report the certificate because we can't say for sure it
-	// doesn't match a domain we care about.  We try very hard to make sure
-	// parsing identifiers always succeeds, so false alarms should be rare.
-	if info.Identifiers == nil || anyDnsNameIsWatched(&info) {
-		cmd.LogEntry(&info)
+func appendFunc(slice *[]string) func(string) error {
+	return func(value string) error {
+		*slice = append(*slice, value)
+		return nil
 	}
 }
 
 func main() {
-	cmd.ParseFlags()
+	insecurerand.Seed(time.Now().UnixNano()) // TODO: remove after upgrading to Go 1.20
 
-	if *watchlistFilename == "-" {
-		var err error
-		watchlist, err = readWatchlist(os.Stdin)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: (stdin): %s\n", os.Args[0], err)
-			os.Exit(1)
-		}
-	} else {
-		file, err := os.Open(*watchlistFilename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", os.Args[0], *watchlistFilename, err)
-			os.Exit(1)
-		}
-		watchlist, err = readWatchlist(file)
-		file.Close()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", os.Args[0], *watchlistFilename, err)
-			os.Exit(1)
-		}
+	// TODO-3: set loglist.UserAgent
+
+	var flags struct {
+		batchSize  int // TODO-4: respect this option
+		email      []string
+		logs       string
+		noSave     bool
+		script     string
+		startAtEnd bool
+		stateDir   string
+		stdout     bool
+		verbose    bool
+		version    bool
+		watchlist  string
+	}
+	flag.IntVar(&flags.batchSize, "batch_size", 1000, "Max number of entries to request per call to get-entries (advanced)")
+	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
+	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
+	flag.BoolVar(&flags.noSave, "no_save", false, "Do not save a copy of matching certificates in state directory")
+	flag.StringVar(&flags.script, "script", "", "Program to execute when a matching certificate is discovered")
+	flag.BoolVar(&flags.startAtEnd, "start_at_end", false, "Start monitoring logs from the end rather than the beginning (saves considerable bandwidth)")
+	flag.StringVar(&flags.stateDir, "state_dir", defaultStateDir(), "Directory for storing log position and discovered certificates")
+	flag.BoolVar(&flags.stdout, "stdout", false, "Write matching certificates to stdout")
+	flag.BoolVar(&flags.verbose, "verbose", false, "Be verbose")
+	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
+	flag.StringVar(&flags.watchlist, "watchlist", filepath.Join(defaultConfigDir(), "watchlist"), "File containing domain names to watch")
+	flag.Parse()
+
+	if flags.version {
+		fmt.Fprintf(os.Stdout, "certspotter version %s\n", certspotterVersion())
+		os.Exit(0)
 	}
 
-	os.Exit(cmd.Main(*stateDir, processEntry))
+	if len(flags.email) == 0 && len(flags.script) == 0 && flags.stdout == false {
+		fmt.Fprintf(os.Stderr, "%s: at least one of -email, -script, or -stdout must be specified (see -help for details)\n", programName)
+		os.Exit(2)
+	}
+
+	config := &monitor.Config{
+		LogListSource: flags.logs,
+		StateDir:      flags.stateDir,
+		SaveCerts:     !flags.noSave,
+		StartAtEnd:    flags.startAtEnd,
+		Verbose:       flags.verbose,
+		Script:        flags.script,
+		Email:         flags.email,
+		Stdout:        flags.stdout,
+	}
+
+	if flags.watchlist == "-" {
+		watchlist, err := monitor.ReadWatchList(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: error reading watchlist from standard in: %s\n", programName, err)
+			os.Exit(1)
+		}
+		config.WatchList = watchlist
+	} else {
+		watchlist, err := readWatchListFile(flags.watchlist)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: error reading watchlist from %q: %s\n", programName, flags.watchlist, err)
+			os.Exit(1)
+		}
+		config.WatchList = watchlist
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := monitor.Run(ctx, config); err != nil && !errors.Is(err, context.Canceled) {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)
+		os.Exit(1)
+	}
 }
