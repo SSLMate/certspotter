@@ -61,7 +61,7 @@ func LogEntry(info *certspotter.EntryInfo) {
 		var err error
 		alreadyPresent, info.Filename, err = state.SaveCert(info.IsPrecert, info.FullChain)
 		if err != nil {
-			log.Print(err)
+			log.Print(err) // important error (system)
 		}
 		if alreadyPresent {
 			return
@@ -70,7 +70,7 @@ func LogEntry(info *certspotter.EntryInfo) {
 
 	if *script != "" {
 		if err := info.InvokeHookScript(*script); err != nil {
-			log.Print(err)
+			log.Print(err) // important error (system)
 		}
 	} else {
 		printMutex.Lock()
@@ -191,7 +191,7 @@ func (ctlog *logHandle) audit() error {
 			log.Printf("%s: Verifying consistency of STH %d (%x) with previously-verified STH %d (%x)", ctlog.scanner.LogUri, sth.TreeSize, sth.SHA256RootHash, ctlog.verifiedSTH.TreeSize, ctlog.verifiedSTH.SHA256RootHash)
 		}
 		if err := ctlog.verifySTH(sth); err != nil {
-			log.Printf("%s: Unable to verify consistency of STH %d (%s) (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.scanner.LogUri, sth.TreeSize, ctlog.state.UnverifiedSTHFilename(sth), err)
+			log.Printf("%s: Unable to verify consistency of STH %d (%s) (if this error persists, it should be construed as misbehavior by the log): %s", ctlog.scanner.LogUri, sth.TreeSize, ctlog.state.UnverifiedSTHFilename(sth), err) // important error (log)
 			continue
 		}
 		if sth.TreeSize > ctlog.verifiedSTH.TreeSize {
@@ -239,17 +239,17 @@ func (ctlog *logHandle) scan(processCallback certspotter.ProcessCallback) error 
 func processLog(logInfo *loglist.Log, processCallback certspotter.ProcessCallback) int {
 	ctlog, err := makeLogHandle(logInfo)
 	if err != nil {
-		log.Print(logInfo.URL, ": ", err)
+		log.Print(logInfo.URL, ": ", err) // important error (system)
 		return 1
 	}
 
 	if err := ctlog.refresh(); err != nil {
-		log.Print(logInfo.URL, ": ", err)
+		log.Print(logInfo.URL, ": ", err) // important error (both system and log)
 		return 1
 	}
 
 	if err := ctlog.audit(); err != nil {
-		log.Print(logInfo.URL, ": ", err)
+		log.Print(logInfo.URL, ": ", err) // important error (system)
 		return 1
 	}
 
@@ -265,7 +265,7 @@ func processLog(logInfo *loglist.Log, processCallback certspotter.ProcessCallbac
 	} else if *startAtEnd {
 		ctlog.tree, err = ctlog.scanner.MakeCollapsedMerkleTree(ctlog.verifiedSTH)
 		if err != nil {
-			log.Printf("%s: Error reconstructing Merkle Tree: %s", logInfo.URL, err)
+			log.Printf("%s: Error reconstructing Merkle Tree: %s", logInfo.URL, err) // important error (log)
 			return 1
 		}
 		if *verbose {
@@ -278,12 +278,12 @@ func processLog(logInfo *loglist.Log, processCallback certspotter.ProcessCallbac
 		}
 	}
 	if err := ctlog.state.StoreTree(ctlog.tree); err != nil {
-		log.Printf("%s: Error storing tree: %s\n", logInfo.URL, err)
+		log.Printf("%s: Error storing tree: %s\n", logInfo.URL, err) // important error (system)
 		return 1
 	}
 
 	if err := ctlog.scan(processCallback); err != nil {
-		log.Print(logInfo.URL, ": ", err)
+		log.Print(logInfo.URL, ": ", err) // important error (both system and log)
 		return 1
 	}
 
@@ -307,18 +307,18 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 
 	logs, err := loadLogList()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err) // important error (loglist)
 		return 1
 	}
 
 	state, err = OpenState(statePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err) // important error (system)
 		return 1
 	}
 	locked, err := state.Lock()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: Error locking state directory: %s\n", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: Error locking state directory: %s\n", os.Args[0], err) // important error (system)
 		return 1
 	}
 	if !locked {
@@ -326,7 +326,7 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 		if otherPid := state.LockingPid(); otherPid != 0 {
 			otherPidInfo = fmt.Sprintf(" (as process ID %d)", otherPid)
 		}
-		fmt.Fprintf(os.Stderr, "%s: Another instance of %s is already running%s; remove the file %s if this is not the case\n", os.Args[0], os.Args[0], otherPidInfo, state.LockFilename())
+		fmt.Fprintf(os.Stderr, "%s: Another instance of %s is already running%s; remove the file %s if this is not the case\n", os.Args[0], os.Args[0], otherPidInfo, state.LockFilename()) // important error (system)
 		return 1
 	}
 
@@ -344,13 +344,13 @@ func Main(statePath string, processCallback certspotter.ProcessCallback) int {
 
 	if state.IsFirstRun() && exitCode == 0 {
 		if err := state.WriteOnceFile(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: Error writing once file: %s\n", os.Args[0], err)
+			fmt.Fprintf(os.Stderr, "%s: Error writing once file: %s\n", os.Args[0], err) // important error (system)
 			exitCode |= 1
 		}
 	}
 
 	if err := state.Unlock(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: Error unlocking state directory: %s\n", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: Error unlocking state directory: %s\n", os.Args[0], err) // important error (system)
 		exitCode |= 1
 	}
 
