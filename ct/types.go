@@ -259,6 +259,11 @@ func (s SHA256Hash) Base64String() string {
 	return base64.StdEncoding.EncodeToString(s[:])
 }
 
+// Returns the raw base64url representation of this SHA256Hash.
+func (s SHA256Hash) Base64URLString() string {
+	return base64.RawURLEncoding.EncodeToString(s[:])
+}
+
 // MarshalJSON implements the json.Marshaller interface for SHA256Hash.
 func (s SHA256Hash) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + s.Base64String() + `"`), nil
