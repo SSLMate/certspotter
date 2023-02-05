@@ -74,6 +74,10 @@ func processPrecertLogEntry(ctx context.Context, config *Config, entry *logEntry
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing extra_data for precert entry: %w", err))
 	}
 
+	if _, err := certspotter.ValidatePrecert(chain[0], precert.TBSCertificate); err != nil {
+		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("precertificate in extra_data does not match TBSCertificate in leaf_input: %w", err))
+	}
+
 	return processCertificate(ctx, config, entry, certInfo, chain)
 }
 
