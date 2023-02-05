@@ -28,7 +28,7 @@ type discoveredCert struct {
 	Info         *certspotter.CertInfo
 	Chain        []ct.ASN1Cert // first entry is the leaf certificate or precertificate
 	TBSSHA256    [32]byte      // computed over Info.TBS.Raw
-	LeafSHA256   [32]byte      // computed over Chain[0]
+	SHA256       [32]byte      // computed over Chain[0]
 	PubkeySHA256 [32]byte      // computed over Info.TBS.PublicKey.FullBytes
 	Identifiers  *certspotter.Identifiers
 	CertPath     string // empty if not saved on the filesystem
@@ -52,7 +52,7 @@ func (cert *discoveredCert) pemChain() []byte {
 func (cert *discoveredCert) json() []byte {
 	object := map[string]any{
 		"tbs_sha256":    hex.EncodeToString(cert.TBSSHA256[:]),
-		"cert_sha256":   hex.EncodeToString(cert.LeafSHA256[:]),
+		"cert_sha256":   hex.EncodeToString(cert.SHA256[:]),
 		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
 		"issuer_der":    cert.Info.TBS.Issuer.FullBytes,
 		"subject_der":   cert.Info.TBS.Subject.FullBytes,
@@ -103,8 +103,8 @@ func (cert *discoveredCert) Environ() []string {
 		"ENTRY_INDEX=" + fmt.Sprint(cert.LogEntry.Index),
 		"WATCH_ITEM=" + cert.WatchItem.String(),
 		"TBS_SHA256=" + hex.EncodeToString(cert.TBSSHA256[:]),
-		"CERT_SHA256=" + hex.EncodeToString(cert.LeafSHA256[:]),
-		"FINGERPRINT=" + hex.EncodeToString(cert.LeafSHA256[:]), // backwards compat with pre-0.15.0; not documented
+		"CERT_SHA256=" + hex.EncodeToString(cert.SHA256[:]),
+		"FINGERPRINT=" + hex.EncodeToString(cert.SHA256[:]), // backwards compat with pre-0.15.0; not documented
 		"PUBKEY_SHA256=" + hex.EncodeToString(cert.PubkeySHA256[:]),
 		"PUBKEY_HASH=" + hex.EncodeToString(cert.PubkeySHA256[:]), // backwards compat with pre-0.15.0; not documented
 		"CERT_FILENAME=" + cert.CertPath,
@@ -150,7 +150,7 @@ func (cert *discoveredCert) Text() string {
 	text := new(strings.Builder)
 	writeField := func(name string, value any) { fmt.Fprintf(text, "\t%13s = %s\n", name, value) }
 
-	fmt.Fprintf(text, "%x:\n", cert.LeafSHA256)
+	fmt.Fprintf(text, "%x:\n", cert.SHA256)
 	for _, dnsName := range cert.Identifiers.DNSNames {
 		writeField("DNS Name", dnsName)
 	}
@@ -171,7 +171,7 @@ func (cert *discoveredCert) Text() string {
 		writeField("Not After", fmt.Sprintf("[unable to parse: %s]", cert.Info.ValidityParseError))
 	}
 	writeField("Log Entry", fmt.Sprintf("%d @ %s", cert.LogEntry.Index, cert.LogEntry.Log.URL))
-	writeField("crt.sh", "https://crt.sh/?sha256="+hex.EncodeToString(cert.LeafSHA256[:]))
+	writeField("crt.sh", "https://crt.sh/?sha256="+hex.EncodeToString(cert.SHA256[:]))
 	if cert.CertPath != "" {
 		writeField("Filename", cert.CertPath)
 	}

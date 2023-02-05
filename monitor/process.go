@@ -103,14 +103,14 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 		Info:         certInfo,
 		Chain:        chain,
 		TBSSHA256:    sha256.Sum256(certInfo.TBS.Raw),
-		LeafSHA256:   sha256.Sum256(chain[0]),
+		SHA256:       sha256.Sum256(chain[0]),
 		PubkeySHA256: sha256.Sum256(certInfo.TBS.PublicKey.FullBytes),
 		Identifiers:  identifiers,
 	}
 
 	var notifiedPath string
 	if config.SaveCerts {
-		hexFingerprint := hex.EncodeToString(cert.LeafSHA256[:])
+		hexFingerprint := hex.EncodeToString(cert.SHA256[:])
 		prefixPath := filepath.Join(config.StateDir, "certs", hexFingerprint[0:2])
 
 		for _, suffix := range []string{".notified", ".cert.pem", ".precert.pem"} {
@@ -120,7 +120,7 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 		}
 
 		if err := os.Mkdir(prefixPath, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
-			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.LeafSHA256, err)
+			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.SHA256, err)
 		}
 
 		notifiedPath = filepath.Join(prefixPath, "."+hexFingerprint+".notified")
@@ -129,19 +129,19 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 		cert.TextPath = filepath.Join(prefixPath, hexFingerprint+".txt")
 
 		if err := cert.save(); err != nil {
-			return fmt.Errorf("error saving certificate %x: %w", cert.LeafSHA256, err)
+			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
 		}
 	} else {
 		// TODO-4: save cert to temporary files, and defer their unlinking
 	}
 
 	if err := notify(ctx, config, cert); err != nil {
-		return fmt.Errorf("error notifying about discovered certificate for %s (%x): %w", cert.WatchItem, cert.LeafSHA256, err)
+		return fmt.Errorf("error notifying about discovered certificate for %s (%x): %w", cert.WatchItem, cert.SHA256, err)
 	}
 
 	if notifiedPath != "" {
 		if err := os.WriteFile(notifiedPath, nil, 0666); err != nil {
-			return fmt.Errorf("error saving certificate %x: %w", cert.LeafSHA256, err)
+			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
 		}
 	}
 
