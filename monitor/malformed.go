@@ -21,7 +21,7 @@ type malformedLogEntry struct {
 
 func (malformed *malformedLogEntry) Environ() []string {
 	return []string{
-		"EVENT=discovered_cert",
+		"EVENT=malformed_cert",
 		"SUMMARY=" + fmt.Sprintf("unable to parse entry %d in %s", malformed.Entry.Index, malformed.Entry.Log.URL),
 		"LOG_URI=" + malformed.Entry.Log.URL,
 		"ENTRY_INDEX=" + fmt.Sprint(malformed.Entry.Index),
