@@ -27,6 +27,7 @@ type discoveredCert struct {
 	LogEntry    *logEntry
 	Info        *certspotter.CertInfo
 	Chain       []ct.ASN1Cert // first entry is the leaf certificate or precertificate
+	TBSSHA256   [32]byte      // computed over Info.TBS.Raw
 	LeafSHA256  [32]byte      // computed over Chain[0]
 	PubkeySHA256  [32]byte      // computed over Info.TBS.PublicKey.FullBytes
 	Identifiers *certspotter.Identifiers
@@ -50,6 +51,7 @@ func (cert *discoveredCert) pemChain() []byte {
 
 func (cert *discoveredCert) json() []byte {
 	object := map[string]any{
+		"tbs_sha256":   hex.EncodeToString(cert.TBSSHA256[:]),
 		"cert_sha256":   hex.EncodeToString(cert.LeafSHA256[:]),
 		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
 		"issuer_der":    cert.Info.TBS.Issuer.FullBytes,
@@ -100,6 +102,7 @@ func (cert *discoveredCert) Environ() []string {
 		"LOG_URI=" + cert.LogEntry.Log.URL,
 		"ENTRY_INDEX=" + fmt.Sprint(cert.LogEntry.Index),
 		"WATCH_ITEM=" + cert.WatchItem.String(),
+		"TBS_SHA256=" + hex.EncodeToString(cert.TBSSHA256[:]),
 		"CERT_SHA256=" + hex.EncodeToString(cert.LeafSHA256[:]),
 		"FINGERPRINT=" + hex.EncodeToString(cert.LeafSHA256[:]), // backwards compat with pre-0.15.0; not documented
 		"PUBKEY_SHA256=" + hex.EncodeToString(cert.PubkeySHA256[:]),

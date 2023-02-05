@@ -60,6 +60,12 @@ func processX509LogEntry(ctx context.Context, config *Config, entry *logEntry, c
 	}
 	chain = append([]ct.ASN1Cert{cert}, chain...)
 
+	if precertTBS, err := certspotter.ReconstructPrecertTBS(certInfo.TBS); err == nil {
+		certInfo.TBS = precertTBS
+	} else {
+		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error reconstructing precertificate TBSCertificate: %w", err))
+	}
+
 	return processCertificate(ctx, config, entry, certInfo, chain)
 }
 
@@ -96,6 +102,7 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 		LogEntry:    entry,
 		Info:        certInfo,
 		Chain:       chain,
+		TBSSHA256:   sha256.Sum256(certInfo.TBS.Raw),
 		LeafSHA256:  sha256.Sum256(chain[0]),
 	        PubkeySHA256: sha256.Sum256(certInfo.TBS.PublicKey.FullBytes),
 		Identifiers: identifiers,
