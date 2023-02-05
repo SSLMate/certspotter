@@ -93,6 +93,7 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 		Info:        certInfo,
 		Chain:       chain,
 		LeafSHA256:  sha256.Sum256(chain[0]),
+	        PubkeySHA256: sha256.Sum256(certInfo.TBS.PublicKey.FullBytes),
 		Identifiers: identifiers,
 	}
 

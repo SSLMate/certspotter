@@ -11,7 +11,6 @@ package monitor
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -29,6 +28,7 @@ type discoveredCert struct {
 	Info        *certspotter.CertInfo
 	Chain       []ct.ASN1Cert // first entry is the leaf certificate or precertificate
 	LeafSHA256  [32]byte      // computed over Chain[0]
+	PubkeySHA256  [32]byte      // computed over Info.TBS.PublicKey.FullBytes
 	Identifiers *certspotter.Identifiers
 	CertPath    string // empty if not saved on the filesystem
 	JSONPath    string // empty if not saved on the filesystem
@@ -49,11 +49,9 @@ func (cert *discoveredCert) pemChain() []byte {
 }
 
 func (cert *discoveredCert) json() []byte {
-	pubkeySha256 := sha256.Sum256(cert.Info.TBS.GetRawPublicKey())
-
 	object := map[string]any{
 		"cert_sha256":   hex.EncodeToString(cert.LeafSHA256[:]),
-		"pubkey_sha256": hex.EncodeToString(pubkeySha256[:]),
+		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
 		"issuer_der":    cert.Info.TBS.Issuer.FullBytes,
 		"subject_der":   cert.Info.TBS.Subject.FullBytes,
 		"dns_names":     cert.Identifiers.DNSNames,
@@ -95,8 +93,6 @@ func (cert *discoveredCert) save() error {
 }
 
 func (cert *discoveredCert) Environ() []string {
-	pubkeySha256 := sha256.Sum256(cert.Info.TBS.GetRawPublicKey())
-
 	env := []string{
 		"EVENT=discovered_cert",
 		"SUMMARY=certificate discovered for " + cert.WatchItem.String(),
@@ -106,8 +102,8 @@ func (cert *discoveredCert) Environ() []string {
 		"WATCH_ITEM=" + cert.WatchItem.String(),
 		"CERT_SHA256=" + hex.EncodeToString(cert.LeafSHA256[:]),
 		"FINGERPRINT=" + hex.EncodeToString(cert.LeafSHA256[:]), // backwards compat with pre-0.15.0; not documented
-		"PUBKEY_SHA256=" + hex.EncodeToString(pubkeySha256[:]),
-		"PUBKEY_HASH=" + hex.EncodeToString(pubkeySha256[:]), // backwards compat with pre-0.15.0; not documented
+		"PUBKEY_SHA256=" + hex.EncodeToString(cert.PubkeySHA256[:]),
+		"PUBKEY_HASH=" + hex.EncodeToString(cert.PubkeySHA256[:]), // backwards compat with pre-0.15.0; not documented
 		"CERT_FILENAME=" + cert.CertPath,
 		"JSON_FILENAME=" + cert.JSONPath,
 		"TEXT_FILENAME=" + cert.TextPath,
@@ -151,8 +147,6 @@ func (cert *discoveredCert) Text() string {
 	text := new(strings.Builder)
 	writeField := func(name string, value any) { fmt.Fprintf(text, "\t%13s = %s\n", name, value) }
 
-	pubkeySha256 := sha256.Sum256(cert.Info.TBS.GetRawPublicKey())
-
 	fmt.Fprintf(text, "%x:\n", cert.LeafSHA256)
 	for _, dnsName := range cert.Identifiers.DNSNames {
 		writeField("DNS Name", dnsName)
@@ -160,7 +154,7 @@ func (cert *discoveredCert) Text() string {
 	for _, ipaddr := range cert.Identifiers.IPAddrs {
 		writeField("IP Address", ipaddr)
 	}
-	writeField("Pubkey", hex.EncodeToString(pubkeySha256[:]))
+	writeField("Pubkey", hex.EncodeToString(cert.PubkeySHA256[:]))
 	if cert.Info.IssuerParseError == nil {
 		writeField("Issuer", cert.Info.Issuer)
 	} else {
