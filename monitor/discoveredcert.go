@@ -23,17 +23,17 @@ import (
 )
 
 type discoveredCert struct {
-	WatchItem   WatchItem
-	LogEntry    *logEntry
-	Info        *certspotter.CertInfo
-	Chain       []ct.ASN1Cert // first entry is the leaf certificate or precertificate
-	TBSSHA256   [32]byte      // computed over Info.TBS.Raw
-	LeafSHA256  [32]byte      // computed over Chain[0]
-	PubkeySHA256  [32]byte      // computed over Info.TBS.PublicKey.FullBytes
-	Identifiers *certspotter.Identifiers
-	CertPath    string // empty if not saved on the filesystem
-	JSONPath    string // empty if not saved on the filesystem
-	TextPath    string // empty if not saved on the filesystem
+	WatchItem    WatchItem
+	LogEntry     *logEntry
+	Info         *certspotter.CertInfo
+	Chain        []ct.ASN1Cert // first entry is the leaf certificate or precertificate
+	TBSSHA256    [32]byte      // computed over Info.TBS.Raw
+	LeafSHA256   [32]byte      // computed over Chain[0]
+	PubkeySHA256 [32]byte      // computed over Info.TBS.PublicKey.FullBytes
+	Identifiers  *certspotter.Identifiers
+	CertPath     string // empty if not saved on the filesystem
+	JSONPath     string // empty if not saved on the filesystem
+	TextPath     string // empty if not saved on the filesystem
 }
 
 func (cert *discoveredCert) pemChain() []byte {
@@ -51,7 +51,7 @@ func (cert *discoveredCert) pemChain() []byte {
 
 func (cert *discoveredCert) json() []byte {
 	object := map[string]any{
-		"tbs_sha256":   hex.EncodeToString(cert.TBSSHA256[:]),
+		"tbs_sha256":    hex.EncodeToString(cert.TBSSHA256[:]),
 		"cert_sha256":   hex.EncodeToString(cert.LeafSHA256[:]),
 		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
 		"issuer_der":    cert.Info.TBS.Issuer.FullBytes,

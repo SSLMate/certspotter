@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	maxGetEntriesSize = 1000
+	maxGetEntriesSize  = 1000
 	monitorLogInterval = 5 * time.Minute
 )
 

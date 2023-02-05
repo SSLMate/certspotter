@@ -98,14 +98,14 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 	}
 
 	cert := &discoveredCert{
-		WatchItem:   watchItem,
-		LogEntry:    entry,
-		Info:        certInfo,
-		Chain:       chain,
-		TBSSHA256:   sha256.Sum256(certInfo.TBS.Raw),
-		LeafSHA256:  sha256.Sum256(chain[0]),
-	        PubkeySHA256: sha256.Sum256(certInfo.TBS.PublicKey.FullBytes),
-		Identifiers: identifiers,
+		WatchItem:    watchItem,
+		LogEntry:     entry,
+		Info:         certInfo,
+		Chain:        chain,
+		TBSSHA256:    sha256.Sum256(certInfo.TBS.Raw),
+		LeafSHA256:   sha256.Sum256(chain[0]),
+		PubkeySHA256: sha256.Sum256(certInfo.TBS.PublicKey.FullBytes),
+		Identifiers:  identifiers,
 	}
 
 	var notifiedPath string
