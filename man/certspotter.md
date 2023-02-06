@@ -55,7 +55,7 @@ You can use Cert Spotter to detect:
     the union of active logs recognized by Chrome and Apple.  certspotter periodically
     reloads the log list in case it has changed.
 
--no_save
+-no\_save
 
 :   Do not save a copy of matching certificates.
 
@@ -64,7 +64,7 @@ You can use Cert Spotter to detect:
 :   Command to execute when a matching certificate is found or an error occurs. See
     certspotter-script(8) for information about the interface to scripts.
 
--start_at_end
+-start\_at\_end
 
 :   Start monitoring logs from the end rather than the beginning.
 
@@ -72,7 +72,7 @@ You can use Cert Spotter to detect:
     certificates, but requires downloading hundreds of millions of
     certificates, which takes days.
 
--state_dir *PATH*
+-state\_dir *PATH*
 
 :   Directory for storing state. Defaults to `$CERTSPOTTER_STATE_DIR`, which is
     "~/.certspotter" by default.
