@@ -10,13 +10,60 @@
 package monitor
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"software.sslmate.com/src/certspotter/ct"
 	"software.sslmate.com/src/certspotter/loglist"
 )
+
+func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) error {
+	var (
+		stateDirPath  = filepath.Join(config.StateDir, "logs", ctlog.LogID.Base64URLString())
+		stateFilePath = filepath.Join(stateDirPath, "state.json")
+		sthsDirPath   = filepath.Join(stateDirPath, "unverified_sths")
+	)
+	state, err := loadStateFile(stateFilePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("error loading state file: %w", err)
+	}
+
+	if time.Since(state.LastSuccess) < healthCheckInterval {
+		return nil
+	}
+
+	sths, err := loadSTHsFromDir(sthsDirPath)
+	if err != nil {
+		return fmt.Errorf("error loading STHs directory: %w", err)
+	}
+
+	if len(sths) == 0 {
+		if err := notify(ctx, config, &staleSTHEvent{
+			Log:         ctlog,
+			LastSuccess: state.LastSuccess,
+			LatestSTH:   state.VerifiedSTH,
+		}); err != nil {
+			return fmt.Errorf("error notifying about stale STH: %w", err)
+		}
+	} else {
+		if err := notify(ctx, config, &backlogEvent{
+			Log:       ctlog,
+			LatestSTH: sths[len(sths)-1],
+			Position:  state.DownloadPosition.Size(),
+		}); err != nil {
+			return fmt.Errorf("error notifying about backlog: %w", err)
+		}
+	}
+
+	return nil
+}
 
 type staleSTHEvent struct {
 	Log         *loglist.Log
@@ -26,7 +73,6 @@ type staleSTHEvent struct {
 type backlogEvent struct {
 	Log       *loglist.Log
 	LatestSTH *ct.SignedTreeHead
-	Backlog   uint64
 	Position  uint64
 }
 type staleLogListEvent struct {
@@ -34,6 +80,10 @@ type staleLogListEvent struct {
 	LastSuccess   time.Time
 	LastError     string
 	LastErrorTime time.Time
+}
+
+func (e *backlogEvent) Backlog() uint64 {
+	return e.LatestSTH.TreeSize - e.Position
 }
 
 func (e *staleSTHEvent) Environ() []string {
@@ -45,7 +95,7 @@ func (e *staleSTHEvent) Environ() []string {
 func (e *backlogEvent) Environ() []string {
 	return []string{
 		"EVENT=error",
-		"SUMMARY=" + fmt.Sprintf("backlog of size %d from %s", e.Backlog, e.Log.URL),
+		"SUMMARY=" + fmt.Sprintf("backlog of size %d from %s", e.Backlog(), e.Log.URL),
 	}
 }
 func (e *staleLogListEvent) Environ() []string {
@@ -59,7 +109,7 @@ func (e *staleSTHEvent) EmailSubject() string {
 	return fmt.Sprintf("[certspotter] Unable to contact %s since %s", e.Log.URL, e.LastSuccess)
 }
 func (e *backlogEvent) EmailSubject() string {
-	return fmt.Sprintf("[certspotter] Backlog of size %d from %s", e.Backlog, e.Log.URL)
+	return fmt.Sprintf("[certspotter] Backlog of size %d from %s", e.Backlog(), e.Log.URL)
 }
 func (e *staleLogListEvent) EmailSubject() string {
 	return fmt.Sprintf("[certspotter] Unable to retrieve log list since %s", e.LastSuccess)
@@ -72,7 +122,7 @@ func (e *staleSTHEvent) Text() string {
 	fmt.Fprintf(text, "For details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
 	if e.LatestSTH != nil {
-		fmt.Fprintf(text, "Latest known log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.Timestamp)
+		fmt.Fprintf(text, "Latest known log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.TimestampTime())
 	} else {
 		fmt.Fprintf(text, "Latest known log size = none\n")
 	}
@@ -84,9 +134,9 @@ func (e *backlogEvent) Text() string {
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For more details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
-	fmt.Fprintf(text, "Current log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.Timestamp)
+	fmt.Fprintf(text, "Current log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.TimestampTime())
 	fmt.Fprintf(text, "Current position = %d\n", e.Position)
-	fmt.Fprintf(text, "         Backlog = %d\n", e.Backlog)
+	fmt.Fprintf(text, "         Backlog = %d\n", e.Backlog())
 	return text.String()
 }
 func (e *staleLogListEvent) Text() string {

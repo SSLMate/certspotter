@@ -35,6 +35,7 @@ func reloadLogListInterval() time.Duration {
 }
 
 type task struct {
+	log  *loglist.Log
 	stop context.CancelFunc
 }
 
@@ -44,9 +45,27 @@ type daemon struct {
 	tasks        map[LogID]task
 	logsLoadedAt time.Time
 	logListToken *loglist.ModificationToken
+	logListError string
+	logListErrorAt time.Time
 }
 
-func (daemon *daemon) healthCheck(ctx context.Context) error { // TODO-2
+func (daemon *daemon) healthCheck(ctx context.Context) error {
+	if time.Since(daemon.logsLoadedAt) >= healthCheckInterval {
+		if err := notify(ctx, daemon.config, &staleLogListEvent{
+			Source:        daemon.config.LogListSource,
+			LastSuccess:   daemon.logsLoadedAt,
+			LastError:     daemon.logListError,
+			LastErrorTime: daemon.logListErrorAt,
+		}); err != nil {
+			return fmt.Errorf("error notifying about stale log list: %w", err)
+		}
+	}
+
+	for _, task := range daemon.tasks {
+		if err := healthCheckLog(ctx, daemon.config, task.log); err != nil {
+			return fmt.Errorf("error checking health of log %q: %w", task.log.URL, err)
+		}
+	}
 	return nil
 }
 
@@ -64,7 +83,7 @@ func (daemon *daemon) startTask(ctx context.Context, ctlog *loglist.Log) task {
 			return fmt.Errorf("error while monitoring %s: %w", ctlog.URL, err)
 		}
 	})
-	return task{stop: cancel}
+	return task{log: ctlog, stop: cancel}
 }
 
 func (daemon *daemon) loadLogList(ctx context.Context) error {
@@ -124,6 +143,8 @@ func (daemon *daemon) run(ctx context.Context) error {
 		case <-ctx.Done():
 		case <-reloadLogListTicker.C:
 			if err := daemon.loadLogList(ctx); err != nil {
+				daemon.logListError = err.Error()
+				daemon.logListErrorAt = time.Now()
 				recordError(fmt.Errorf("error reloading log list (will try again later): %w", err))
 			}
 			reloadLogListTicker.Reset(reloadLogListInterval())
