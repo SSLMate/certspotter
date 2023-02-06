@@ -40,12 +40,12 @@ type task struct {
 }
 
 type daemon struct {
-	config       *Config
-	taskgroup    *errgroup.Group
-	tasks        map[LogID]task
-	logsLoadedAt time.Time
-	logListToken *loglist.ModificationToken
-	logListError string
+	config         *Config
+	taskgroup      *errgroup.Group
+	tasks          map[LogID]task
+	logsLoadedAt   time.Time
+	logListToken   *loglist.ModificationToken
+	logListError   string
 	logListErrorAt time.Time
 }
 
