@@ -37,9 +37,15 @@ You can use Cert Spotter to detect:
 
 -email *ADDRESS*
 
-:   Email address to contact when a matching certificate is discovered.
-    You can specify this option more than once to email multiple addresses.
-    Your system must have a working sendmail(1) command.
+:   Email address to contact when a matching certificate is discovered, or
+    an error occurs.  You can specify this option more than once to email
+    multiple addresses.  Your system must have a working sendmail(1) command.
+
+-healthcheck *INTERVAL*
+
+:   Perform a health check at the given interval (default: "24h") as described
+    below.  *INTERVAL* must be a decimal number followed by "h" for hours or
+    "m" for minutes.
 
 -logs *ADDRESS*
 
@@ -55,7 +61,7 @@ You can use Cert Spotter to detect:
 
 -script *COMMAND*
 
-:   Command to execute when a matching certificate is found. See
+:   Command to execute when a matching certificate is found or an error occurs. See
     certspotter-script(8) for information about the interface to scripts.
 
 -start_at_end
@@ -73,7 +79,7 @@ You can use Cert Spotter to detect:
 
 -stdout
 
-:   Write matching certificates to stdout.
+:   Write matching certificates and errors to stdout.
 
 -verbose
 
@@ -130,6 +136,34 @@ certificates, it's faster to use the Cert Spotter service
 <https://sslmate.com/certspotter>, SSLMate's Certificate Transparency Search
 API <https://sslmate.com/ct_search_api>, or a CT search engine such as
 <https://crt.sh>.
+
+# ERROR HANDLING
+
+When certspotter encounters a problem with the local system (e.g. failure
+to write a file or execute a script), it prints a message to stderr and
+exits with a non-zero status.
+
+When certspotter encounters a problem monitoring a log, it prints a message
+to stderr and continues running.  It will try monitoring the log again later;
+most log errors are transient.
+
+Every 24 hours (unless overridden by `-healthcheck`), certspotter performs the
+following health checks:
+
+ * Ensure that the log list has been successfully retrieved at least once
+   since the previous health check.
+ * Ensure that every log has been successfully contacted at least once
+   since the previous health check.
+ * Ensure that certspotter is not falling behind monitoring any logs.
+
+If any health check fails, certspotter notifies you by email (if `-email`
+is specified), script (if `-script` is specified), and/or standard out
+(if `-stdout` is specified).
+
+Health check failures should be rare, and you should take them seriously because it means
+certspotter might not detect all certificates.  It might also be an indication
+of CT log misbehavior.  Consult certspotter's stderr output for details, and if
+you need help, file an issue at <https://github.com/SSLMate/certspotter>.
 
 # EXIT STATUS
 
