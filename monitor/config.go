@@ -14,14 +14,14 @@ import (
 )
 
 type Config struct {
-	LogListSource string
-	StateDir      string
-	StartAtEnd    bool
-	WatchList     WatchList
-	Verbose       bool
-	SaveCerts     bool
-	Script        string
-	Email         []string
-	Stdout        bool
+	LogListSource       string
+	StateDir            string
+	StartAtEnd          bool
+	WatchList           WatchList
+	Verbose             bool
+	SaveCerts           bool
+	Script              string
+	Email               []string
+	Stdout              bool
 	HealthCheckInterval time.Duration
 }
