@@ -52,10 +52,7 @@ func (cert *discoveredCert) pemChain() []byte {
 func (cert *discoveredCert) json() []byte {
 	object := map[string]any{
 		"tbs_sha256":    hex.EncodeToString(cert.TBSSHA256[:]),
-		"cert_sha256":   hex.EncodeToString(cert.SHA256[:]),
 		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
-		"issuer_der":    cert.Info.TBS.Issuer.FullBytes,
-		"subject_der":   cert.Info.TBS.Subject.FullBytes,
 		"dns_names":     cert.Identifiers.DNSNames,
 		"ip_addresses":  cert.Identifiers.IPAddrs,
 	}
@@ -66,12 +63,6 @@ func (cert *discoveredCert) json() []byte {
 	} else {
 		object["not_before"] = nil
 		object["not_after"] = nil
-	}
-
-	if cert.Info.SerialNumberParseError == nil {
-		object["serial_number"] = fmt.Sprintf("%x", cert.Info.SerialNumber)
-	} else {
-		object["serial_number"] = nil
 	}
 
 	jsonBytes, err := json.Marshal(object)

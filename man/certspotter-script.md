@@ -152,22 +152,9 @@ The JSON file contains an object with the following fields:
 :    A string containing the hex-encoded SHA-256 digest of the TBSCertificate, as defined in RFC 6962 Section 3.2.
      Certificates and their corresponding precertificates have the same `tbs_sha256` value.
 
-`cert_sha256`
-
-:    A string containing the hex-encoded SHA-256 digest (sometimes called fingerprint) of the certificate.
-     The digest is computed over the ASN.1 DER encoding. 
-
 `pubkey_sha256`
 
 :    A string containing the hex-encoded SHA-256 digest of the certificate's Subject Public Key Info.
-
-`issuer_der`
-
-:    A base64 string containing the certificate's DER-encoded issuer distinguished name.
-
-`subject_der`
-
-:    A base64 string containing the certificate's DER-encoded subject distinguished name.
 
 `dns_names`
 
@@ -191,10 +178,8 @@ The JSON file contains an object with the following fields:
 :    A string containing the not after (expiration) time of the certificate in RFC3339 format.
      Null if there was an error parsing the certificate's validity.
 
-`serial_number`
-
-:    A string containing the hex-encoded serial number of the certificate.  Prefixed with a minus (-) sign if negative.
-     Null if there was an error parsing the serial number.
+Additional fields will be added in the future based on user feedback. Please open
+an issue at <https://github.com/SSLMate/certspotter> if you have a use case for another field.
 
 # EXAMPLES
 
@@ -227,18 +212,14 @@ Example JSON file for a discovered certificate:
 
 ```
 {
-  "cert_sha256": "3cdc83b3932c194fcdf17aa2bf1abc34e8438b293c3d5c70693e175b38ff128a",
   "dns_names": [
     "sslmate.com",
     "www.sslmate.com"
   ],
   "ip_addresses": [],
-  "issuer_der": "MIGPMQswCQYDVQQGEwJHQjEbMBkGA1UECBMSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYDVQQHEwdTYWxmb3JkMRgwFgYDVQQKEw9TZWN0aWdvIExpbWl0ZWQxNzA1BgNVBAMTLlNlY3RpZ28gUlNBIERvbWFpbiBWYWxpZGF0aW9uIFNlY3VyZSBTZXJ2ZXIgQ0E=",
   "not_after": "2024-01-26T03:47:26Z",
   "not_before": "2023-01-31T03:47:26Z",
   "pubkey_sha256": "33ac1d9b9e56005ccac045eac2398b3e9dd6b3f5b66ae6260f2d478c7c0d82c8",
-  "serial_number": "c170fbf3bf27481e5c351a4db6f2dc5f",
-  "subject_der": "MBYxFDASBgNVBAMTC3NzbG1hdGUuY29t",
   "tbs_sha256": "2388ee81c6f45cffc73e68a35fa8921e839e20acc9a98e8e6dcaea07cbfbdef8"
 }
 ```
