@@ -35,7 +35,7 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 		return fmt.Errorf("error loading state file: %w", err)
 	}
 
-	if time.Since(state.LastSuccess) < healthCheckInterval {
+	if time.Since(state.LastSuccess) < config.HealthCheckInterval {
 		return nil
 	}
 

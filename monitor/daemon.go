@@ -23,7 +23,6 @@ import (
 const (
 	reloadLogListIntervalMin = 30 * time.Minute
 	reloadLogListIntervalMax = 90 * time.Minute
-	healthCheckInterval      = 24 * time.Hour
 )
 
 func randomDuration(min, max time.Duration) time.Duration {
@@ -50,7 +49,7 @@ type daemon struct {
 }
 
 func (daemon *daemon) healthCheck(ctx context.Context) error {
-	if time.Since(daemon.logsLoadedAt) >= healthCheckInterval {
+	if time.Since(daemon.logsLoadedAt) >= daemon.config.HealthCheckInterval {
 		if err := notify(ctx, daemon.config, &staleLogListEvent{
 			Source:        daemon.config.LogListSource,
 			LastSuccess:   daemon.logsLoadedAt,
@@ -135,7 +134,7 @@ func (daemon *daemon) run(ctx context.Context) error {
 	reloadLogListTicker := time.NewTicker(reloadLogListInterval())
 	defer reloadLogListTicker.Stop()
 
-	healthCheckTicker := time.NewTicker(healthCheckInterval)
+	healthCheckTicker := time.NewTicker(daemon.config.HealthCheckInterval)
 	defer healthCheckTicker.Stop()
 
 	for ctx.Err() == nil {

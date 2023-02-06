@@ -9,6 +9,10 @@
 
 package monitor
 
+import (
+	"time"
+)
+
 type Config struct {
 	LogListSource string
 	StateDir      string
@@ -19,4 +23,5 @@ type Config struct {
 	Script        string
 	Email         []string
 	Stdout        bool
+	HealthCheckInterval time.Duration
 }
