@@ -88,7 +88,6 @@ func (daemon *daemon) startTask(ctx context.Context, ctlog *loglist.Log) task {
 func (daemon *daemon) loadLogList(ctx context.Context) error {
 	newLogList, newToken, err := getLogList(ctx, daemon.config.LogListSource, daemon.logListToken)
 	if errors.Is(err, loglist.ErrNotModified) {
-		log.Printf("log list %q not modified", daemon.config.LogListSource)
 		return nil
 	} else if err != nil {
 		return err
