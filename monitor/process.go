@@ -112,9 +112,17 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 	if config.SaveCerts {
 		hexFingerprint := hex.EncodeToString(cert.SHA256[:])
 		prefixPath := filepath.Join(config.StateDir, "certs", hexFingerprint[0:2])
+		var (
+			notifiedFilename      = "." + hexFingerprint + ".notified"
+			certFilename          = hexFingerprint + ".pem"
+			jsonFilename          = hexFingerprint + ".v1.json"
+			textFilename          = hexFingerprint + ".txt"
+			legacyCertFilename    = hexFingerprint + ".cert.pem"
+			legacyPrecertFilename = hexFingerprint + ".precert.pem"
+		)
 
-		for _, suffix := range []string{".notified", ".cert.pem", ".precert.pem"} {
-			if fileExists(filepath.Join(prefixPath, hexFingerprint+suffix)) {
+		for _, filename := range []string{notifiedFilename, legacyCertFilename, legacyPrecertFilename} {
+			if fileExists(filepath.Join(prefixPath, filename)) {
 				return nil
 			}
 		}
@@ -123,10 +131,10 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.SHA256, err)
 		}
 
-		notifiedPath = filepath.Join(prefixPath, "."+hexFingerprint+".notified")
-		cert.CertPath = filepath.Join(prefixPath, hexFingerprint+".pem")
-		cert.JSONPath = filepath.Join(prefixPath, hexFingerprint+".v1.json")
-		cert.TextPath = filepath.Join(prefixPath, hexFingerprint+".txt")
+		notifiedPath = filepath.Join(prefixPath, notifiedFilename)
+		cert.CertPath = filepath.Join(prefixPath, certFilename)
+		cert.JSONPath = filepath.Join(prefixPath, jsonFilename)
+		cert.TextPath = filepath.Join(prefixPath, textFilename)
 
 		if err := cert.save(); err != nil {
 			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
