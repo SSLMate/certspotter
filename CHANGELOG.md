@@ -1,6 +1,6 @@
 # Change Log
 
-## v0.15.0 (2023-02-TBD)
+## v0.15.0 (2023-02-08)
 - **Significant behavior change**: certspotter is now intended to run as
   a daemon instead of a cron job.  Specifically, certspotter no longer
   terminates unless it receives SIGTERM or SIGINT or there is a serious error.
