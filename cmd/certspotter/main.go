@@ -36,7 +36,7 @@ const defaultLogList = "https://loglist.certspotter.org/monitor.json"
 
 func certspotterVersion() string {
 	if Version != "" {
-		return Version
+		return Version + "?"
 	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
