@@ -34,7 +34,7 @@ func (h *Hash) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if len(hashBytes) != HashLen {
-		return fmt.Errorf("Merkle Tree hash has wrong length (should be %d bytes long, not %d)", HashLen)
+		return fmt.Errorf("Merkle Tree hash has wrong length (should be %d bytes long, not %d)", HashLen, len(hashBytes))
 	}
 	copy(h[:], hashBytes)
 	return nil
