@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.15.1 (2023-02-09)
+- Fix some typos in help and error messages.
+- Allow version to be set via linker flag, to facilitate distro package building.
+
 ## v0.15.0 (2023-02-08)
 - **Significant behavior change**: certspotter is now intended to run as
   a daemon instead of a cron job.  Specifically, certspotter no longer
