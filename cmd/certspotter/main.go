@@ -123,7 +123,7 @@ func main() {
 	}
 	flag.IntVar(&flags.batchSize, "batch_size", 1000, "Max number of entries to request per call to get-entries (advanced)")
 	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
-	flag.DurationVar(&flags.healthcheck, "healthcheck", 24*time.Hour, "How frequently to perform a healt check")
+	flag.DurationVar(&flags.healthcheck, "healthcheck", 24*time.Hour, "How frequently to perform a health check")
 	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
 	flag.BoolVar(&flags.noSave, "no_save", false, "Do not save a copy of matching certificates in state directory")
 	flag.StringVar(&flags.script, "script", "", "Program to execute when a matching certificate is discovered")

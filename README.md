@@ -1,7 +1,7 @@
 # Cert Spotter - Certificate Transparency Monitor
 
 **Cert Spotter** is a Certificate Transparency log monitor from SSLMate that
-alerts you when a SSL/TLS certificate is issued for one of your domains.
+alerts you when an SSL/TLS certificate is issued for one of your domains.
 Cert Spotter is easier to use than other open source CT monitors, since it does not require
 a database. It's also more robust, since it uses a special certificate parser
 that ensures it won't miss certificates.
