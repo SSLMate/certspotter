@@ -30,10 +30,14 @@ import (
 )
 
 var programName = os.Args[0]
+var Version = ""
 
 const defaultLogList = "https://loglist.certspotter.org/monitor.json"
 
 func certspotterVersion() string {
+	if Version != "" {
+		return Version
+	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "unknown"
