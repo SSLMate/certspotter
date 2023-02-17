@@ -12,6 +12,7 @@ package merkletree
 import (
 	"encoding/json"
 	"fmt"
+	"math/bits"
 )
 
 type CollapsedTree struct {
@@ -20,12 +21,7 @@ type CollapsedTree struct {
 }
 
 func calculateNumNodes(size uint64) int {
-	numNodes := 0
-	for size > 0 {
-		numNodes += int(size & 1)
-		size >>= 1
-	}
-	return numNodes
+	return bits.OnesCount64(size)
 }
 
 func EmptyCollapsedTree() *CollapsedTree {
