@@ -44,12 +44,12 @@ func CloneCollapsedTree(source *CollapsedTree) *CollapsedTree {
 func (tree *CollapsedTree) Add(hash Hash) {
 	tree.nodes = append(tree.nodes, hash)
 	tree.size++
-	size := tree.size
-	for size%2 == 0 {
+
+	numNodes := calculateNumNodes(tree.size)
+	for len(tree.nodes) > numNodes {
 		left, right := tree.nodes[len(tree.nodes)-2], tree.nodes[len(tree.nodes)-1]
 		tree.nodes = tree.nodes[:len(tree.nodes)-2]
 		tree.nodes = append(tree.nodes, HashChildren(left, right))
-		size /= 2
 	}
 }
 
