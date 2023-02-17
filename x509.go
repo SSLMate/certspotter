@@ -320,7 +320,7 @@ func (tbs *TBSCertificate) ParseSubjectAltNames() ([]SubjectAltName, error) {
 
 	for _, sanExt := range tbs.GetExtension(oidExtensionSubjectAltName) {
 		var err error
-		sans, err = parseSANExtension(sans, sanExt.Value)
+		sans, err = ParseSANExtension(sans, sanExt.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -377,7 +377,7 @@ func (cert *Certificate) ParseSignatureValue() ([]byte, error) {
 	return signatureValue.RightAlign(), nil
 }
 
-func parseSANExtension(sans []SubjectAltName, value []byte) ([]SubjectAltName, error) {
+func ParseSANExtension(sans []SubjectAltName, value []byte) ([]SubjectAltName, error) {
 	var seq asn1.RawValue
 	if rest, err := asn1.Unmarshal(value, &seq); err != nil {
 		return nil, errors.New("failed to parse subjectAltName extension: " + err.Error())
