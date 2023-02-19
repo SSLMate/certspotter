@@ -38,10 +38,5 @@ func loadStateFile(filePath string) (*stateFile, error) {
 }
 
 func (file *stateFile) store(filePath string) error {
-	fileBytes, err := json.Marshal(file)
-	if err != nil {
-		return err
-	}
-	fileBytes = append(fileBytes, '\n')
-	return writeFile(filePath, fileBytes, 0666)
+	return writeJSONFile(filePath, file, 0666)
 }

@@ -12,7 +12,6 @@ package monitor
 import (
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -49,7 +48,7 @@ func (cert *discoveredCert) pemChain() []byte {
 	return buffer.Bytes()
 }
 
-func (cert *discoveredCert) json() []byte {
+func (cert *discoveredCert) json() any {
 	object := map[string]any{
 		"tbs_sha256":    hex.EncodeToString(cert.TBSSHA256[:]),
 		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
@@ -65,21 +64,17 @@ func (cert *discoveredCert) json() []byte {
 		object["not_after"] = nil
 	}
 
-	jsonBytes, err := json.Marshal(object)
-	if err != nil {
-		panic(fmt.Errorf("encoding certificate as JSON failed unexpectedly: %w", err))
-	}
-	return jsonBytes
+	return object
 }
 
 func (cert *discoveredCert) save() error {
 	if err := writeFile(cert.CertPath, cert.pemChain(), 0666); err != nil {
 		return err
 	}
-	if err := writeFile(cert.JSONPath, cert.json(), 0666); err != nil {
+	if err := writeJSONFile(cert.JSONPath, cert.json(), 0666); err != nil {
 		return err
 	}
-	if err := writeFile(cert.TextPath, []byte(cert.Text()), 0666); err != nil {
+	if err := writeTextFile(cert.TextPath, cert.Text(), 0666); err != nil {
 		return err
 	}
 	return nil

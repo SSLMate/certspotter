@@ -65,11 +65,7 @@ func storeSTHInDir(dirPath string, sth *ct.SignedTreeHead) error {
 	if fileExists(filePath) {
 		return nil
 	}
-	fileBytes, err := json.Marshal(sth)
-	if err != nil {
-		return err
-	}
-	return writeFile(filePath, fileBytes, 0666)
+	return writeJSONFile(filePath, sth, 0666)
 }
 
 func removeSTHFromDir(dirPath string, sth *ct.SignedTreeHead) error {

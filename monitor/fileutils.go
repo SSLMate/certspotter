@@ -12,6 +12,7 @@ package monitor
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 )
@@ -34,6 +35,19 @@ func writeFile(filename string, data []byte, perm os.FileMode) error {
 		return fmt.Errorf("error writing %s: %w", filename, err)
 	}
 	return nil
+}
+
+func writeTextFile(filename string, fileText string, perm os.FileMode) error {
+	return writeFile(filename, []byte(fileText), perm)
+}
+
+func writeJSONFile(filename string, data any, perm os.FileMode) error {
+	fileBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	fileBytes = append(fileBytes, '\n')
+	return writeFile(filename, fileBytes, perm)
 }
 
 func fileExists(filename string) bool {
