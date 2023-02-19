@@ -107,33 +107,33 @@ func (e *backlogEvent) Backlog() uint64 {
 func (e *staleSTHEvent) Environ() []string {
 	return []string{
 		"EVENT=error",
+		"SUMMARY=" + e.Summary(),
 		"TEXT_FILENAME=" + e.TextPath,
-		"SUMMARY=" + fmt.Sprintf("unable to contact %s since %s", e.Log.URL, e.LastSuccess),
 	}
 }
 func (e *backlogEvent) Environ() []string {
 	return []string{
 		"EVENT=error",
+		"SUMMARY=" + e.Summary(),
 		"TEXT_FILENAME=" + e.TextPath,
-		"SUMMARY=" + fmt.Sprintf("backlog of size %d from %s", e.Backlog(), e.Log.URL),
 	}
 }
 func (e *staleLogListEvent) Environ() []string {
 	return []string{
 		"EVENT=error",
+		"SUMMARY=" + e.Summary(),
 		"TEXT_FILENAME=" + e.TextPath,
-		"SUMMARY=" + fmt.Sprintf("unable to retrieve log list since %s: %s", e.LastSuccess, e.LastError),
 	}
 }
 
-func (e *staleSTHEvent) EmailSubject() string {
-	return fmt.Sprintf("[certspotter] Unable to contact %s since %s", e.Log.URL, e.LastSuccess)
+func (e *staleSTHEvent) Summary() string {
+	return fmt.Sprintf("Unable to contact %s since %s", e.Log.URL, e.LastSuccess)
 }
-func (e *backlogEvent) EmailSubject() string {
-	return fmt.Sprintf("[certspotter] Backlog of size %d from %s", e.Backlog(), e.Log.URL)
+func (e *backlogEvent) Summary() string {
+	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.Log.URL)
 }
-func (e *staleLogListEvent) EmailSubject() string {
-	return fmt.Sprintf("[certspotter] Unable to retrieve log list since %s", e.LastSuccess)
+func (e *staleLogListEvent) Summary() string {
+	return fmt.Sprintf("Unable to retrieve log list since %s", e.LastSuccess)
 }
 
 func (e *staleSTHEvent) Text() string {

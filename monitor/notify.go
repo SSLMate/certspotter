@@ -23,7 +23,7 @@ var stdoutMu sync.Mutex
 
 type notification interface {
 	Environ() []string
-	EmailSubject() string
+	Summary() string
 	Text() string
 }
 
@@ -58,7 +58,7 @@ func sendEmail(ctx context.Context, to []string, notif notification) error {
 	stderr := new(bytes.Buffer)
 
 	fmt.Fprintf(stdin, "To: %s\n", strings.Join(to, ", "))
-	fmt.Fprintf(stdin, "Subject: %s\n", notif.EmailSubject())
+	fmt.Fprintf(stdin, "Subject: [certspotter] %s\n", notif.Summary())
 	fmt.Fprintf(stdin, "Mime-Version: 1.0\n")
 	fmt.Fprintf(stdin, "Content-Type: text/plain; charset=US-ASCII\n")
 	fmt.Fprintf(stdin, "X-Mailer: certspotter\n")

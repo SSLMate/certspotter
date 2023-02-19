@@ -83,7 +83,7 @@ func (cert *discoveredCert) save() error {
 func (cert *discoveredCert) Environ() []string {
 	env := []string{
 		"EVENT=discovered_cert",
-		"SUMMARY=certificate discovered for " + cert.WatchItem.String(),
+		"SUMMARY=" + cert.Summary(),
 		"CERT_PARSEABLE=yes", // backwards compat with pre-0.15.0; not documented
 		"LOG_URI=" + cert.LogEntry.Log.URL,
 		"ENTRY_INDEX=" + fmt.Sprint(cert.LogEntry.Index),
@@ -165,6 +165,6 @@ func (cert *discoveredCert) Text() string {
 	return text.String()
 }
 
-func (cert *discoveredCert) EmailSubject() string {
-	return fmt.Sprintf("[certspotter] Certificate Discovered for %s", cert.WatchItem)
+func (cert *discoveredCert) Summary() string {
+	return fmt.Sprintf("Certificate Discovered for %s", cert.WatchItem)
 }

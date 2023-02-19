@@ -44,7 +44,7 @@ func (malformed *malformedLogEntry) save() error {
 func (malformed *malformedLogEntry) Environ() []string {
 	return []string{
 		"EVENT=malformed_cert",
-		"SUMMARY=" + fmt.Sprintf("unable to parse entry %d in %s", malformed.Entry.Index, malformed.Entry.Log.URL),
+		"SUMMARY=" + malformed.Summary(),
 		"LOG_URI=" + malformed.Entry.Log.URL,
 		"ENTRY_INDEX=" + fmt.Sprint(malformed.Entry.Index),
 		"LEAF_HASH=" + malformed.Entry.LeafHash.Base64String(),
@@ -67,6 +67,6 @@ func (malformed *malformedLogEntry) Text() string {
 	return text.String()
 }
 
-func (malformed *malformedLogEntry) EmailSubject() string {
-	return fmt.Sprintf("[certspotter] Unable to Parse Entry %d in %s", malformed.Entry.Index, malformed.Entry.Log.URL)
+func (malformed *malformedLogEntry) Summary() string {
+	return fmt.Sprintf("Unable to Parse Entry %d in %s", malformed.Entry.Index, malformed.Entry.Log.URL)
 }
