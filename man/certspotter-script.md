@@ -73,7 +73,7 @@ The following environment variables are set for `discovered_cert` events:
 
 `JSON_FILENAME`
 
-:    Path to a JSON containing additional information about the certificate.  See below for the format of the JSON file.
+:    Path to a JSON file containing additional information about the certificate.  See below for the format of the JSON file.
      Not set if `-no_save` was used.
 
 `TEXT_FILENAME`
