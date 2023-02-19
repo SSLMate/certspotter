@@ -157,12 +157,18 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 }
 
 func processMalformedLogEntry(ctx context.Context, config *Config, entry *logEntry, parseError error) error {
-	// TODO-4: save the malformed entry (in get-entries format) in the state directory so user can inspect it
-
+	dirPath := filepath.Join(config.StateDir, "logs", entry.Log.LogID.Base64URLString(), "malformed_entries")
 	malformed := &malformedLogEntry{
-		Entry: entry,
-		Error: parseError.Error(),
+		Entry:     entry,
+		Error:     parseError.Error(),
+		EntryPath: filepath.Join(dirPath, fmt.Sprintf("%d.json", entry.Index)),
+		TextPath:  filepath.Join(dirPath, fmt.Sprintf("%d.txt", entry.Index)),
 	}
+
+	if err := malformed.save(); err != nil {
+		return fmt.Errorf("error saving malformed log entry %d in %s (%q): %w", entry.Index, entry.Log.URL, parseError, err)
+	}
+
 	if err := notify(ctx, config, malformed); err != nil {
 		return fmt.Errorf("error notifying about malformed log entry %d in %s (%q): %w", entry.Index, entry.Log.URL, parseError, err)
 	}

@@ -15,8 +15,30 @@ import (
 )
 
 type malformedLogEntry struct {
-	Entry *logEntry
-	Error string
+	Entry     *logEntry
+	Error     string
+	EntryPath string
+	TextPath  string
+}
+
+func (malformed *malformedLogEntry) entryJSON() any {
+	return struct {
+		LeafInput []byte `json:"leaf_input"`
+		ExtraData []byte `json:"extra_data"`
+	}{
+		LeafInput: malformed.Entry.LeafInput,
+		ExtraData: malformed.Entry.ExtraData,
+	}
+}
+
+func (malformed *malformedLogEntry) save() error {
+	if err := writeJSONFile(malformed.EntryPath, malformed.entryJSON(), 0666); err != nil {
+		return err
+	}
+	if err := writeTextFile(malformed.TextPath, malformed.Text(), 0666); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (malformed *malformedLogEntry) Environ() []string {
@@ -27,6 +49,8 @@ func (malformed *malformedLogEntry) Environ() []string {
 		"ENTRY_INDEX=" + fmt.Sprint(malformed.Entry.Index),
 		"LEAF_HASH=" + malformed.Entry.LeafHash.Base64String(),
 		"PARSE_ERROR=" + malformed.Error,
+		"ENTRY_FILENAME=" + malformed.EntryPath,
+		"TEXT_FILENAME=" + malformed.TextPath,
 		"CERT_PARSEABLE=no", // backwards compat with pre-0.15.0; not documented
 	}
 }

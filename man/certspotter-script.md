@@ -138,6 +138,14 @@ The following environment variables are set for `malformed_cert` events:
 
 :    A human-readable string describing why the certificate is malformed.
 
+`ENTRY_FILENAME`
+
+:    Path to a file containing the JSON log entry.  The file contains a JSON object with two fields, `leaf_input` and `extra_data`, as described in RFC 6962 Section 4.6.
+
+`TEXT_FILENAME`
+
+:    Path to a file containing a text message describing the malformed certificate.  This file contains the same text that certspotter uses in emails.
+
 # JSON FILE FORMAT
 
 Unless `-no_save` is used, certspotter saves a JSON file for every discovered certificate
