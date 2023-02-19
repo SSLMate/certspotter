@@ -78,7 +78,7 @@ The following environment variables are set for `discovered_cert` events:
 
 `TEXT_FILENAME`
 
-:    Path to a file containing a text representation of the certificate.  This file contains the same text that
+:    Path to a text file containing information about the certificate.  This file contains the same text that
      certspotter uses in emails.  You should not attempt to parse this file because its format may change in the future.
      Not set if `-no_save` was used.
 
@@ -144,7 +144,15 @@ The following environment variables are set for `malformed_cert` events:
 
 `TEXT_FILENAME`
 
-:    Path to a file containing a text message describing the malformed certificate.  This file contains the same text that certspotter uses in emails.
+:    Path to a text file containing a description of the malformed certificate.  This file contains the same text that certspotter uses in emails.
+
+## Error information
+
+The following environment variables are set for `error` events:
+
+`TEXT_FILENAME`
+
+:    Path to a text file containing a description of the error.  This file contains the same text that certspotter uses in emails.
 
 # JSON FILE FORMAT
 
