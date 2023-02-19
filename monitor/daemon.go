@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"log"
 	insecurerand "math/rand"
+	"path/filepath"
 	"software.sslmate.com/src/certspotter/loglist"
 	"time"
 )
@@ -50,12 +51,18 @@ type daemon struct {
 
 func (daemon *daemon) healthCheck(ctx context.Context) error {
 	if time.Since(daemon.logsLoadedAt) >= daemon.config.HealthCheckInterval {
-		if err := notify(ctx, daemon.config, &staleLogListEvent{
+		textPath := filepath.Join(daemon.config.StateDir, "healthchecks", healthCheckFilename())
+		event := &staleLogListEvent{
 			Source:        daemon.config.LogListSource,
 			LastSuccess:   daemon.logsLoadedAt,
 			LastError:     daemon.logListError,
 			LastErrorTime: daemon.logListErrorAt,
-		}); err != nil {
+			TextPath:      textPath,
+		}
+		if err := event.save(); err != nil {
+			return fmt.Errorf("error saving stale log list event: %w", err)
+		}
+		if err := notify(ctx, daemon.config, event); err != nil {
 			return fmt.Errorf("error notifying about stale log list: %w", err)
 		}
 	}

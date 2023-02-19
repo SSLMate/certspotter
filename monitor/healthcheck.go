@@ -22,11 +22,16 @@ import (
 	"software.sslmate.com/src/certspotter/loglist"
 )
 
+func healthCheckFilename() string {
+	return time.Now().UTC().Format(time.RFC3339) + ".txt"
+}
+
 func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) error {
 	var (
 		stateDirPath  = filepath.Join(config.StateDir, "logs", ctlog.LogID.Base64URLString())
 		stateFilePath = filepath.Join(stateDirPath, "state.json")
 		sthsDirPath   = filepath.Join(stateDirPath, "unverified_sths")
+		textPath      = filepath.Join(stateDirPath, "healthchecks", healthCheckFilename())
 	)
 	state, err := loadStateFile(stateFilePath)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -45,19 +50,29 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 	}
 
 	if len(sths) == 0 {
-		if err := notify(ctx, config, &staleSTHEvent{
+		event := &staleSTHEvent{
 			Log:         ctlog,
 			LastSuccess: state.LastSuccess,
 			LatestSTH:   state.VerifiedSTH,
-		}); err != nil {
+			TextPath:    textPath,
+		}
+		if err := event.save(); err != nil {
+			return fmt.Errorf("error saving stale STH event: %w", err)
+		}
+		if err := notify(ctx, config, event); err != nil {
 			return fmt.Errorf("error notifying about stale STH: %w", err)
 		}
 	} else {
-		if err := notify(ctx, config, &backlogEvent{
+		event := &backlogEvent{
 			Log:       ctlog,
 			LatestSTH: sths[len(sths)-1],
 			Position:  state.DownloadPosition.Size(),
-		}); err != nil {
+			TextPath:  textPath,
+		}
+		if err := event.save(); err != nil {
+			return fmt.Errorf("error saving backlog event: %w", err)
+		}
+		if err := notify(ctx, config, event); err != nil {
 			return fmt.Errorf("error notifying about backlog: %w", err)
 		}
 	}
@@ -69,17 +84,20 @@ type staleSTHEvent struct {
 	Log         *loglist.Log
 	LastSuccess time.Time
 	LatestSTH   *ct.SignedTreeHead // may be nil
+	TextPath    string
 }
 type backlogEvent struct {
 	Log       *loglist.Log
 	LatestSTH *ct.SignedTreeHead
 	Position  uint64
+	TextPath  string
 }
 type staleLogListEvent struct {
 	Source        string
 	LastSuccess   time.Time
 	LastError     string
 	LastErrorTime time.Time
+	TextPath      string
 }
 
 func (e *backlogEvent) Backlog() uint64 {
@@ -89,18 +107,21 @@ func (e *backlogEvent) Backlog() uint64 {
 func (e *staleSTHEvent) Environ() []string {
 	return []string{
 		"EVENT=error",
+		"TEXT_FILENAME=" + e.TextPath,
 		"SUMMARY=" + fmt.Sprintf("unable to contact %s since %s", e.Log.URL, e.LastSuccess),
 	}
 }
 func (e *backlogEvent) Environ() []string {
 	return []string{
 		"EVENT=error",
+		"TEXT_FILENAME=" + e.TextPath,
 		"SUMMARY=" + fmt.Sprintf("backlog of size %d from %s", e.Backlog(), e.Log.URL),
 	}
 }
 func (e *staleLogListEvent) Environ() []string {
 	return []string{
 		"EVENT=error",
+		"TEXT_FILENAME=" + e.TextPath,
 		"SUMMARY=" + fmt.Sprintf("unable to retrieve log list since %s: %s", e.LastSuccess, e.LastError),
 	}
 }
@@ -147,6 +168,16 @@ func (e *staleLogListEvent) Text() string {
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "Consequentially, certspotter may not be monitoring all logs, and might fail to detect certificates.\n")
 	return text.String()
+}
+
+func (e *staleSTHEvent) save() error {
+	return writeTextFile(e.TextPath, e.Text(), 0666)
+}
+func (e *backlogEvent) save() error {
+	return writeTextFile(e.TextPath, e.Text(), 0666)
+}
+func (e *staleLogListEvent) save() error {
+	return writeTextFile(e.TextPath, e.Text(), 0666)
 }
 
 // TODO-3: make the errors more actionable

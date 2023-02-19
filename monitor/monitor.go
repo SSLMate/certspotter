@@ -74,12 +74,13 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 	defer cancel()
 
 	var (
-		stateDirPath     = filepath.Join(config.StateDir, "logs", ctlog.LogID.Base64URLString())
-		stateFilePath    = filepath.Join(stateDirPath, "state.json")
-		sthsDirPath      = filepath.Join(stateDirPath, "unverified_sths")
-		malformedDirPath = filepath.Join(stateDirPath, "malformed_entries")
+		stateDirPath        = filepath.Join(config.StateDir, "logs", ctlog.LogID.Base64URLString())
+		stateFilePath       = filepath.Join(stateDirPath, "state.json")
+		sthsDirPath         = filepath.Join(stateDirPath, "unverified_sths")
+		malformedDirPath    = filepath.Join(stateDirPath, "malformed_entries")
+		healthchecksDirPath = filepath.Join(stateDirPath, "healthchecks")
 	)
-	for _, dirPath := range []string{stateDirPath, sthsDirPath, malformedDirPath} {
+	for _, dirPath := range []string{stateDirPath, sthsDirPath, malformedDirPath, healthchecksDirPath} {
 		if err := os.Mkdir(dirPath, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("error creating state directory: %w", err)
 		}
