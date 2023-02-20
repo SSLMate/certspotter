@@ -103,14 +103,19 @@ func defaultScriptDir() string {
 	return filepath.Join(defaultConfigDir(), "hooks.d")
 }
 
+func simplifyError(err error) error {
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) {
+		return pathErr.Err
+	}
+
+	return err
+}
+
 func readWatchListFile(filename string) (monitor.WatchList, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		var pathErr *fs.PathError
-		if errors.As(err, &pathErr) {
-			err = pathErr.Err
-		}
-		return nil, err
+		return nil, simplifyError(err)
 	}
 	defer file.Close()
 	return monitor.ReadWatchList(file)
