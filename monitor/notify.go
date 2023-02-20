@@ -12,9 +12,12 @@ package monitor
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -40,6 +43,12 @@ func notify(ctx context.Context, config *Config, notif notification) error {
 
 	if config.Script != "" {
 		if err := execScript(ctx, config.Script, notif); err != nil {
+			return err
+		}
+	}
+
+	if config.ScriptDir != "" {
+		if err := execScriptDir(ctx, config.ScriptDir, notif); err != nil {
 			return err
 		}
 	}
@@ -102,6 +111,32 @@ func execScript(ctx context.Context, scriptName string, notif notification) erro
 	} else {
 		return fmt.Errorf("error executing script: %w", err)
 	}
+}
+
+func execScriptDir(ctx context.Context, dirPath string, notif notification) error {
+	dirents, err := os.ReadDir(dirPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("error executing scripts in directory %q: %w", dirPath, err)
+	}
+	for _, dirent := range dirents {
+		if strings.HasPrefix(dirent.Name(), ".") {
+			continue
+		}
+		scriptPath := filepath.Join(dirPath, dirent.Name())
+		info, err := os.Stat(scriptPath)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return fmt.Errorf("error executing %q in directory %q: %w", dirent.Name(), dirPath, err)
+		} else if info.Mode().IsRegular() && isExecutable(info.Mode()) {
+			if err := execScript(ctx, scriptPath, notif); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func isExecutable(mode os.FileMode) bool {

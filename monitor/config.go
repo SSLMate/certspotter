@@ -21,6 +21,7 @@ type Config struct {
 	Verbose             bool
 	SaveCerts           bool
 	Script              string
+	ScriptDir           string
 	Email               []string
 	Stdout              bool
 	HealthCheckInterval time.Duration

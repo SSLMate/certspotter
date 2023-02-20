@@ -99,6 +99,9 @@ func defaultWatchListPathIfExists() string {
 		return ""
 	}
 }
+func defaultScriptDir() string {
+	return filepath.Join(defaultConfigDir(), "hooks.d")
+}
 
 func readWatchListFile(filename string) (monitor.WatchList, error) {
 	file, err := os.Open(filename)
@@ -162,11 +165,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	if len(flags.email) == 0 && len(flags.script) == 0 && flags.stdout == false {
-		fmt.Fprintf(os.Stderr, "%s: at least one of -email, -script, or -stdout must be specified (see -help for details)\n", programName)
-		os.Exit(2)
-	}
-
 	config := &monitor.Config{
 		LogListSource:       flags.logs,
 		StateDir:            flags.stateDir,
@@ -174,9 +172,20 @@ func main() {
 		StartAtEnd:          flags.startAtEnd,
 		Verbose:             flags.verbose,
 		Script:              flags.script,
+		ScriptDir:           defaultScriptDir(),
 		Email:               flags.email,
 		Stdout:              flags.stdout,
 		HealthCheckInterval: flags.healthcheck,
+	}
+
+	if len(config.Email) == 0 && config.Script == "" && !fileExists(config.ScriptDir) && config.Stdout == false {
+		fmt.Fprintf(os.Stderr, "%s: no notification methods were specified\n", programName)
+		fmt.Fprintf(os.Stderr, "Please specify at least one of the following notification methods:\n")
+		fmt.Fprintf(os.Stderr, " - Place one or more executable scripts in the %s directory\n", config.ScriptDir)
+		fmt.Fprintf(os.Stderr, " - Specify an email address using the -email flag\n")
+		fmt.Fprintf(os.Stderr, " - Specify the path to an executable script using the -script flag\n")
+		fmt.Fprintf(os.Stderr, " - Specify the -stdout flag\n")
+		os.Exit(2)
 	}
 
 	if flags.watchlist == "-" {
