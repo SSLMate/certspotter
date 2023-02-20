@@ -4,9 +4,13 @@
 
 # DESCRIPTION
 
-**certspotter-script** is *any* program that is called using **certspotter(8)**'s
-*-script* argument. **certspotter** executes this program when it needs to notify
-you about an event, such as detecting a certificate for a domain on your watch list.
+**certspotter-script** is *any* program that is executed by **certspotter(8)**
+when it needs to notify you about an event, such as detecting a certificate for
+a domain on your watch list.
+
+Scripts are placed in the `$CERTSPOTTER_CONFIG_DIR/hooks.d` directory
+(`~/.certspotter/hooks.d` by default), or specified on the command line
+using the `-script` argument.
 
 # ENVIRONMENT
 

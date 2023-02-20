@@ -41,6 +41,12 @@ You can use Cert Spotter to detect:
     an error occurs.  You can specify this option more than once to email
     multiple addresses.  Your system must have a working sendmail(1) command.
 
+    Regardless of the `-email` option, certspotter also emails any address listed
+    in `$CERTSPOTTER_CONFIG_DIR/email_recipients` file
+    (`~/.certspotter/email_recipients` by default).  (One address per line,
+    blank lines are ignored.)  This file is read only at startup, so you
+    must restart certspotter if you change it.
+
 -healthcheck *INTERVAL*
 
 :   Perform a health check at the given interval (default: "24h") as described
@@ -63,6 +69,10 @@ You can use Cert Spotter to detect:
 
 :   Command to execute when a matching certificate is found or an error occurs. See
     certspotter-script(8) for information about the interface to scripts.
+
+    Regardless of the `-script` option, certspotter also executes any executable
+    file in the `$CERTSPOTTER_CONFIG_DIR/hooks.d` directory
+    (`~/.certspotter/hooks.d` by default).
 
 -start\_at\_end
 
@@ -103,14 +113,36 @@ You can use Cert Spotter to detect:
     certspotter reads the watch list only when starting up, so you must restart
     certspotter if you change it.
 
+# NOTIFICATIONS
+
+When certspotter detects a certificate matching your watchlist, or encounters
+an error that is preventing it from discovering certificates, it notifies you
+as follows:
+
+* Emails any address specified by the `-email` command line flag.
+
+* Emails any address listed in the `$CERTSPOTTER_CONFIG_DIR/email_recipients`
+  file (`~/.certspotter/email_recipients` by default).  (One address per line,
+  blank lines are ignored.)  This file is read only at startup, so you
+  must restart certspotter if you change it.
+
+* Executes the script specified by the `-script` command line flag.
+
+* Executes every executable file in the `$CERTSPOTTER_CONFIG_DIR/hooks.d`
+ directory (`~/.certspotter/hooks.d` by default).
+
+* Writes the notification to standard out if the `-stdout` flag was specified.
+
+Sending email requires a working sendmail(1) command.  For details about
+the script interface, see certspotter-script(8).
+
 # OPERATION
 
 certspotter continuously monitors all browser-recognized Certificate
 Transparency logs looking for certificates which are valid for any domain
 on your watch list. When certspotter detects a matching certificate, it
-emails you (if `-email` is specified), executes a script (if `-script`
-is specified), and/or writes a report to standard out (if `-stdout`
-is specified).
+emails you, executes a script, and/or writes a report to standard out,
+as described above.
 
 certspotter also saves a copy of matching certificates in
 `$CERTSPOTTER_STATE_DIR/certs` ("~/.certspotter/certs" by default)
@@ -156,9 +188,8 @@ following health checks:
    since the previous health check.
  * Ensure that certspotter is not falling behind monitoring any logs.
 
-If any health check fails, certspotter notifies you by email (if `-email`
-is specified), script (if `-script` is specified), and/or standard out
-(if `-stdout` is specified).
+If any health check fails, certspotter notifies you by email, script, and/or
+standard out, as described above.
 
 Health check failures should be rare, and you should take them seriously because it means
 certspotter might not detect all certificates.  It might also be an indication

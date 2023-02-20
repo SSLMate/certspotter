@@ -32,34 +32,27 @@ Cert Spotter requires Go version 1.19 or higher.
    go install software.sslmate.com/src/certspotter/cmd/certspotter@latest
    ```
 
-2. Create a watch list file containing the DNS names you want to monitor,
+2. Create a watch list file `$HOME/.certspotter/watchlist` containing the DNS names you want to monitor,
    one per line.  To monitor an entire domain tree (including the domain itself
    and all sub-domains) prefix the domain name with a dot (e.g. `.example.com`).
    To monitor a single DNS name only, do not prefix the name with a dot.
 
-3. Configure your system to run `certspotter` as a daemon.  You should specify
-   the following command line options:
+3. Place one or more email addresses in the `$HOME/.certspotter/email_recipients`
+   file (one per line), and/or place one or more executable scripts in the
+   `$HOME/.certspotter/hooks.d` directory.  certspotter will email the listed
+   addresses (requires your system to have a working sendmail command) and
+   execute the provided scripts when it detects a domain on your watch list.
 
-   * `-watchlist PATH` to specify the path to your watch list file.
-
-   * `-email ADDRESS` to specify an email address which certspotter will contact
-     when it detects a domain on your watch list.  (Your system must have a
-     working sendmail command.)
-
-   * (Optional) `-start_at_end` to tell certspotter to start monitoring logs at the end
-     instead of the beginning.  This saves significant bandwidth, but you won't be
-     notified about certificates which were logged before you started using certspotter.
-
-   For example:
-
-   ```
-   certspotter -watchlist /etc/certspotter.watchlist -email pki@certspotteruser.example -start_at_end
-   ```
+4. Configure your system to run `certspotter` as a daemon.  You may want to specify
+   the `-start_at_end` command line option to tell certspotter to start monitoring
+   logs at the end instead of the beginning.  This saves significant bandwidth, but
+   you won't be notified about certificates which were logged before you started
+   using certspotter.
 
 ## Documentation
 
 * Command line options and operational details: [certspotter(8) man page](man/certspotter.md)
-* The `-script` interface: [certspotter-script(8) man page](man/certspotter-script.md)
+* The script interface: [certspotter-script(8) man page](man/certspotter-script.md)
 * [Change Log](CHANGELOG.md)
 
 ## What certificates are detected by Cert Spotter?
