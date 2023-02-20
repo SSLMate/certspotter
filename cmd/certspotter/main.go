@@ -64,6 +64,10 @@ func certspotterVersion() string {
 	return "unknown"
 }
 
+func fileExists(filename string) bool {
+	_, err := os.Lstat(filename)
+	return err == nil
+}
 func homedir() string {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
@@ -83,6 +87,16 @@ func defaultConfigDir() string {
 		return envVar
 	} else {
 		return filepath.Join(homedir(), ".certspotter")
+	}
+}
+func defaultWatchListPath() string {
+	return filepath.Join(defaultConfigDir(), "watchlist")
+}
+func defaultWatchListPathIfExists() string {
+	if fileExists(defaultWatchListPath()) {
+		return defaultWatchListPath()
+	} else {
+		return ""
 	}
 }
 
@@ -136,12 +150,16 @@ func main() {
 	flag.BoolVar(&flags.stdout, "stdout", false, "Write matching certificates to stdout")
 	flag.BoolVar(&flags.verbose, "verbose", false, "Be verbose")
 	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
-	flag.StringVar(&flags.watchlist, "watchlist", filepath.Join(defaultConfigDir(), "watchlist"), "File containing domain names to watch")
+	flag.StringVar(&flags.watchlist, "watchlist", defaultWatchListPathIfExists(), "File containing domain names to watch")
 	flag.Parse()
 
 	if flags.version {
 		fmt.Fprintf(os.Stdout, "certspotter version %s\n", certspotterVersion())
 		os.Exit(0)
+	}
+	if flags.watchlist == "" {
+		fmt.Fprintf(os.Stderr, "%s: watch list not found: please create %s or specify alternative path using -watchlist\n", programName, defaultWatchListPath())
+		os.Exit(2)
 	}
 
 	if len(flags.email) == 0 && len(flags.script) == 0 && flags.stdout == false {
