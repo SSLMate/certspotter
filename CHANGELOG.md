@@ -1,6 +1,6 @@
 # Change Log
 
-## v0.16.0 (2023-02-TBD)
+## v0.16.0 (2023-02-21)
 - Write malformed certs and failed healthchecks to filesystem so scripts
   can access them.
 - Automatically execute scripts under `$CERTSPOTTER_CONFIG_DIR/hooks.d`
