@@ -41,7 +41,8 @@ Cert Spotter requires Go version 1.19 or higher.
    file (one per line), and/or place one or more executable scripts in the
    `$HOME/.certspotter/hooks.d` directory.  certspotter will email the listed
    addresses (requires your system to have a working sendmail command) and
-   execute the provided scripts when it detects a domain on your watch list.
+   execute the provided scripts when it detects a certificate for a domain on
+   your watch list.
 
 4. Configure your system to run `certspotter` as a daemon.  You may want to specify
    the `-start_at_end` command line option to tell certspotter to start monitoring
