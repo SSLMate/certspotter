@@ -1,5 +1,13 @@
 # Change Log
 
+## v0.16.0 (2023-02-TBD)
+- Write malformed certs and failed healthchecks to filesystem so scripts
+  can access them.
+- Automatically execute scripts under `$CERTSPOTTER_CONFIG_DIR/hooks.d`
+  if it exists.
+- Automatically email addresses listed in `$CERTSPOTTER_CONFIG_DIR/email_recipients`
+  if it exists.
+
 ## v0.15.1 (2023-02-09)
 - Fix some typos in help and error messages.
 - Allow version to be set via linker flag, to facilitate distro package building.
