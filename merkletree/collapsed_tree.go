@@ -85,7 +85,7 @@ func (tree *CollapsedTree) Size() uint64 {
 	return tree.size
 }
 
-func (tree *CollapsedTree) MarshalJSON() ([]byte, error) {
+func (tree CollapsedTree) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"nodes": tree.nodes,
 		"size":  tree.size,
