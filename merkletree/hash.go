@@ -28,11 +28,19 @@ func (h Hash) MarshalJSON() ([]byte, error) {
 	return json.Marshal(h[:])
 }
 
+func (h Hash) MarshalBinary() ([]byte, error) {
+	return h[:], nil
+}
+
 func (h *Hash) UnmarshalJSON(b []byte) error {
 	var hashBytes []byte
 	if err := json.Unmarshal(b, &hashBytes); err != nil {
 		return err
 	}
+	return h.UnmarshalBinary(hashBytes)
+}
+
+func (h *Hash) UnmarshalBinary(hashBytes []byte) error {
 	if len(hashBytes) != HashLen {
 		return fmt.Errorf("Merkle Tree hash has wrong length (should be %d bytes long, not %d)", HashLen, len(hashBytes))
 	}
