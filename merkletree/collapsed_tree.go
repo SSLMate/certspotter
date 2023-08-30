@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/bits"
+	"golang.org/x/exp/slices"
 )
 
 type CollapsedTree struct {
@@ -39,6 +40,10 @@ func CloneCollapsedTree(source *CollapsedTree) *CollapsedTree {
 	nodes := make([]Hash, len(source.nodes))
 	copy(nodes, source.nodes)
 	return &CollapsedTree{nodes: nodes, size: source.size}
+}
+
+func (tree CollapsedTree) Equal(other CollapsedTree) bool {
+	return tree.size == other.size && slices.Equal(tree.nodes, other.nodes)
 }
 
 func (tree *CollapsedTree) Add(hash Hash) {
