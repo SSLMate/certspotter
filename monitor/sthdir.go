@@ -10,13 +10,14 @@
 package monitor
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
+	"slices"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -44,7 +45,7 @@ func loadSTHsFromDir(dirPath string) ([]*ct.SignedTreeHead, error) {
 		}
 		sths = append(sths, sth)
 	}
-	slices.SortFunc(sths, func(a, b *ct.SignedTreeHead) bool { return a.TreeSize < b.TreeSize })
+	slices.SortFunc(sths, func(a, b *ct.SignedTreeHead) int { return cmp.Compare(a.TreeSize, b.TreeSize) })
 	return sths, nil
 }
 

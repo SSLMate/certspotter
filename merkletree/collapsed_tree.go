@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/bits"
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 type CollapsedTree struct {
