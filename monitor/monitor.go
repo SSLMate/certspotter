@@ -269,6 +269,7 @@ func reconstructTree(ctx context.Context, logClient *client.LogClient, sth *ct.S
 
 	var tree *merkletree.CollapsedTree
 	if sth.TreeSize > 1 {
+		// XXX: if leafHash is in the tree in more than one place, this might not return the proof that we need ... get-entry-and-proof avoids this problem but not all logs support it
 		auditPath, _, err := logClient.GetAuditProof(ctx, leafHash[:], sth.TreeSize)
 		if err != nil {
 			return nil, err
