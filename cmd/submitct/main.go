@@ -22,7 +22,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -146,7 +146,7 @@ func main() {
 	flag.Parse()
 	log.SetPrefix("submitct: ")
 
-	certsPem, err := ioutil.ReadAll(os.Stdin)
+	certsPem, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		log.Fatalf("Error reading stdin: %s", err)
 	}
