@@ -20,6 +20,7 @@ type Config struct {
 	WatchList           WatchList
 	Verbose             bool
 	SaveCerts           bool
+	SendmailPath        string
 	Script              string
 	ScriptDir           string
 	Email               []string

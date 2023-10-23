@@ -36,7 +36,7 @@ func notify(ctx context.Context, config *Config, notif notification) error {
 	}
 
 	if len(config.Email) > 0 {
-		if err := sendEmail(ctx, config.Email, notif); err != nil {
+		if err := sendEmail(ctx, config.SendmailPath, config.Email, notif); err != nil {
 			return err
 		}
 	}
@@ -62,7 +62,7 @@ func writeToStdout(notif notification) {
 	os.Stdout.WriteString(notif.Text() + "\n")
 }
 
-func sendEmail(ctx context.Context, to []string, notif notification) error {
+func sendEmail(ctx context.Context, sendmailPath string, to []string, notif notification) error {
 	stdin := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
@@ -77,7 +77,7 @@ func sendEmail(ctx context.Context, to []string, notif notification) error {
 	args := []string{"-i", "--"}
 	args = append(args, to...)
 
-	sendmail := exec.CommandContext(ctx, "/usr/sbin/sendmail", args...)
+	sendmail := exec.CommandContext(ctx, sendmailPath, args...)
 	sendmail.Stdin = stdin
 	sendmail.Stderr = stderr
 

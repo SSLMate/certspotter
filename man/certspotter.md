@@ -218,6 +218,10 @@ and non-zero when a serious error occurs.
 :   URL of proxy server for making HTTPS requests.  `http://`, `https://`, and
     `socks5://` URLs are supported.  By default, no proxy server is used.
 
+`SENDMAIL_PATH`
+
+:   Path to the sendmail binary. Defaults to `/usr/sbin/sendmail`.
+
 # SEE ALSO
 
 certspotter-script(8)
