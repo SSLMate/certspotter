@@ -81,8 +81,8 @@ For instance, if a DNS identifier contains a null byte, Cert Spotter
 interprets it as two identifiers: the complete identifier, and the
 identifier formed by truncating at the first null byte.  For example, a
 certificate for `example.org\0.example.com` will alert the owners of both
-`example.org` and `example.com`.  This defends against [null prefix attacks]
-(http://www.thoughtcrime.org/papers/null-prefix-attacks.pdf).
+`example.org` and `example.com`.  This defends against [null prefix attacks](
+http://www.thoughtcrime.org/papers/null-prefix-attacks.pdf).
 
 SSLMate continuously monitors CT logs to make sure every certificate's
 identifiers can be successfully parsed, and will release updates to
