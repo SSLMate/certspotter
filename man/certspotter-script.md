@@ -37,7 +37,8 @@ The following environment variables are set for all types of events:
 
 `SUMMARY`
 
-:   A short human-readable string describing the event.
+:   A short human-readable string describing the event.  This is the same string
+    used in the subject line of emails sent by certspotter.
 
 
 ## Discovered certificate information
