@@ -220,7 +220,7 @@ and non-zero when a serious error occurs.
 
 `SENDMAIL_PATH`
 
-:   Path to the sendmail binary. Defaults to `/usr/sbin/sendmail`.
+:   Path to the sendmail binary used for sending emails. Defaults to `/usr/sbin/sendmail`.
 
 # SEE ALSO
 
