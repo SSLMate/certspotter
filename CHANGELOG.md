@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.17.0 (2023-10-26)
+- Allow sendmail path to be configured with `$SENDMAIL_PATH`.
+- Minor improvements to documentation, efficiency.
+
 ## v0.16.0 (2023-02-21)
 - Write malformed certs and failed healthchecks to filesystem so scripts
   can access them.
