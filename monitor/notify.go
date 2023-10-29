@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 var stdoutMu sync.Mutex
@@ -73,6 +74,8 @@ func sendEmail(ctx context.Context, to []string, notif notification) error {
 
 	fmt.Fprintf(stdin, "To: %s\n", strings.Join(to, ", "))
 	fmt.Fprintf(stdin, "Subject: [certspotter] %s\n", notif.Summary())
+	fmt.Fprintf(stdin, "Date: %s\n", time.Now().Format(mailDateFormat))
+	fmt.Fprintf(stdin, "Message-ID: <%s>\n", generateMessageID())
 	fmt.Fprintf(stdin, "Mime-Version: 1.0\n")
 	fmt.Fprintf(stdin, "Content-Type: text/plain; charset=US-ASCII\n")
 	fmt.Fprintf(stdin, "X-Mailer: certspotter\n")
