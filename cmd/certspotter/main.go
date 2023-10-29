@@ -201,14 +201,9 @@ func main() {
 		Verbose:             flags.verbose,
 		Script:              flags.script,
 		ScriptDir:           defaultScriptDir(),
-		SendmailPath:        "/usr/sbin/sendmail",
 		Email:               flags.email,
 		Stdout:              flags.stdout,
 		HealthCheckInterval: flags.healthcheck,
-	}
-
-	if envVar := os.Getenv("SENDMAIL_PATH"); envVar != "" {
-		config.SendmailPath = envVar
 	}
 
 	emailFileExists := false

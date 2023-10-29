@@ -36,7 +36,7 @@ func notify(ctx context.Context, config *Config, notif notification) error {
 	}
 
 	if len(config.Email) > 0 {
-		if err := sendEmail(ctx, config.SendmailPath, config.Email, notif); err != nil {
+		if err := sendEmail(ctx, config.Email, notif); err != nil {
 			return err
 		}
 	}
@@ -62,9 +62,14 @@ func writeToStdout(notif notification) {
 	os.Stdout.WriteString(notif.Text() + "\n")
 }
 
-func sendEmail(ctx context.Context, sendmailPath string, to []string, notif notification) error {
+func sendEmail(ctx context.Context, to []string, notif notification) error {
 	stdin := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
+
+	sendmailPath := "/usr/sbin/sendmail"
+	if envVar := os.Getenv("SENDMAIL_PATH"); envVar != "" {
+		sendmailPath = envVar
+	}
 
 	fmt.Fprintf(stdin, "To: %s\n", strings.Join(to, ", "))
 	fmt.Fprintf(stdin, "Subject: [certspotter] %s\n", notif.Summary())
