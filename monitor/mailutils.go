@@ -12,6 +12,7 @@ package monitor
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"os"
 )
 
 const mailDateFormat = "Mon, 2 Jan 2006 15:04:05 -0700"
@@ -22,4 +23,12 @@ func generateMessageID() string {
 		panic(err)
 	}
 	return hex.EncodeToString(randomBytes[:]) + "@selfhosted.certspotter.org"
+}
+
+func sendmailPath() string {
+	if envVar := os.Getenv("SENDMAIL_PATH"); envVar != "" {
+		return envVar
+	} else {
+		return "/usr/sbin/sendmail"
+	}
 }

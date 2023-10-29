@@ -67,11 +67,6 @@ func sendEmail(ctx context.Context, to []string, notif notification) error {
 	stdin := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
-	sendmailPath := "/usr/sbin/sendmail"
-	if envVar := os.Getenv("SENDMAIL_PATH"); envVar != "" {
-		sendmailPath = envVar
-	}
-
 	fmt.Fprintf(stdin, "To: %s\n", strings.Join(to, ", "))
 	fmt.Fprintf(stdin, "Subject: [certspotter] %s\n", notif.Summary())
 	fmt.Fprintf(stdin, "Date: %s\n", time.Now().Format(mailDateFormat))
@@ -85,7 +80,7 @@ func sendEmail(ctx context.Context, to []string, notif notification) error {
 	args := []string{"-i", "--"}
 	args = append(args, to...)
 
-	sendmail := exec.CommandContext(ctx, sendmailPath, args...)
+	sendmail := exec.CommandContext(ctx, sendmailPath(), args...)
 	sendmail.Stdin = stdin
 	sendmail.Stderr = stderr
 
