@@ -16,7 +16,6 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	insecurerand "math/rand"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -152,8 +151,6 @@ func appendFunc(slice *[]string) func(string) error {
 }
 
 func main() {
-	insecurerand.Seed(time.Now().UnixNano()) // TODO: remove after upgrading to Go 1.20
-
 	loglist.UserAgent = fmt.Sprintf("certspotter/%s (%s; %s; %s)", certspotterVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
 
 	var flags struct {
