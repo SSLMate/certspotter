@@ -234,7 +234,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 
 func downloadEntries(ctx context.Context, logClient *client.LogClient, entriesChan chan<- client.GetEntriesItem, begin, end uint64) error {
 	for begin < end && ctx.Err() == nil {
-		size := begin - end
+		size := end - begin
 		if size > maxGetEntriesSize {
 			size = maxGetEntriesSize
 		}
