@@ -10,9 +10,19 @@
 package monitor
 
 import (
+	"context"
 	"log"
+
+	"software.sslmate.com/src/certspotter/loglist"
 )
 
-func recordError(err error) {
-	log.Print(err)
+func recordError(ctx context.Context, config *Config, ctlog *loglist.Log, errToRecord error) {
+	if err := config.State.NotifyError(ctx, ctlog, errToRecord); err != nil {
+		log.Printf("unable to notify about error: ", err)
+		if ctlog == nil {
+			log.Print(errToRecord)
+		} else {
+			log.Print(ctlog.URL, ": ", errToRecord)
+		}
+	}
 }

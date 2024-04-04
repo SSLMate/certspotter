@@ -60,4 +60,8 @@ type StateProvider interface {
 	// Called when a health check fails.  The log is nil if the
 	// feailure is not associated with a log.
 	NotifyHealthCheckFailure(context.Context, *loglist.Log, HealthCheckFailure) error
+
+	// Called when an error occurs.  The log is nil if the error is
+	// not associated with a log.  Note that most errors are transient.
+	NotifyError(context.Context, *loglist.Log, error) error
 }

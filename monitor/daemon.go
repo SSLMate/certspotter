@@ -144,7 +144,7 @@ func (daemon *daemon) run(ctx context.Context) error {
 			if err := daemon.loadLogList(ctx); err != nil {
 				daemon.logListError = err.Error()
 				daemon.logListErrorAt = time.Now()
-				recordError(fmt.Errorf("error reloading log list (will try again later): %w", err))
+				recordError(ctx, daemon.config, nil, fmt.Errorf("error reloading log list (will try again later): %w", err))
 			}
 			reloadLogListTicker.Reset(reloadLogListInterval())
 		case <-healthCheckTicker.C:

@@ -79,7 +79,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 	if isFatalLogError(err) {
 		return err
 	} else if err != nil {
-		recordError(fmt.Errorf("error fetching latest STH for %s: %w", ctlog.URL, err))
+		recordError(ctx, config, ctlog, fmt.Errorf("error fetching latest STH: %w", err))
 		return nil
 	}
 	latestSTH.LogID = ctlog.LogID
@@ -97,7 +97,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 			if isFatalLogError(err) {
 				return err
 			} else if err != nil {
-				recordError(fmt.Errorf("error reconstructing tree of size %d for %s: %w", latestSTH.TreeSize, ctlog.URL, err))
+				recordError(ctx, config, ctlog, fmt.Errorf("error reconstructing tree of size %d: %w", latestSTH.TreeSize, err))
 				return nil
 			}
 			state = &LogState{
@@ -180,7 +180,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 
 		for len(sths) > 0 && state.DownloadPosition.Size() == sths[0].TreeSize {
 			if merkletree.Hash(sths[0].SHA256RootHash) != rootHash {
-				recordError(fmt.Errorf("error verifying %s at tree size %d: the STH root hash (%x) does not match the entries returned by the log (%x)", ctlog.URL, sths[0].TreeSize, sths[0].SHA256RootHash, rootHash))
+				recordError(ctx, config, ctlog, fmt.Errorf("error verifying at tree size %d: the STH root hash (%x) does not match the entries returned by the log (%x)", sths[0].TreeSize, sths[0].SHA256RootHash, rootHash))
 
 				state.DownloadPosition = state.VerifiedPosition
 				if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil {
@@ -209,7 +209,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 	if isFatalLogError(downloadErr) {
 		return downloadErr
 	} else if downloadErr != nil {
-		recordError(fmt.Errorf("error downloading entries from %s: %w", ctlog.URL, downloadErr))
+		recordError(ctx, config, ctlog, fmt.Errorf("error downloading entries: %w", downloadErr))
 		return nil
 	}
 

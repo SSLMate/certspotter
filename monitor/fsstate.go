@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -224,6 +225,15 @@ func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *l
 		text:    text,
 	}); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *FilesystemState) NotifyError(ctx context.Context, ctlog *loglist.Log, err error) error {
+	if ctlog == nil {
+		log.Print(err)
+	} else {
+		log.Print(ctlog.URL, ":", err)
 	}
 	return nil
 }
