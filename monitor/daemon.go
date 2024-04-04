@@ -56,7 +56,7 @@ func (daemon *daemon) healthCheck(ctx context.Context) error {
 			LastError:     daemon.logListError,
 			LastErrorTime: daemon.logListErrorAt,
 		}
-		if err := daemon.config.State.NotifyHealthCheckFailure(ctx, info); err != nil {
+		if err := daemon.config.State.NotifyHealthCheckFailure(ctx, nil, info); err != nil {
 			return fmt.Errorf("error notifying about stale log list: %w", err)
 		}
 	}

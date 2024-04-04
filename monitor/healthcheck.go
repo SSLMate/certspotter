@@ -42,20 +42,20 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 
 	if len(sths) == 0 {
 		info := &StaleSTHInfo{
-			log:         ctlog,
+			Log:         ctlog,
 			LastSuccess: state.LastSuccess,
 			LatestSTH:   state.VerifiedSTH,
 		}
-		if err := config.State.NotifyHealthCheckFailure(ctx, info); err != nil {
+		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about stale STH: %w", err)
 		}
 	} else {
 		info := &BacklogInfo{
-			log:       ctlog,
+			Log:       ctlog,
 			LatestSTH: sths[len(sths)-1],
 			Position:  state.DownloadPosition.Size(),
 		}
-		if err := config.State.NotifyHealthCheckFailure(ctx, info); err != nil {
+		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about backlog: %w", err)
 		}
 	}
@@ -66,17 +66,16 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 type HealthCheckFailure interface {
 	Summary() string
 	Text() string
-	Log() *loglist.Log // returns nil if failure is not associated with a log
 }
 
 type StaleSTHInfo struct {
-	log         *loglist.Log
+	Log         *loglist.Log
 	LastSuccess time.Time
 	LatestSTH   *ct.SignedTreeHead // may be nil
 }
 
 type BacklogInfo struct {
-	log       *loglist.Log
+	Log       *loglist.Log
 	LatestSTH *ct.SignedTreeHead
 	Position  uint64
 }
@@ -92,21 +91,11 @@ func (e *BacklogInfo) Backlog() uint64 {
 	return e.LatestSTH.TreeSize - e.Position
 }
 
-func (e *StaleSTHInfo) Log() *loglist.Log {
-	return e.log
-}
-func (e *BacklogInfo) Log() *loglist.Log {
-	return e.log
-}
-func (e *StaleLogListInfo) Log() *loglist.Log {
-	return nil
-}
-
 func (e *StaleSTHInfo) Summary() string {
-	return fmt.Sprintf("Unable to contact %s since %s", e.log.URL, e.LastSuccess)
+	return fmt.Sprintf("Unable to contact %s since %s", e.Log.URL, e.LastSuccess)
 }
 func (e *BacklogInfo) Summary() string {
-	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.log.URL)
+	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.Log.URL)
 }
 func (e *StaleLogListInfo) Summary() string {
 	return fmt.Sprintf("Unable to retrieve log list since %s", e.LastSuccess)
@@ -114,7 +103,7 @@ func (e *StaleLogListInfo) Summary() string {
 
 func (e *StaleSTHInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.log.URL, e.LastSuccess)
+	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.URL, e.LastSuccess)
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
@@ -127,7 +116,7 @@ func (e *StaleSTHInfo) Text() string {
 }
 func (e *BacklogInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.log.URL)
+	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.Log.URL)
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For more details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")

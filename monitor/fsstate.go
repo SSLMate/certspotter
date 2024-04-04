@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/loglist"
 )
 
 type FilesystemState struct {
@@ -198,16 +199,16 @@ func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEn
 	return nil
 }
 
-func (s *FilesystemState) healthCheckTextPath(info HealthCheckFailure) string {
-	if ctlog := info.Log(); ctlog == nil {
-		return filepath.Join(s.StateDir, "healthchecks", healthCheckFilename())
+func (s *FilesystemState) healthCheckDir(ctlog *loglist.Log) string {
+	if ctlog == nil {
+		return filepath.Join(s.StateDir, "healthchecks")
 	} else {
-		return filepath.Join(s.logStateDir(ctlog.LogID), "healthchecks", healthCheckFilename())
+		return filepath.Join(s.logStateDir(ctlog.LogID), "healthchecks")
 	}
 }
 
-func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, info HealthCheckFailure) error {
-	textPath := s.healthCheckTextPath(info)
+func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *loglist.Log, info HealthCheckFailure) error {
+	textPath := filepath.Join(s.healthCheckDir(ctlog), healthCheckFilename())
 	environ := []string{
 		"EVENT=error",
 		"SUMMARY=" + info.Summary(),

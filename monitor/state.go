@@ -12,6 +12,7 @@ package monitor
 import (
 	"context"
 	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/merkletree"
 	"time"
 )
@@ -56,6 +57,7 @@ type StateProvider interface {
 	// Called when certspotter fails to parse a log entry.
 	NotifyMalformedEntry(ctx context.Context, entry *LogEntry, parseError string) error
 
-	// Called when a health check fails.
-	NotifyHealthCheckFailure(context.Context, HealthCheckFailure) error
+	// Called when a health check fails.  The log is nil if the
+	// feailure is not associated with a log.
+	NotifyHealthCheckFailure(context.Context, *loglist.Log, HealthCheckFailure) error
 }
