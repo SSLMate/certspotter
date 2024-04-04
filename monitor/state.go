@@ -55,7 +55,7 @@ type StateProvider interface {
 	NotifyCert(context.Context, *DiscoveredCert) error
 
 	// Called when certspotter fails to parse a log entry.
-	NotifyMalformedEntry(ctx context.Context, entry *LogEntry, parseError string) error
+	NotifyMalformedEntry(context.Context, *LogEntry, error) error
 
 	// Called when a health check fails.  The log is nil if the
 	// feailure is not associated with a log.

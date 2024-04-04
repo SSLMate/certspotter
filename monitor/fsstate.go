@@ -146,7 +146,7 @@ func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) 
 	return nil
 }
 
-func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEntry, parseError string) error {
+func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEntry, parseError error) error {
 	var (
 		dirPath   = filepath.Join(s.logStateDir(entry.Log.LogID), "malformed_entries")
 		entryPath = filepath.Join(dirPath, fmt.Sprintf("%d.json", entry.Index))
@@ -168,7 +168,7 @@ func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEn
 	fmt.Fprintf(text, "Unable to determine if log entry matches your watchlist. Please file a bug report at https://github.com/SSLMate/certspotter/issues/new with the following details:\n")
 	writeField("Log Entry", fmt.Sprintf("%d @ %s", entry.Index, entry.Log.URL))
 	writeField("Leaf Hash", entry.LeafHash.Base64String())
-	writeField("Error", parseError)
+	writeField("Error", parseError.Error())
 
 	if err := writeJSONFile(entryPath, entryJSON, 0666); err != nil {
 		return fmt.Errorf("error saving JSON file: %w", err)
@@ -183,7 +183,7 @@ func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEn
 		"LOG_URI=" + entry.Log.URL,
 		"ENTRY_INDEX=" + fmt.Sprint(entry.Index),
 		"LEAF_HASH=" + entry.LeafHash.Base64String(),
-		"PARSE_ERROR=" + parseError,
+		"PARSE_ERROR=" + parseError.Error(),
 		"ENTRY_FILENAME=" + entryPath,
 		"TEXT_FILENAME=" + textPath,
 		"CERT_PARSEABLE=no", // backwards compat with pre-0.15.0; not documented

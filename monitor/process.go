@@ -111,7 +111,7 @@ func processCertificate(ctx context.Context, config *Config, entry *LogEntry, ce
 }
 
 func processMalformedLogEntry(ctx context.Context, config *Config, entry *LogEntry, parseError error) error {
-	if err := config.State.NotifyMalformedEntry(ctx, entry, parseError.Error()); err != nil {
+	if err := config.State.NotifyMalformedEntry(ctx, entry, parseError); err != nil {
 		return fmt.Errorf("error notifying about malformed log entry %d in %s (%q): %w", entry.Index, entry.Log.URL, parseError, err)
 	}
 	return nil
