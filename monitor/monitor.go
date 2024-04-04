@@ -14,10 +14,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -73,17 +70,8 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var (
-		stateDirPath        = filepath.Join(config.StateDir, "logs", ctlog.LogID.Base64URLString())
-		stateFilePath       = filepath.Join(stateDirPath, "state.json")
-		sthsDirPath         = filepath.Join(stateDirPath, "unverified_sths")
-		malformedDirPath    = filepath.Join(stateDirPath, "malformed_entries")
-		healthchecksDirPath = filepath.Join(stateDirPath, "healthchecks")
-	)
-	for _, dirPath := range []string{stateDirPath, sthsDirPath, malformedDirPath, healthchecksDirPath} {
-		if err := os.Mkdir(dirPath, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
-			return fmt.Errorf("error creating state directory: %w", err)
-		}
+	if err := config.State.PrepareLog(ctx, ctlog.LogID); err != nil {
+		return fmt.Errorf("error preparing state: %w", err)
 	}
 
 	startTime := time.Now()
@@ -95,12 +83,15 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 		return nil
 	}
 	latestSTH.LogID = ctlog.LogID
-	if err := storeSTHInDir(sthsDirPath, latestSTH); err != nil {
+	if err := config.State.StoreSTH(ctx, ctlog.LogID, latestSTH); err != nil {
 		return fmt.Errorf("error storing latest STH: %w", err)
 	}
 
-	state, err := loadStateFile(stateFilePath)
-	if errors.Is(err, fs.ErrNotExist) {
+	state, err := config.State.LoadLogState(ctx, ctlog.LogID)
+	if err != nil {
+		return fmt.Errorf("error loading log state: %w", err)
+	}
+	if state == nil {
 		if config.StartAtEnd {
 			tree, err := reconstructTree(ctx, logClient, latestSTH)
 			if isFatalLogError(err) {
@@ -109,14 +100,14 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 				recordError(fmt.Errorf("error reconstructing tree of size %d for %s: %w", latestSTH.TreeSize, ctlog.URL, err))
 				return nil
 			}
-			state = &stateFile{
+			state = &LogState{
 				DownloadPosition: tree,
 				VerifiedPosition: tree,
 				VerifiedSTH:      latestSTH,
 				LastSuccess:      startTime.UTC(),
 			}
 		} else {
-			state = &stateFile{
+			state = &LogState{
 				DownloadPosition: merkletree.EmptyCollapsedTree(),
 				VerifiedPosition: merkletree.EmptyCollapsedTree(),
 				VerifiedSTH:      nil,
@@ -126,21 +117,19 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 		if config.Verbose {
 			log.Printf("brand new log %s (starting from %d)", ctlog.URL, state.DownloadPosition.Size())
 		}
-		if err := state.store(stateFilePath); err != nil {
-			return fmt.Errorf("error storing state file: %w", err)
+		if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil {
+			return fmt.Errorf("error storing log state: %w", err)
 		}
-	} else if err != nil {
-		return fmt.Errorf("error loading state file: %w", err)
 	}
 
-	sths, err := loadSTHsFromDir(sthsDirPath)
+	sths, err := config.State.LoadSTHs(ctx, ctlog.LogID)
 	if err != nil {
-		return fmt.Errorf("error loading STHs directory: %w", err)
+		return fmt.Errorf("error loading STHs: %w", err)
 	}
 
 	for len(sths) > 0 && sths[0].TreeSize <= state.DownloadPosition.Size() {
 		// TODO-4: audit sths[0] against state.VerifiedSTH
-		if err := removeSTHFromDir(sthsDirPath, sths[0]); err != nil {
+		if err := config.State.RemoveSTH(ctx, ctlog.LogID, sths[0]); err != nil {
 			return fmt.Errorf("error removing STH: %w", err)
 		}
 		sths = sths[1:]
@@ -150,8 +139,8 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 		if config.Verbose {
 			log.Printf("saving state in defer for %s", ctlog.URL)
 		}
-		if err := state.store(stateFilePath); err != nil && returnedErr == nil {
-			returnedErr = fmt.Errorf("error storing state file: %w", err)
+		if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil && returnedErr == nil {
+			returnedErr = fmt.Errorf("error storing log state: %w", err)
 		}
 	}()
 
@@ -174,7 +163,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 		downloadErr = downloadEntries(ctx, logClient, entries, downloadBegin, downloadEnd)
 	}()
 	for rawEntry := range entries {
-		entry := &logEntry{
+		entry := &LogEntry{
 			Log:       ctlog,
 			Index:     state.DownloadPosition.Size(),
 			LeafInput: rawEntry.LeafInput,
@@ -194,8 +183,8 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 				recordError(fmt.Errorf("error verifying %s at tree size %d: the STH root hash (%x) does not match the entries returned by the log (%x)", ctlog.URL, sths[0].TreeSize, sths[0].SHA256RootHash, rootHash))
 
 				state.DownloadPosition = state.VerifiedPosition
-				if err := state.store(stateFilePath); err != nil {
-					return fmt.Errorf("error storing state file: %w", err)
+				if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil {
+					return fmt.Errorf("error storing log state: %w", err)
 				}
 				return nil
 			}
@@ -203,7 +192,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 			state.VerifiedPosition = state.DownloadPosition
 			state.VerifiedSTH = sths[0]
 			shouldSaveState = true
-			if err := removeSTHFromDir(sthsDirPath, sths[0]); err != nil {
+			if err := config.State.RemoveSTH(ctx, ctlog.LogID, sths[0]); err != nil {
 				return fmt.Errorf("error removing verified STH: %w", err)
 			}
 
@@ -211,7 +200,7 @@ func monitorLog(ctx context.Context, config *Config, ctlog *loglist.Log, logClie
 		}
 
 		if shouldSaveState {
-			if err := state.store(stateFilePath); err != nil {
+			if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil {
 				return fmt.Errorf("error storing state file: %w", err)
 			}
 		}

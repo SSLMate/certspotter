@@ -13,19 +13,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"software.sslmate.com/src/certspotter"
 	"software.sslmate.com/src/certspotter/ct"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/merkletree"
 )
 
-type logEntry struct {
+type LogEntry struct {
 	Log       *loglist.Log
 	Index     uint64
 	LeafInput []byte
@@ -33,7 +28,7 @@ type logEntry struct {
 	LeafHash  merkletree.Hash
 }
 
-func processLogEntry(ctx context.Context, config *Config, entry *logEntry) error {
+func processLogEntry(ctx context.Context, config *Config, entry *LogEntry) error {
 	leaf, err := ct.ReadMerkleTreeLeaf(bytes.NewReader(entry.LeafInput))
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing Merkle Tree Leaf: %w", err))
@@ -48,7 +43,7 @@ func processLogEntry(ctx context.Context, config *Config, entry *logEntry) error
 	}
 }
 
-func processX509LogEntry(ctx context.Context, config *Config, entry *logEntry, cert ct.ASN1Cert) error {
+func processX509LogEntry(ctx context.Context, config *Config, entry *LogEntry, cert ct.ASN1Cert) error {
 	certInfo, err := certspotter.MakeCertInfoFromRawCert(cert)
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing X.509 certificate: %w", err))
@@ -69,7 +64,7 @@ func processX509LogEntry(ctx context.Context, config *Config, entry *logEntry, c
 	return processCertificate(ctx, config, entry, certInfo, chain)
 }
 
-func processPrecertLogEntry(ctx context.Context, config *Config, entry *logEntry, precert ct.PreCert) error {
+func processPrecertLogEntry(ctx context.Context, config *Config, entry *LogEntry, precert ct.PreCert) error {
 	certInfo, err := certspotter.MakeCertInfoFromRawTBS(precert.TBSCertificate)
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing precert TBSCertificate: %w", err))
@@ -87,7 +82,7 @@ func processPrecertLogEntry(ctx context.Context, config *Config, entry *logEntry
 	return processCertificate(ctx, config, entry, certInfo, chain)
 }
 
-func processCertificate(ctx context.Context, config *Config, entry *logEntry, certInfo *certspotter.CertInfo, chain []ct.ASN1Cert) error {
+func processCertificate(ctx context.Context, config *Config, entry *LogEntry, certInfo *certspotter.CertInfo, chain []ct.ASN1Cert) error {
 	identifiers, err := certInfo.ParseIdentifiers()
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, err)
@@ -97,7 +92,7 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 		return nil
 	}
 
-	cert := &discoveredCert{
+	cert := &DiscoveredCert{
 		WatchItem:    watchItem,
 		LogEntry:     entry,
 		Info:         certInfo,
@@ -108,68 +103,15 @@ func processCertificate(ctx context.Context, config *Config, entry *logEntry, ce
 		Identifiers:  identifiers,
 	}
 
-	var notifiedPath string
-	if config.SaveCerts {
-		hexFingerprint := hex.EncodeToString(cert.SHA256[:])
-		prefixPath := filepath.Join(config.StateDir, "certs", hexFingerprint[0:2])
-		var (
-			notifiedFilename      = "." + hexFingerprint + ".notified"
-			certFilename          = hexFingerprint + ".pem"
-			jsonFilename          = hexFingerprint + ".v1.json"
-			textFilename          = hexFingerprint + ".txt"
-			legacyCertFilename    = hexFingerprint + ".cert.pem"
-			legacyPrecertFilename = hexFingerprint + ".precert.pem"
-		)
-
-		for _, filename := range []string{notifiedFilename, legacyCertFilename, legacyPrecertFilename} {
-			if fileExists(filepath.Join(prefixPath, filename)) {
-				return nil
-			}
-		}
-
-		if err := os.Mkdir(prefixPath, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
-			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.SHA256, err)
-		}
-
-		notifiedPath = filepath.Join(prefixPath, notifiedFilename)
-		cert.CertPath = filepath.Join(prefixPath, certFilename)
-		cert.JSONPath = filepath.Join(prefixPath, jsonFilename)
-		cert.TextPath = filepath.Join(prefixPath, textFilename)
-
-		if err := cert.save(); err != nil {
-			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
-		}
-	} else {
-		// TODO-4: save cert to temporary files, and defer their unlinking
-	}
-
-	if err := notify(ctx, config, cert); err != nil {
-		return fmt.Errorf("error notifying about discovered certificate for %s (%x): %w", cert.WatchItem, cert.SHA256, err)
-	}
-
-	if notifiedPath != "" {
-		if err := os.WriteFile(notifiedPath, nil, 0666); err != nil {
-			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
-		}
+	if err := config.State.NotifyCert(ctx, cert); err != nil {
+		return fmt.Errorf("error notifying about certificate %x: %w", cert.SHA256, err)
 	}
 
 	return nil
 }
 
-func processMalformedLogEntry(ctx context.Context, config *Config, entry *logEntry, parseError error) error {
-	dirPath := filepath.Join(config.StateDir, "logs", entry.Log.LogID.Base64URLString(), "malformed_entries")
-	malformed := &malformedLogEntry{
-		Entry:     entry,
-		Error:     parseError.Error(),
-		EntryPath: filepath.Join(dirPath, fmt.Sprintf("%d.json", entry.Index)),
-		TextPath:  filepath.Join(dirPath, fmt.Sprintf("%d.txt", entry.Index)),
-	}
-
-	if err := malformed.save(); err != nil {
-		return fmt.Errorf("error saving malformed log entry %d in %s (%q): %w", entry.Index, entry.Log.URL, parseError, err)
-	}
-
-	if err := notify(ctx, config, malformed); err != nil {
+func processMalformedLogEntry(ctx context.Context, config *Config, entry *LogEntry, parseError error) error {
+	if err := config.State.NotifyMalformedEntry(ctx, entry, parseError.Error()); err != nil {
 		return fmt.Errorf("error notifying about malformed log entry %d in %s (%q): %w", entry.Index, entry.Log.URL, parseError, err)
 	}
 	return nil

@@ -11,10 +11,7 @@ package monitor
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,52 +24,38 @@ func healthCheckFilename() string {
 }
 
 func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) error {
-	var (
-		stateDirPath  = filepath.Join(config.StateDir, "logs", ctlog.LogID.Base64URLString())
-		stateFilePath = filepath.Join(stateDirPath, "state.json")
-		sthsDirPath   = filepath.Join(stateDirPath, "unverified_sths")
-		textPath      = filepath.Join(stateDirPath, "healthchecks", healthCheckFilename())
-	)
-	state, err := loadStateFile(stateFilePath)
-	if errors.Is(err, fs.ErrNotExist) {
+	state, err := config.State.LoadLogState(ctx, ctlog.LogID)
+	if err != nil {
+		return fmt.Errorf("error loading log state: %w", err)
+	} else if state == nil {
 		return nil
-	} else if err != nil {
-		return fmt.Errorf("error loading state file: %w", err)
 	}
 
 	if time.Since(state.LastSuccess) < config.HealthCheckInterval {
 		return nil
 	}
 
-	sths, err := loadSTHsFromDir(sthsDirPath)
+	sths, err := config.State.LoadSTHs(ctx, ctlog.LogID)
 	if err != nil {
-		return fmt.Errorf("error loading STHs directory: %w", err)
+		return fmt.Errorf("error loading STHs: %w", err)
 	}
 
 	if len(sths) == 0 {
-		event := &staleSTHEvent{
-			Log:         ctlog,
+		info := &StaleSTHInfo{
+			log:         ctlog,
 			LastSuccess: state.LastSuccess,
 			LatestSTH:   state.VerifiedSTH,
-			TextPath:    textPath,
 		}
-		if err := event.save(); err != nil {
-			return fmt.Errorf("error saving stale STH event: %w", err)
-		}
-		if err := notify(ctx, config, event); err != nil {
+		if err := config.State.NotifyHealthCheckFailure(ctx, info); err != nil {
 			return fmt.Errorf("error notifying about stale STH: %w", err)
 		}
 	} else {
-		event := &backlogEvent{
-			Log:       ctlog,
+		info := &BacklogInfo{
+			log:       ctlog,
 			LatestSTH: sths[len(sths)-1],
 			Position:  state.DownloadPosition.Size(),
-			TextPath:  textPath,
 		}
-		if err := event.save(); err != nil {
-			return fmt.Errorf("error saving backlog event: %w", err)
-		}
-		if err := notify(ctx, config, event); err != nil {
+		if err := config.State.NotifyHealthCheckFailure(ctx, info); err != nil {
 			return fmt.Errorf("error notifying about backlog: %w", err)
 		}
 	}
@@ -80,65 +63,58 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 	return nil
 }
 
-type staleSTHEvent struct {
-	Log         *loglist.Log
+type HealthCheckFailure interface {
+	Summary() string
+	Text() string
+	Log() *loglist.Log // returns nil if failure is not associated with a log
+}
+
+type StaleSTHInfo struct {
+	log         *loglist.Log
 	LastSuccess time.Time
 	LatestSTH   *ct.SignedTreeHead // may be nil
-	TextPath    string
 }
-type backlogEvent struct {
-	Log       *loglist.Log
+
+type BacklogInfo struct {
+	log       *loglist.Log
 	LatestSTH *ct.SignedTreeHead
 	Position  uint64
-	TextPath  string
 }
-type staleLogListEvent struct {
+
+type StaleLogListInfo struct {
 	Source        string
 	LastSuccess   time.Time
 	LastError     string
 	LastErrorTime time.Time
-	TextPath      string
 }
 
-func (e *backlogEvent) Backlog() uint64 {
+func (e *BacklogInfo) Backlog() uint64 {
 	return e.LatestSTH.TreeSize - e.Position
 }
 
-func (e *staleSTHEvent) Environ() []string {
-	return []string{
-		"EVENT=error",
-		"SUMMARY=" + e.Summary(),
-		"TEXT_FILENAME=" + e.TextPath,
-	}
+func (e *StaleSTHInfo) Log() *loglist.Log {
+	return e.log
 }
-func (e *backlogEvent) Environ() []string {
-	return []string{
-		"EVENT=error",
-		"SUMMARY=" + e.Summary(),
-		"TEXT_FILENAME=" + e.TextPath,
-	}
+func (e *BacklogInfo) Log() *loglist.Log {
+	return e.log
 }
-func (e *staleLogListEvent) Environ() []string {
-	return []string{
-		"EVENT=error",
-		"SUMMARY=" + e.Summary(),
-		"TEXT_FILENAME=" + e.TextPath,
-	}
+func (e *StaleLogListInfo) Log() *loglist.Log {
+	return nil
 }
 
-func (e *staleSTHEvent) Summary() string {
-	return fmt.Sprintf("Unable to contact %s since %s", e.Log.URL, e.LastSuccess)
+func (e *StaleSTHInfo) Summary() string {
+	return fmt.Sprintf("Unable to contact %s since %s", e.log.URL, e.LastSuccess)
 }
-func (e *backlogEvent) Summary() string {
-	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.Log.URL)
+func (e *BacklogInfo) Summary() string {
+	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.log.URL)
 }
-func (e *staleLogListEvent) Summary() string {
+func (e *StaleLogListInfo) Summary() string {
 	return fmt.Sprintf("Unable to retrieve log list since %s", e.LastSuccess)
 }
 
-func (e *staleSTHEvent) Text() string {
+func (e *StaleSTHInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.URL, e.LastSuccess)
+	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.log.URL, e.LastSuccess)
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
@@ -149,9 +125,9 @@ func (e *staleSTHEvent) Text() string {
 	}
 	return text.String()
 }
-func (e *backlogEvent) Text() string {
+func (e *BacklogInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.Log.URL)
+	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.log.URL)
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For more details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
@@ -160,7 +136,7 @@ func (e *backlogEvent) Text() string {
 	fmt.Fprintf(text, "         Backlog = %d\n", e.Backlog())
 	return text.String()
 }
-func (e *staleLogListEvent) Text() string {
+func (e *StaleLogListInfo) Text() string {
 	text := new(strings.Builder)
 	fmt.Fprintf(text, "certspotter has been unable to retrieve the log list from %s since %s.\n", e.Source, e.LastSuccess)
 	fmt.Fprintf(text, "\n")
@@ -168,16 +144,6 @@ func (e *staleLogListEvent) Text() string {
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "Consequentially, certspotter may not be monitoring all logs, and might fail to detect certificates.\n")
 	return text.String()
-}
-
-func (e *staleSTHEvent) save() error {
-	return writeTextFile(e.TextPath, e.Text(), 0666)
-}
-func (e *backlogEvent) save() error {
-	return writeTextFile(e.TextPath, e.Text(), 0666)
-}
-func (e *staleLogListEvent) save() error {
-	return writeTextFile(e.TextPath, e.Text(), 0666)
 }
 
 // TODO-3: make the errors more actionable

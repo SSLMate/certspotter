@@ -16,7 +16,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"log"
 	insecurerand "math/rand"
-	"path/filepath"
 	"software.sslmate.com/src/certspotter/loglist"
 	"time"
 )
@@ -51,18 +50,13 @@ type daemon struct {
 
 func (daemon *daemon) healthCheck(ctx context.Context) error {
 	if time.Since(daemon.logsLoadedAt) >= daemon.config.HealthCheckInterval {
-		textPath := filepath.Join(daemon.config.StateDir, "healthchecks", healthCheckFilename())
-		event := &staleLogListEvent{
+		info := &StaleLogListInfo{
 			Source:        daemon.config.LogListSource,
 			LastSuccess:   daemon.logsLoadedAt,
 			LastError:     daemon.logListError,
 			LastErrorTime: daemon.logListErrorAt,
-			TextPath:      textPath,
 		}
-		if err := event.save(); err != nil {
-			return fmt.Errorf("error saving stale log list event: %w", err)
-		}
-		if err := notify(ctx, daemon.config, event); err != nil {
+		if err := daemon.config.State.NotifyHealthCheckFailure(ctx, info); err != nil {
 			return fmt.Errorf("error notifying about stale log list: %w", err)
 		}
 	}
@@ -129,8 +123,8 @@ func (daemon *daemon) loadLogList(ctx context.Context) error {
 }
 
 func (daemon *daemon) run(ctx context.Context) error {
-	if err := prepareStateDir(daemon.config.StateDir); err != nil {
-		return fmt.Errorf("error preparing state directory: %w", err)
+	if err := daemon.config.State.Prepare(ctx); err != nil {
+		return fmt.Errorf("error preparing state: %w", err)
 	}
 
 	if err := daemon.loadLogList(ctx); err != nil {

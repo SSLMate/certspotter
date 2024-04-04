@@ -15,14 +15,9 @@ import (
 
 type Config struct {
 	LogListSource       string
-	StateDir            string
+	State               StateProvider
 	StartAtEnd          bool
 	WatchList           WatchList
 	Verbose             bool
-	SaveCerts           bool
-	Script              string
-	ScriptDir           string
-	Email               []string
-	Stdout              bool
 	HealthCheckInterval time.Duration
 }

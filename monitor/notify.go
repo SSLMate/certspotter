@@ -25,31 +25,31 @@ import (
 
 var stdoutMu sync.Mutex
 
-type notification interface {
-	Environ() []string
-	Summary() string
-	Text() string
+type notification struct {
+	environ []string
+	summary string
+	text    string
 }
 
-func notify(ctx context.Context, config *Config, notif notification) error {
-	if config.Stdout {
+func (s *FilesystemState) notify(ctx context.Context, notif *notification) error {
+	if s.Stdout {
 		writeToStdout(notif)
 	}
 
-	if len(config.Email) > 0 {
-		if err := sendEmail(ctx, config.Email, notif); err != nil {
+	if len(s.Email) > 0 {
+		if err := sendEmail(ctx, s.Email, notif); err != nil {
 			return err
 		}
 	}
 
-	if config.Script != "" {
-		if err := execScript(ctx, config.Script, notif); err != nil {
+	if s.Script != "" {
+		if err := execScript(ctx, s.Script, notif); err != nil {
 			return err
 		}
 	}
 
-	if config.ScriptDir != "" {
-		if err := execScriptDir(ctx, config.ScriptDir, notif); err != nil {
+	if s.ScriptDir != "" {
+		if err := execScriptDir(ctx, s.ScriptDir, notif); err != nil {
 			return err
 		}
 	}
@@ -57,25 +57,25 @@ func notify(ctx context.Context, config *Config, notif notification) error {
 	return nil
 }
 
-func writeToStdout(notif notification) {
+func writeToStdout(notif *notification) {
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
-	os.Stdout.WriteString(notif.Text() + "\n")
+	os.Stdout.WriteString(notif.text + "\n")
 }
 
-func sendEmail(ctx context.Context, to []string, notif notification) error {
+func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	stdin := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
 	fmt.Fprintf(stdin, "To: %s\n", strings.Join(to, ", "))
-	fmt.Fprintf(stdin, "Subject: [certspotter] %s\n", notif.Summary())
+	fmt.Fprintf(stdin, "Subject: [certspotter] %s\n", notif.summary)
 	fmt.Fprintf(stdin, "Date: %s\n", time.Now().Format(mailDateFormat))
 	fmt.Fprintf(stdin, "Message-ID: <%s>\n", generateMessageID())
 	fmt.Fprintf(stdin, "Mime-Version: 1.0\n")
 	fmt.Fprintf(stdin, "Content-Type: text/plain; charset=US-ASCII\n")
 	fmt.Fprintf(stdin, "X-Mailer: certspotter\n")
 	fmt.Fprintf(stdin, "\n")
-	fmt.Fprint(stdin, notif.Text())
+	fmt.Fprint(stdin, notif.text)
 
 	args := []string{"-i", "--"}
 	args = append(args, to...)
@@ -95,12 +95,12 @@ func sendEmail(ctx context.Context, to []string, notif notification) error {
 	}
 }
 
-func execScript(ctx context.Context, scriptName string, notif notification) error {
+func execScript(ctx context.Context, scriptName string, notif *notification) error {
 	stderr := new(bytes.Buffer)
 
 	cmd := exec.CommandContext(ctx, scriptName)
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, notif.Environ()...)
+	cmd.Env = append(cmd.Env, notif.environ...)
 	cmd.Stderr = stderr
 
 	if err := cmd.Run(); err == nil {
@@ -116,7 +116,7 @@ func execScript(ctx context.Context, scriptName string, notif notification) erro
 	}
 }
 
-func execScriptDir(ctx context.Context, dirPath string, notif notification) error {
+func execScriptDir(ctx context.Context, dirPath string, notif *notification) error {
 	dirents, err := os.ReadDir(dirPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil

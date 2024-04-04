@@ -76,13 +76,13 @@ func migrateLogStateDirV1(dir string) error {
 		return fmt.Errorf("error unmarshaling %s: %w", treePath, err)
 	}
 
-	stateFile := stateFile{
+	stateFile := LogState{
 		DownloadPosition: &tree,
 		VerifiedPosition: &tree,
 		VerifiedSTH:      &sth,
 		LastSuccess:      time.Now().UTC(),
 	}
-	if stateFile.store(filepath.Join(dir, "state.json")); err != nil {
+	if err := writeJSONFile(filepath.Join(dir, "state.json"), stateFile, 0666); err != nil {
 		return err
 	}
 

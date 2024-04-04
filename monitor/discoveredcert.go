@@ -21,21 +21,24 @@ import (
 	"software.sslmate.com/src/certspotter/ct"
 )
 
-type discoveredCert struct {
+type DiscoveredCert struct {
 	WatchItem    WatchItem
-	LogEntry     *logEntry
+	LogEntry     *LogEntry
 	Info         *certspotter.CertInfo
 	Chain        []ct.ASN1Cert // first entry is the leaf certificate or precertificate
 	TBSSHA256    [32]byte      // computed over Info.TBS.Raw
 	SHA256       [32]byte      // computed over Chain[0]
 	PubkeySHA256 [32]byte      // computed over Info.TBS.PublicKey.FullBytes
 	Identifiers  *certspotter.Identifiers
-	CertPath     string // empty if not saved on the filesystem
-	JSONPath     string // empty if not saved on the filesystem
-	TextPath     string // empty if not saved on the filesystem
 }
 
-func (cert *discoveredCert) pemChain() []byte {
+type certPaths struct {
+	certPath string
+	jsonPath string
+	textPath string
+}
+
+func (cert *DiscoveredCert) pemChain() []byte {
 	var buffer bytes.Buffer
 	for _, certBytes := range cert.Chain {
 		if err := pem.Encode(&buffer, &pem.Block{
@@ -48,7 +51,7 @@ func (cert *discoveredCert) pemChain() []byte {
 	return buffer.Bytes()
 }
 
-func (cert *discoveredCert) json() any {
+func (cert *DiscoveredCert) json() any {
 	object := map[string]any{
 		"tbs_sha256":    hex.EncodeToString(cert.TBSSHA256[:]),
 		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
@@ -67,23 +70,23 @@ func (cert *discoveredCert) json() any {
 	return object
 }
 
-func (cert *discoveredCert) save() error {
-	if err := writeFile(cert.CertPath, cert.pemChain(), 0666); err != nil {
+func writeCertFiles(cert *DiscoveredCert, paths *certPaths) error {
+	if err := writeFile(paths.certPath, cert.pemChain(), 0666); err != nil {
 		return err
 	}
-	if err := writeJSONFile(cert.JSONPath, cert.json(), 0666); err != nil {
+	if err := writeJSONFile(paths.jsonPath, cert.json(), 0666); err != nil {
 		return err
 	}
-	if err := writeTextFile(cert.TextPath, cert.Text(), 0666); err != nil {
+	if err := writeTextFile(paths.textPath, certNotificationText(cert, paths), 0666); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (cert *discoveredCert) Environ() []string {
+func certNotificationEnviron(cert *DiscoveredCert, paths *certPaths) []string {
 	env := []string{
 		"EVENT=discovered_cert",
-		"SUMMARY=" + cert.Summary(),
+		"SUMMARY=" + certNotificationSummary(cert),
 		"CERT_PARSEABLE=yes", // backwards compat with pre-0.15.0; not documented
 		"LOG_URI=" + cert.LogEntry.Log.URL,
 		"ENTRY_INDEX=" + fmt.Sprint(cert.LogEntry.Index),
@@ -93,9 +96,12 @@ func (cert *discoveredCert) Environ() []string {
 		"FINGERPRINT=" + hex.EncodeToString(cert.SHA256[:]), // backwards compat with pre-0.15.0; not documented
 		"PUBKEY_SHA256=" + hex.EncodeToString(cert.PubkeySHA256[:]),
 		"PUBKEY_HASH=" + hex.EncodeToString(cert.PubkeySHA256[:]), // backwards compat with pre-0.15.0; not documented
-		"CERT_FILENAME=" + cert.CertPath,
-		"JSON_FILENAME=" + cert.JSONPath,
-		"TEXT_FILENAME=" + cert.TextPath,
+	}
+
+	if paths != nil {
+		env = append(env, "CERT_FILENAME="+paths.certPath)
+		env = append(env, "JSON_FILENAME="+paths.jsonPath)
+		env = append(env, "TEXT_FILENAME="+paths.textPath)
 	}
 
 	if cert.Info.ValidityParseError == nil {
@@ -130,7 +136,7 @@ func (cert *discoveredCert) Environ() []string {
 	return env
 }
 
-func (cert *discoveredCert) Text() string {
+func certNotificationText(cert *DiscoveredCert, paths *certPaths) string {
 	// TODO-4: improve the output: include WatchItem, indicate hash algorithm used for fingerprints, ... (look at SSLMate email for inspiration)
 
 	text := new(strings.Builder)
@@ -158,13 +164,13 @@ func (cert *discoveredCert) Text() string {
 	}
 	writeField("Log Entry", fmt.Sprintf("%d @ %s", cert.LogEntry.Index, cert.LogEntry.Log.URL))
 	writeField("crt.sh", "https://crt.sh/?sha256="+hex.EncodeToString(cert.SHA256[:]))
-	if cert.CertPath != "" {
-		writeField("Filename", cert.CertPath)
+	if paths != nil {
+		writeField("Filename", paths.certPath)
 	}
 
 	return text.String()
 }
 
-func (cert *discoveredCert) Summary() string {
+func certNotificationSummary(cert *DiscoveredCert) string {
 	return fmt.Sprintf("Certificate Discovered for %s", cert.WatchItem)
 }

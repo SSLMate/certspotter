@@ -190,33 +190,36 @@ func main() {
 		os.Exit(2)
 	}
 
+	fsstate := &monitor.FilesystemState{
+		StateDir:  flags.stateDir,
+		SaveCerts: !flags.noSave,
+		Script:    flags.script,
+		ScriptDir: defaultScriptDir(),
+		Email:     flags.email,
+		Stdout:    flags.stdout,
+	}
 	config := &monitor.Config{
 		LogListSource:       flags.logs,
-		StateDir:            flags.stateDir,
-		SaveCerts:           !flags.noSave,
+		State:               fsstate,
 		StartAtEnd:          flags.startAtEnd,
 		Verbose:             flags.verbose,
-		Script:              flags.script,
-		ScriptDir:           defaultScriptDir(),
-		Email:               flags.email,
-		Stdout:              flags.stdout,
 		HealthCheckInterval: flags.healthcheck,
 	}
 
 	emailFileExists := false
 	if emailRecipients, err := readEmailFile(defaultEmailFile()); err == nil {
 		emailFileExists = true
-		config.Email = append(config.Email, emailRecipients...)
+		fsstate.Email = append(fsstate.Email, emailRecipients...)
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "%s: error reading email recipients file %q: %s\n", programName, defaultEmailFile(), err)
 		os.Exit(1)
 	}
 
-	if len(config.Email) == 0 && !emailFileExists && config.Script == "" && !fileExists(config.ScriptDir) && config.Stdout == false {
+	if len(fsstate.Email) == 0 && !emailFileExists && fsstate.Script == "" && !fileExists(fsstate.ScriptDir) && fsstate.Stdout == false {
 		fmt.Fprintf(os.Stderr, "%s: no notification methods were specified\n", programName)
 		fmt.Fprintf(os.Stderr, "Please specify at least one of the following notification methods:\n")
 		fmt.Fprintf(os.Stderr, " - Place one or more email addresses in %s (one address per line)\n", defaultEmailFile())
-		fmt.Fprintf(os.Stderr, " - Place one or more executable scripts in the %s directory\n", config.ScriptDir)
+		fmt.Fprintf(os.Stderr, " - Place one or more executable scripts in the %s directory\n", fsstate.ScriptDir)
 		fmt.Fprintf(os.Stderr, " - Specify an email address using the -email flag\n")
 		fmt.Fprintf(os.Stderr, " - Specify the path to an executable script using the -script flag\n")
 		fmt.Fprintf(os.Stderr, " - Specify the -stdout flag\n")
