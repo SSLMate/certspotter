@@ -63,7 +63,9 @@ You can use Cert Spotter to detect:
 
 -no\_save
 
-:   Do not save a copy of matching certificates.
+:   Do not save a copy of matching certificates. Note that enabling this option
+    will cause you to receive duplicate notifications, since certspotter will
+    have no way of knowing if you've been previously notified about a certificate.
 
 -script *COMMAND*
 
