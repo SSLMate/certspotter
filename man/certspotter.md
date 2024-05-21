@@ -215,6 +215,11 @@ and non-zero when a serious error occurs.
 :   Directory from which any configuration, such as the watch list, is read.
     Defaults to `~/.certspotter`.
 
+`EMAIL`
+
+:   Email address from which to send emails. If not set, certspotter lets sendmail pick
+    the address.
+
 `HTTPS_PROXY`
 
 :   URL of proxy server for making HTTPS requests.  `http://`, `https://`, and

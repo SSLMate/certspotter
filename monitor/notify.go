@@ -67,6 +67,11 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	stdin := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 
+	from := os.Getenv("EMAIL")
+
+	if from != "" {
+		fmt.Fprintf(stdin, "From: %s\n", from)
+	}
 	fmt.Fprintf(stdin, "To: %s\n", strings.Join(to, ", "))
 	fmt.Fprintf(stdin, "Subject: [certspotter] %s\n", notif.summary)
 	fmt.Fprintf(stdin, "Date: %s\n", time.Now().Format(mailDateFormat))
@@ -77,7 +82,11 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	fmt.Fprintf(stdin, "\n")
 	fmt.Fprint(stdin, notif.text)
 
-	args := []string{"-i", "--"}
+	args := []string{"-i"}
+	if from != "" {
+		args = append(args, "-f", from)
+	}
+	args = append(args, "--")
 	args = append(args, to...)
 
 	sendmail := exec.CommandContext(ctx, sendmailPath(), args...)
