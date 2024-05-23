@@ -23,6 +23,7 @@ import (
 
 type DiscoveredCert struct {
 	WatchItem    WatchItem
+	KeyItem      KeyItem
 	LogEntry     *LogEntry
 	Info         *certspotter.CertInfo
 	Chain        []ct.ASN1Cert // first entry is the leaf certificate or precertificate
@@ -172,5 +173,9 @@ func certNotificationText(cert *DiscoveredCert, paths *certPaths) string {
 }
 
 func certNotificationSummary(cert *DiscoveredCert) string {
-	return fmt.Sprintf("Certificate Discovered for %s", cert.WatchItem)
+        keytext := ""
+        if cert.KeyItem.String() != "" {
+	        keytext = fmt.Sprintf(" (known as %s)", cert.KeyItem.String())
+        }
+	return fmt.Sprintf("Certificate Discovered for %s%s", cert.WatchItem, keytext)
 }

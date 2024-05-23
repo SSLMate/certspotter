@@ -91,11 +91,13 @@ func processCertificate(ctx context.Context, config *Config, entry *LogEntry, ce
 	if !matched {
 		return nil
 	}
+	matched, keyItem := config.KeyList.Matches(certInfo)
 
 	cert := &DiscoveredCert{
 		WatchItem:    watchItem,
 		LogEntry:     entry,
 		Info:         certInfo,
+		KeyItem:      keyItem,
 		Chain:        chain,
 		TBSSHA256:    sha256.Sum256(certInfo.TBS.Raw),
 		SHA256:       sha256.Sum256(chain[0]),
