@@ -87,6 +87,10 @@ func (tree *CollapsedTree) CalculateRoot() Hash {
 	return hash
 }
 
+func (tree *CollapsedTree) Nodes() []Hash {
+	return tree.nodes
+}
+
 func (tree *CollapsedTree) Size() uint64 {
 	return tree.size
 }
