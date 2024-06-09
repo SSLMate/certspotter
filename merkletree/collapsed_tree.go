@@ -54,9 +54,11 @@ func (tree *CollapsedTree) Add(hash Hash) {
 }
 
 func (tree *CollapsedTree) Append(other *CollapsedTree) error {
-	maxSize := uint64(1) << bits.TrailingZeros64(tree.size)
-	if other.size > maxSize {
-		return fmt.Errorf("tree of size %d is too large to append to a tree of size %d (maximum size is %d)", other.size, tree.size, maxSize)
+	if tree.size > 0 {
+		maxSize := uint64(1) << bits.TrailingZeros64(tree.size)
+		if other.size > maxSize {
+			return fmt.Errorf("tree of size %d is too large to append to a tree of size %d (maximum size is %d)", other.size, tree.size, maxSize)
+		}
 	}
 
 	tree.nodes = append(tree.nodes, other.nodes...)
