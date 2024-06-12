@@ -25,10 +25,12 @@ func calculateNumNodes(size uint64) int {
 	return bits.OnesCount64(size)
 }
 
+// TODO: phase out this function
 func EmptyCollapsedTree() *CollapsedTree {
 	return &CollapsedTree{nodes: []Hash{}, size: 0}
 }
 
+// TODO: phase out this function
 func NewCollapsedTree(nodes []Hash, size uint64) (*CollapsedTree, error) {
 	tree := new(CollapsedTree)
 	if err := tree.Init(nodes, size); err != nil {
@@ -37,14 +39,15 @@ func NewCollapsedTree(nodes []Hash, size uint64) (*CollapsedTree, error) {
 	return tree, nil
 }
 
-func CloneCollapsedTree(source *CollapsedTree) *CollapsedTree {
-	nodes := make([]Hash, len(source.nodes))
-	copy(nodes, source.nodes)
-	return &CollapsedTree{nodes: nodes, size: source.size}
-}
-
 func (tree CollapsedTree) Equal(other CollapsedTree) bool {
 	return tree.size == other.size && slices.Equal(tree.nodes, other.nodes)
+}
+
+func (tree CollapsedTree) Clone() CollapsedTree {
+	return CollapsedTree{
+		nodes: slices.Clone(tree.nodes),
+		size:  tree.size,
+	}
 }
 
 func (tree *CollapsedTree) Add(hash Hash) {
@@ -53,7 +56,7 @@ func (tree *CollapsedTree) Add(hash Hash) {
 	tree.collapse()
 }
 
-func (tree *CollapsedTree) Append(other *CollapsedTree) error {
+func (tree *CollapsedTree) Append(other CollapsedTree) error {
 	if tree.size > 0 {
 		maxSize := uint64(1) << bits.TrailingZeros64(tree.size)
 		if other.size > maxSize {
