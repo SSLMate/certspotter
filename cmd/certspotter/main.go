@@ -124,6 +124,27 @@ func readWatchListFile(filename string) (monitor.WatchList, error) {
 	return monitor.ReadWatchList(file)
 }
 
+func setupSignalListener(ctx context.Context, filename string, watchList *monitor.WatchList) {
+	sighup := make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+
+	go func() {
+		for {
+			select {
+			case <-sighup:
+				newWatchList, err := readWatchListFile(filename)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "error reading watchlist file: %v", err.Error())
+					continue
+				}
+				*watchList = newWatchList
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
 func readEmailFile(filename string) ([]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -226,6 +247,9 @@ func main() {
 		os.Exit(2)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	if flags.watchlist == "-" {
 		watchlist, err := monitor.ReadWatchList(os.Stdin)
 		if err != nil {
@@ -240,10 +264,8 @@ func main() {
 			os.Exit(1)
 		}
 		config.WatchList = watchlist
+		setupSignalListener(ctx, flags.watchlist, &config.WatchList)
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	if err := monitor.Run(ctx, config); err != nil && !errors.Is(err, context.Canceled) {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)

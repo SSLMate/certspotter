@@ -30,10 +30,11 @@ func EmptyCollapsedTree() *CollapsedTree {
 }
 
 func NewCollapsedTree(nodes []Hash, size uint64) (*CollapsedTree, error) {
-	if len(nodes) != calculateNumNodes(size) {
-		return nil, fmt.Errorf("nodes has wrong length (should be %d, not %d)", calculateNumNodes(size), len(nodes))
+	tree := new(CollapsedTree)
+	if err := tree.Init(nodes, size); err != nil {
+		return nil, err
 	}
-	return &CollapsedTree{nodes: nodes, size: size}, nil
+	return tree, nil
 }
 
 func CloneCollapsedTree(source *CollapsedTree) *CollapsedTree {
@@ -53,9 +54,11 @@ func (tree *CollapsedTree) Add(hash Hash) {
 }
 
 func (tree *CollapsedTree) Append(other *CollapsedTree) error {
-	maxSize := uint64(1) << bits.TrailingZeros64(tree.size)
-	if other.size > maxSize {
-		return fmt.Errorf("tree of size %d is too large to append to a tree of size %d (maximum size is %d)", other.size, tree.size, maxSize)
+	if tree.size > 0 {
+		maxSize := uint64(1) << bits.TrailingZeros64(tree.size)
+		if other.size > maxSize {
+			return fmt.Errorf("tree of size %d is too large to append to a tree of size %d (maximum size is %d)", other.size, tree.size, maxSize)
+		}
 	}
 
 	tree.nodes = append(tree.nodes, other.nodes...)
@@ -86,6 +89,10 @@ func (tree *CollapsedTree) CalculateRoot() Hash {
 	return hash
 }
 
+func (tree *CollapsedTree) Nodes() []Hash {
+	return tree.nodes
+}
+
 func (tree *CollapsedTree) Size() uint64 {
 	return tree.size
 }
@@ -105,10 +112,17 @@ func (tree *CollapsedTree) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &rawTree); err != nil {
 		return fmt.Errorf("error unmarshalling Collapsed Merkle Tree: %w", err)
 	}
-	if len(rawTree.Nodes) != calculateNumNodes(rawTree.Size) {
-		return fmt.Errorf("error unmarshalling Collapsed Merkle Tree: nodes has wrong length (should be %d, not %d)", calculateNumNodes(rawTree.Size), len(rawTree.Nodes))
+	if err := tree.Init(rawTree.Nodes, rawTree.Size); err != nil {
+		return fmt.Errorf("error unmarshalling Collapsed Merkle Tree: %w", err)
 	}
-	tree.size = rawTree.Size
-	tree.nodes = rawTree.Nodes
+	return nil
+}
+
+func (tree *CollapsedTree) Init(nodes []Hash, size uint64) error {
+	if len(nodes) != calculateNumNodes(size) {
+		return fmt.Errorf("nodes has wrong length (should be %d, not %d)", calculateNumNodes(size), len(nodes))
+	}
+	tree.size = size
+	tree.nodes = nodes
 	return nil
 }
