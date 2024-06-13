@@ -61,7 +61,7 @@ func (tree *FragmentedCollapsedTree) Merge(other FragmentedCollapsedTree) error 
 	return nil
 }
 
-func (tree *FragmentedCollapsedTree) Gaps(yield func(uint64, uint64) bool) {
+func (tree FragmentedCollapsedTree) Gaps(yield func(uint64, uint64) bool) {
 	var prevEnd uint64
 	for i := range tree.subtrees {
 		if prevEnd != tree.subtrees[i].offset {
@@ -74,15 +74,15 @@ func (tree *FragmentedCollapsedTree) Gaps(yield func(uint64, uint64) bool) {
 	yield(prevEnd, 0)
 }
 
-func (tree *FragmentedCollapsedTree) NumSubtrees() int {
+func (tree FragmentedCollapsedTree) NumSubtrees() int {
 	return len(tree.subtrees)
 }
 
-func (tree *FragmentedCollapsedTree) Subtree(i int) CollapsedTree {
+func (tree FragmentedCollapsedTree) Subtree(i int) CollapsedTree {
 	return tree.subtrees[i]
 }
 
-func (tree *FragmentedCollapsedTree) Subtrees() []CollapsedTree {
+func (tree FragmentedCollapsedTree) Subtrees() []CollapsedTree {
 	if tree.subtrees == nil {
 		return []CollapsedTree{}
 	} else {
@@ -90,7 +90,7 @@ func (tree *FragmentedCollapsedTree) Subtrees() []CollapsedTree {
 	}
 }
 
-func (tree *FragmentedCollapsedTree) IsComplete(size uint64) bool {
+func (tree FragmentedCollapsedTree) IsComplete(size uint64) bool {
 	return len(tree.subtrees) == 1 && tree.subtrees[0].offset == 0 && tree.subtrees[0].size == size
 }
 
