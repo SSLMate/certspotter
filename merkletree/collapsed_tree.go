@@ -16,9 +16,12 @@ import (
 	"slices"
 )
 
+// CollapsedTree is an efficient representation of a Merkle (sub)tree that permits appending
+// nodes and calculating the root hash.
 type CollapsedTree struct {
-	nodes []Hash
-	size  uint64
+	offset uint64
+	nodes  []Hash
+	size   uint64
 }
 
 func calculateNumNodes(size uint64) int {
@@ -40,23 +43,44 @@ func NewCollapsedTree(nodes []Hash, size uint64) (*CollapsedTree, error) {
 }
 
 func (tree CollapsedTree) Equal(other CollapsedTree) bool {
-	return tree.size == other.size && slices.Equal(tree.nodes, other.nodes)
+	return tree.offset == other.offset && tree.size == other.size && slices.Equal(tree.nodes, other.nodes)
 }
 
 func (tree CollapsedTree) Clone() CollapsedTree {
 	return CollapsedTree{
-		nodes: slices.Clone(tree.nodes),
-		size:  tree.size,
+		offset: tree.offset,
+		nodes:  slices.Clone(tree.nodes),
+		size:   tree.size,
 	}
 }
 
-func (tree *CollapsedTree) Add(hash Hash) {
+// Add a new leaf hash to the end of the tree.
+// Returns an error if and only if the new tree would be too large for the subtree offset.
+// Always returns a nil error if tree.Offset() == 0.
+func (tree *CollapsedTree) Add(hash Hash) error {
+	if tree.offset > 0 {
+		maxSize := uint64(1) << bits.TrailingZeros64(tree.offset)
+		if tree.size+1 > maxSize {
+			return fmt.Errorf("subtree at offset %d is already at maximum size %d", tree.offset, maxSize)
+		}
+	}
 	tree.nodes = append(tree.nodes, hash)
 	tree.size++
 	tree.collapse()
+	return nil
 }
 
 func (tree *CollapsedTree) Append(other CollapsedTree) error {
+	if tree.offset+tree.size != other.offset {
+		return fmt.Errorf("subtree at offset %d cannot be appended to subtree ending at offset %d", other.offset, tree.offset+tree.size)
+	}
+	if tree.offset > 0 {
+		newSize := tree.size + other.size
+		maxSize := uint64(1) << bits.TrailingZeros64(tree.offset)
+		if newSize > maxSize {
+			return fmt.Errorf("size of new subtree (%d) would exceed maximum size %d for a subtree at offset %d", newSize, maxSize, tree.offset)
+		}
+	}
 	if tree.size > 0 {
 		maxSize := uint64(1) << bits.TrailingZeros64(tree.size)
 		if other.size > maxSize {
@@ -79,7 +103,7 @@ func (tree *CollapsedTree) collapse() {
 	}
 }
 
-func (tree *CollapsedTree) CalculateRoot() Hash {
+func (tree CollapsedTree) CalculateRoot() Hash {
 	if len(tree.nodes) == 0 {
 		return HashNothing()
 	}
@@ -92,30 +116,46 @@ func (tree *CollapsedTree) CalculateRoot() Hash {
 	return hash
 }
 
-func (tree *CollapsedTree) Nodes() []Hash {
-	return tree.nodes
+// Return the subtree offset (0 if this represents an entire tree)
+func (tree CollapsedTree) Offset() uint64 {
+	return tree.offset
 }
 
-func (tree *CollapsedTree) Size() uint64 {
+// Return a non-nil slice containing the nodes.  The slice
+// must not be modified.
+func (tree CollapsedTree) Nodes() []Hash {
+	if tree.nodes == nil {
+		return []Hash{}
+	} else {
+		return tree.nodes
+	}
+}
+
+// Return the number of leaf nodes in the tree.
+func (tree CollapsedTree) Size() uint64 {
 	return tree.size
 }
 
+type collapsedTreeMessage struct {
+	Offset uint64 `json:"offset,omitempty"`
+	Nodes  []Hash `json:"nodes"` // never nil
+	Size   uint64 `json:"size"`
+}
+
 func (tree CollapsedTree) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"nodes": tree.nodes,
-		"size":  tree.size,
+	return json.Marshal(collapsedTreeMessage{
+		Offset: tree.offset,
+		Nodes:  tree.Nodes(),
+		Size:   tree.size,
 	})
 }
 
 func (tree *CollapsedTree) UnmarshalJSON(b []byte) error {
-	var rawTree struct {
-		Nodes []Hash `json:"nodes"`
-		Size  uint64 `json:"size"`
-	}
+	var rawTree collapsedTreeMessage
 	if err := json.Unmarshal(b, &rawTree); err != nil {
 		return fmt.Errorf("error unmarshalling Collapsed Merkle Tree: %w", err)
 	}
-	if err := tree.Init(rawTree.Nodes, rawTree.Size); err != nil {
+	if err := tree.InitSubtree(rawTree.Offset, rawTree.Nodes, rawTree.Size); err != nil {
 		return fmt.Errorf("error unmarshalling Collapsed Merkle Tree: %w", err)
 	}
 	return nil
@@ -128,4 +168,15 @@ func (tree *CollapsedTree) Init(nodes []Hash, size uint64) error {
 	tree.size = size
 	tree.nodes = nodes
 	return nil
+}
+
+func (tree *CollapsedTree) InitSubtree(offset uint64, nodes []Hash, size uint64) error {
+	if offset > 0 {
+		maxSize := uint64(1) << bits.TrailingZeros64(offset)
+		if size > maxSize {
+			return fmt.Errorf("subtree size (%d) is too large for offset %d (maximum size is %d)", size, offset, maxSize)
+		}
+	}
+	tree.offset = offset
+	return tree.Init(nodes, size)
 }
