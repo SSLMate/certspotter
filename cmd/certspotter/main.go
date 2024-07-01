@@ -193,7 +193,7 @@ func main() {
 	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
 	flag.BoolVar(&flags.noSave, "no_save", false, "Do not save a copy of matching certificates in state directory")
 	flag.StringVar(&flags.script, "script", "", "Program to execute when a matching certificate is discovered")
-	flag.BoolVar(&flags.startAtEnd, "start_at_end", false, "Start monitoring logs from the end rather than the beginning (saves considerable bandwidth)")
+	flag.BoolVar(&flags.startAtEnd, "start_at_end", false, "Start monitoring new logs from the end rather than the beginning (saves considerable bandwidth)")
 	flag.StringVar(&flags.stateDir, "state_dir", defaultStateDir(), "Directory for storing log position and discovered certificates")
 	flag.BoolVar(&flags.stdout, "stdout", false, "Write matching certificates to stdout")
 	flag.BoolVar(&flags.verbose, "verbose", false, "Be verbose")

@@ -61,7 +61,8 @@ type StateProvider interface {
 	// feailure is not associated with a log.
 	NotifyHealthCheckFailure(context.Context, *loglist.Log, HealthCheckFailure) error
 
-	// Called when an error occurs.  The log is nil if the error is
-	// not associated with a log.  Note that most errors are transient.
+	// Called when a non-fatal error occurs.  The log is nil if the error is
+	// not associated with a log.  Note that most errors are transient, and
+	// certspotter will retry the failed operation later.
 	NotifyError(context.Context, *loglist.Log, error) error
 }

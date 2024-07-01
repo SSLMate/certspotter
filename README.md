@@ -46,7 +46,7 @@ Cert Spotter requires Go version 1.19 or higher.
 
 4. Configure your system to run `certspotter` as a daemon.  You may want to specify
    the `-start_at_end` command line option to tell certspotter to start monitoring
-   logs at the end instead of the beginning.  This saves significant bandwidth, but
+   new logs at the end instead of the beginning.  This saves significant bandwidth, but
    you won't be notified about certificates which were logged before you started
    using certspotter.
 
