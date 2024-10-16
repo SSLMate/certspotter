@@ -90,8 +90,9 @@ func (tree FragmentedCollapsedTree) Subtrees() []CollapsedTree {
 	}
 }
 
-func (tree FragmentedCollapsedTree) IsComplete(size uint64) bool {
-	return len(tree.subtrees) == 1 && tree.subtrees[0].offset == 0 && tree.subtrees[0].size == size
+// Return true iff the tree contains at least the first n nodes (without any gaps)
+func (tree FragmentedCollapsedTree) ContainsFirstN(n uint64) bool {
+	return len(tree.subtrees) >= 1 && tree.subtrees[0].offset == 0 && tree.subtrees[0].size >= n
 }
 
 func (tree *FragmentedCollapsedTree) Init(subtrees []CollapsedTree) error {
