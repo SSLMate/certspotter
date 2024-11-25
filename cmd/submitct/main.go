@@ -158,18 +158,19 @@ func main() {
 
 	var logs []Log
 	for _, ctlog := range list.AllLogs() {
+		submissionURL := ctlog.GetSubmissionURL()
 		pubkey, err := x509.ParsePKIXPublicKey(ctlog.Key)
 		if err != nil {
-			log.Fatalf("%s: Failed to parse log public key: %s", ctlog.URL, err)
+			log.Fatalf("%s: Failed to parse log public key: %s", submissionURL, err)
 		}
 		verifier, err := ct.NewSignatureVerifier(pubkey)
 		if err != nil {
-			log.Fatalf("%s: Failed to create signature verifier for log: %s", ctlog.URL, err)
+			log.Fatalf("%s: Failed to create signature verifier for log: %s", submissionURL, err)
 		}
 		logs = append(logs, Log{
 			Log: ctlog,
 			SignatureVerifier: verifier,
-			LogClient: client.New(strings.TrimRight(ctlog.URL, "/")),
+			LogClient: client.New(strings.TrimRight(submissionURL, "/")),
 		})
 	}
 
@@ -212,11 +213,11 @@ func main() {
 			go func(fingerprint [32]byte, ctlog Log) {
 				sct, err := ctlog.SubmitChain(chain)
 				if err != nil {
-					log.Printf("%x (%s): %s: Submission Error: %s", fingerprint, cn, ctlog.URL, err)
+					log.Printf("%x (%s): %s: Submission Error: %s", fingerprint, cn, ctlog.GetSubmissionURL(), err)
 					atomic.AddUint32(&submitErrors, 1)
 				} else if *verbose {
 					timestamp := time.Unix(int64(sct.Timestamp)/1000, int64(sct.Timestamp%1000)*1000000)
-					log.Printf("%x (%s): %s: Submitted at %s", fingerprint, cn, ctlog.URL, timestamp)
+					log.Printf("%x (%s): %s: Submitted at %s", fingerprint, cn, ctlog.GetSubmissionURL(), timestamp)
 				}
 				wg.Done()
 			}(fingerprint, ctlog)

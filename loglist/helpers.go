@@ -13,11 +13,15 @@ import (
 	"time"
 )
 
+// Return all tiled and non-tiled logs from all operators
 func (list *List) AllLogs() []*Log {
 	logs := []*Log{}
 	for operator := range list.Operators {
 		for log := range list.Operators[operator].Logs {
 			logs = append(logs, &list.Operators[operator].Logs[log])
+		}
+		for log := range list.Operators[operator].TiledLogs {
+			logs = append(logs, &list.Operators[operator].TiledLogs[log])
 		}
 	}
 	return logs

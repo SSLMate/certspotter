@@ -22,16 +22,19 @@ type List struct {
 }
 
 type Operator struct {
-	Name  string   `json:"name"`
-	Email []string `json:"email"`
-	Logs  []Log    `json:"logs"`
+	Name      string   `json:"name"`
+	Email     []string `json:"email"`
+	Logs      []Log    `json:"logs"`
+	TiledLogs []Log    `json:"tiled_logs"`
 }
 
 type Log struct {
 	Key              []byte        `json:"key"`
 	LogID            ct.SHA256Hash `json:"log_id"`
 	MMD              int           `json:"mmd"`
-	URL              string        `json:"url"`
+	URL              string        `json:"url,omitempty"`            // only for rfc6962 logs
+	SubmissionURL    string        `json:"submission_url,omitempty"` // only for static-ct-api logs
+	MonitoringURL    string        `json:"monitoring_url,omitempty"` // only for static-ct-api logs
 	Description      string        `json:"description"`
 	State            State         `json:"state"`
 	DNS              string        `json:"dns"`
@@ -42,6 +45,29 @@ type Log struct {
 	} `json:"temporal_interval"`
 
 	// TODO: add previous_operators
+}
+
+func (log *Log) IsRFC6962() bool     { return log.URL != "" }
+func (log *Log) IsStaticCTAPI() bool { return log.SubmissionURL != "" && log.MonitoringURL != "" }
+
+// Return URL prefix for submission using the RFC6962 protocol
+func (log *Log) GetSubmissionURL() string {
+	if log.SubmissionURL != "" {
+		return log.SubmissionURL
+	} else {
+		return log.URL
+	}
+}
+
+// Return URL prefix for monitoring.
+// Since the protocol understood by the URL might be either RFC6962 or static-ct-api, this URL is
+// only useful for informational purposes.
+func (log *Log) GetMonitoringURL() string {
+	if log.MonitoringURL != "" {
+		return log.MonitoringURL
+	} else {
+		return log.URL
+	}
 }
 
 type State struct {
