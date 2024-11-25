@@ -26,7 +26,12 @@ func (list *List) Validate() error {
 func (operator *Operator) Validate() error {
 	for i := range operator.Logs {
 		if err := operator.Logs[i].Validate(); err != nil {
-			return fmt.Errorf("problem with %dth log (%s): %w", i, operator.Logs[i].LogIDString(), err)
+			return fmt.Errorf("problem with %dth non-tiled log (%s): %w", i, operator.Logs[i].LogIDString(), err)
+		}
+	}
+	for i := range operator.TiledLogs {
+		if err := operator.TiledLogs[i].Validate(); err != nil {
+			return fmt.Errorf("problem with %dth tiled log (%s): %w", i, operator.TiledLogs[i].LogIDString(), err)
 		}
 	}
 	return nil
@@ -37,5 +42,12 @@ func (log *Log) Validate() error {
 	if log.LogID != realLogID {
 		return fmt.Errorf("log ID does not match log key")
 	}
+
+	if !log.IsRFC6962() && !log.IsStaticCTAPI() {
+		return fmt.Errorf("URL(s) not provided")
+	} else if log.IsRFC6962() && log.IsStaticCTAPI() {
+		return fmt.Errorf("inconsistent URLs provided")
+	}
+
 	return nil
 }
