@@ -18,7 +18,7 @@ import (
 
 func recordError(ctx context.Context, config *Config, ctlog *loglist.Log, errToRecord error) {
 	if err := config.State.NotifyError(ctx, ctlog, errToRecord); err != nil {
-		log.Printf("unable to notify about error: ", err)
+		log.Print("unable to notify about error: ", err)
 		if ctlog == nil {
 			log.Print(errToRecord)
 		} else {
