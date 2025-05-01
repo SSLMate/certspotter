@@ -22,9 +22,8 @@ import (
 )
 
 type RFC6962Log struct {
-	URL               *url.URL
-	MaxGetEntriesSize uint64
-	HTTPClient        *http.Client // nil to use default client
+	URL        *url.URL
+	HTTPClient *http.Client // nil to use default client
 }
 
 type RFC6962LogEntry struct {
@@ -46,13 +45,8 @@ func (ctlog *RFC6962Log) GetRoots(ctx context.Context) ([][]byte, error) {
 }
 
 func (ctlog *RFC6962Log) getEntries(ctx context.Context, startInclusive uint64, endInclusive uint64) ([]RFC6962LogEntry, error) {
-	size := endInclusive - startInclusive + 1
-	if ctlog.MaxGetEntriesSize != 0 && size > ctlog.MaxGetEntriesSize {
-		size = ctlog.MaxGetEntriesSize
-	}
-
 	fullURL := ctlog.URL.JoinPath("/ct/v1/get-entries").String()
-	fullURL += fmt.Sprintf("?start=%d&end=%d", startInclusive, startInclusive+size-1)
+	fullURL += fmt.Sprintf("?start=%d&end=%d", startInclusive, endInclusive)
 
 	var parsedResponse struct {
 		Entries []RFC6962LogEntry `json:"entries"`
@@ -63,7 +57,7 @@ func (ctlog *RFC6962Log) getEntries(ctx context.Context, startInclusive uint64, 
 	if len(parsedResponse.Entries) == 0 {
 		return nil, fmt.Errorf("Get %q: zero entries returned", fullURL)
 	}
-	if uint64(len(parsedResponse.Entries)) > size {
+	if uint64(len(parsedResponse.Entries)) > endInclusive-startInclusive+1 {
 		return nil, fmt.Errorf("Get %q: extraneous entries returned", fullURL)
 	}
 	return parsedResponse.Entries, nil
