@@ -347,7 +347,7 @@ func (entry *StaticLogEntry) ExtraData(ctx context.Context, issuerGetter IssuerG
 	return b.Bytes()
 }
 
-func (entry *StaticLogEntry) Precertificate() ([]byte, error) {
+func (entry *StaticLogEntry) Precertificate() (cttypes.ASN1Cert, error) {
 	if entry.precertificate == nil {
 		return nil, fmt.Errorf("not a precertificate entry")
 	}

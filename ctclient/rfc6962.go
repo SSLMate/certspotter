@@ -172,7 +172,7 @@ func (entry *RFC6962LogEntry) ExtraData(context.Context, IssuerGetter) ([]byte, 
 	return entry.Extra_data, nil
 }
 
-func (entry *RFC6962LogEntry) Precertificate() ([]byte, error) {
+func (entry *RFC6962LogEntry) Precertificate() (cttypes.ASN1Cert, error) {
 	if !entry.isPrecert() {
 		return nil, fmt.Errorf("not a precertificate entry")
 	}

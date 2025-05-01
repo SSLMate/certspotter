@@ -43,7 +43,7 @@ type Entry interface {
 	ExtraData(context.Context, IssuerGetter) ([]byte, error)
 
 	// Returns an error if this is not a well-formed precert entry
-	Precertificate() ([]byte, error)
+	Precertificate() (cttypes.ASN1Cert, error)
 
 	// Returns an error if this is not a well-formed x509 or precert entry
 	ChainFingerprints() ([][32]byte, error)
