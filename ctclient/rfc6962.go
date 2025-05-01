@@ -24,7 +24,7 @@ import (
 type RFC6962Log struct {
 	URL               *url.URL
 	MaxGetEntriesSize uint64
-	HTTPClient        *http.Client
+	HTTPClient        *http.Client // nil to use default client
 }
 
 type RFC6962LogEntry struct {

@@ -37,7 +37,7 @@ type StaticLog struct {
 	SubmissionURL *url.URL
 	MonitoringURL *url.URL
 	ID            cttypes.LogID
-	HTTPClient    *http.Client
+	HTTPClient    *http.Client // nil to use default client
 }
 
 type StaticLogEntry struct {
