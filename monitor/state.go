@@ -24,6 +24,7 @@ type LogState struct {
 	LastSuccess      time.Time                 `json:"last_success"`
 }
 
+// Methods are safe to call concurrently.
 type StateProvider interface {
 	// Initialize the state.  Called before any other method in this interface.
 	// Idempotent: returns nil if the state is already initialized.
