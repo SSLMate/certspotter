@@ -58,3 +58,7 @@ func (id LogID) MarshalText() ([]byte, error) {
 func (id LogID) Base64String() string {
 	return base64.StdEncoding.EncodeToString(id[:])
 }
+
+func (id LogID) Base64URLString() string {
+	return base64.RawURLEncoding.EncodeToString(id[:])
+}
