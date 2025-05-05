@@ -18,17 +18,18 @@ import (
 	"time"
 
 	"software.sslmate.com/src/certspotter"
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 )
 
 type DiscoveredCert struct {
 	WatchItem    WatchItem
 	LogEntry     *LogEntry
 	Info         *certspotter.CertInfo
-	Chain        []ct.ASN1Cert // first entry is the leaf certificate or precertificate
-	TBSSHA256    [32]byte      // computed over Info.TBS.Raw
-	SHA256       [32]byte      // computed over Chain[0]
-	PubkeySHA256 [32]byte      // computed over Info.TBS.PublicKey.FullBytes
+	Chain        []cttypes.ASN1Cert // first entry is the leaf certificate or precertificate
+	ChainError   error              // any error generating or validating Chain; if non-nil, Chain may be partial or incorrect
+	TBSSHA256    [32]byte           // computed over Info.TBS.Raw
+	SHA256       [32]byte           // computed over Chain[0]
+	PubkeySHA256 [32]byte           // computed over Info.TBS.PublicKey.FullBytes
 	Identifiers  *certspotter.Identifiers
 }
 
@@ -40,6 +41,9 @@ type certPaths struct {
 
 func (cert *DiscoveredCert) pemChain() []byte {
 	var buffer bytes.Buffer
+	if cert.ChainError != nil {
+		fmt.Fprintln(&buffer, "Warning: this chain may be incomplete or invalid: %s", cert.ChainError)
+	}
 	for _, certBytes := range cert.Chain {
 		if err := pem.Encode(&buffer, &pem.Block{
 			Type:  "CERTIFICATE",
@@ -88,7 +92,7 @@ func certNotificationEnviron(cert *DiscoveredCert, paths *certPaths) []string {
 		"EVENT=discovered_cert",
 		"SUMMARY=" + certNotificationSummary(cert),
 		"CERT_PARSEABLE=yes", // backwards compat with pre-0.15.0; not documented
-		"LOG_URI=" + cert.LogEntry.Log.URL,
+		"LOG_URI=" + cert.LogEntry.Log.GetMonitoringURL(),
 		"ENTRY_INDEX=" + fmt.Sprint(cert.LogEntry.Index),
 		"WATCH_ITEM=" + cert.WatchItem.String(),
 		"TBS_SHA256=" + hex.EncodeToString(cert.TBSSHA256[:]),
@@ -133,6 +137,10 @@ func certNotificationEnviron(cert *DiscoveredCert, paths *certPaths) []string {
 		env = append(env, "SERIAL_PARSE_ERROR="+cert.Info.SerialNumberParseError.Error())
 	}
 
+	if cert.ChainError != nil {
+		env = append(env, "CHAIN_ERROR="+cert.ChainError.Error())
+	}
+
 	return env
 }
 
@@ -162,8 +170,11 @@ func certNotificationText(cert *DiscoveredCert, paths *certPaths) string {
 		writeField("Not Before", fmt.Sprintf("[unable to parse: %s]", cert.Info.ValidityParseError))
 		writeField("Not After", fmt.Sprintf("[unable to parse: %s]", cert.Info.ValidityParseError))
 	}
-	writeField("Log Entry", fmt.Sprintf("%d @ %s", cert.LogEntry.Index, cert.LogEntry.Log.URL))
+	writeField("Log Entry", fmt.Sprintf("%d @ %s", cert.LogEntry.Index, cert.LogEntry.Log.GetMonitoringURL()))
 	writeField("crt.sh", "https://crt.sh/?sha256="+hex.EncodeToString(cert.SHA256[:]))
+	if cert.ChainError != nil {
+		writeField("Error Building Chain", cert.ChainError.Error())
+	}
 	if paths != nil {
 		writeField("Filename", paths.certPath)
 	}

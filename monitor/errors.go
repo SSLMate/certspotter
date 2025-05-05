@@ -22,7 +22,7 @@ func recordError(ctx context.Context, config *Config, ctlog *loglist.Log, errToR
 		if ctlog == nil {
 			log.Print(errToRecord)
 		} else {
-			log.Print(ctlog.URL, ": ", errToRecord)
+			log.Print(ctlog.GetMonitoringURL(), ": ", errToRecord)
 		}
 	}
 }

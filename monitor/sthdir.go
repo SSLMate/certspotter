@@ -21,19 +21,19 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 	"strconv"
 	"strings"
 )
 
-func loadSTHsFromDir(dirPath string) ([]*ct.SignedTreeHead, error) {
+func loadSTHsFromDir(dirPath string) ([]*cttypes.SignedTreeHead, error) {
 	entries, err := os.ReadDir(dirPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		return []*ct.SignedTreeHead{}, nil
+		return []*cttypes.SignedTreeHead{}, nil
 	} else if err != nil {
 		return nil, err
 	}
-	sths := make([]*ct.SignedTreeHead, 0, len(entries))
+	sths := make([]*cttypes.SignedTreeHead, 0, len(entries))
 	for _, entry := range entries {
 		filename := entry.Name()
 		if strings.HasPrefix(filename, ".") || !strings.HasSuffix(filename, ".json") {
@@ -45,23 +45,23 @@ func loadSTHsFromDir(dirPath string) ([]*ct.SignedTreeHead, error) {
 		}
 		sths = append(sths, sth)
 	}
-	slices.SortFunc(sths, func(a, b *ct.SignedTreeHead) int { return cmp.Compare(a.TreeSize, b.TreeSize) })
+	slices.SortFunc(sths, func(a, b *cttypes.SignedTreeHead) int { return cmp.Compare(a.TreeSize, b.TreeSize) })
 	return sths, nil
 }
 
-func readSTHFile(filePath string) (*ct.SignedTreeHead, error) {
+func readSTHFile(filePath string) (*cttypes.SignedTreeHead, error) {
 	fileBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	sth := new(ct.SignedTreeHead)
+	sth := new(cttypes.SignedTreeHead)
 	if err := json.Unmarshal(fileBytes, sth); err != nil {
 		return nil, fmt.Errorf("error parsing %s: %w", filePath, err)
 	}
 	return sth, nil
 }
 
-func storeSTHInDir(dirPath string, sth *ct.SignedTreeHead) error {
+func storeSTHInDir(dirPath string, sth *cttypes.SignedTreeHead) error {
 	filePath := filepath.Join(dirPath, sthFilename(sth))
 	if fileExists(filePath) {
 		return nil
@@ -69,7 +69,7 @@ func storeSTHInDir(dirPath string, sth *ct.SignedTreeHead) error {
 	return writeJSONFile(filePath, sth, 0666)
 }
 
-func removeSTHFromDir(dirPath string, sth *ct.SignedTreeHead) error {
+func removeSTHFromDir(dirPath string, sth *cttypes.SignedTreeHead) error {
 	filePath := filepath.Join(dirPath, sthFilename(sth))
 	err := os.Remove(filePath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -79,15 +79,9 @@ func removeSTHFromDir(dirPath string, sth *ct.SignedTreeHead) error {
 }
 
 // generate a filename that uniquely identifies the STH (within the context of a particular log)
-func sthFilename(sth *ct.SignedTreeHead) string {
+func sthFilename(sth *cttypes.SignedTreeHead) string {
 	hasher := sha256.New()
-	switch sth.Version {
-	case ct.V1:
-		binary.Write(hasher, binary.LittleEndian, sth.Timestamp)
-		binary.Write(hasher, binary.LittleEndian, sth.SHA256RootHash)
-	default:
-		panic(fmt.Errorf("sthFilename: invalid STH version %d", sth.Version))
-	}
-	// For 6962-bis, we will need to handle a variable-length root hash, and include the signature in the filename hash (since signatures must be deterministic)
+	binary.Write(hasher, binary.LittleEndian, sth.Timestamp)
+	hasher.Write(sth.RootHash[:])
 	return strconv.FormatUint(sth.TreeSize, 10) + "-" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil)) + ".json"
 }

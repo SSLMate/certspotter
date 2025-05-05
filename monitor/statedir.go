@@ -16,11 +16,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/merkletree"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func readVersion(stateDir string) (int, error) {
@@ -50,7 +49,7 @@ func writeVersion(stateDir string) error {
 }
 
 func migrateLogStateDirV1(dir string) error {
-	var sth ct.SignedTreeHead
+	var sth cttypes.SignedTreeHead
 	var tree merkletree.CollapsedTree
 
 	sthPath := filepath.Join(dir, "sth.json")
@@ -80,7 +79,6 @@ func migrateLogStateDirV1(dir string) error {
 		DownloadPosition: &tree,
 		VerifiedPosition: &tree,
 		VerifiedSTH:      &sth,
-		LastSuccess:      time.Now().UTC(),
 	}
 	if err := writeJSONFile(filepath.Join(dir, "state.json"), stateFile, 0666); err != nil {
 		return err

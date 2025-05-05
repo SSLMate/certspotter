@@ -12,7 +12,7 @@ package loglist
 import (
 	"time"
 
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 )
 
 type List struct {
@@ -30,7 +30,7 @@ type Operator struct {
 
 type Log struct {
 	Key              []byte        `json:"key"`
-	LogID            ct.SHA256Hash `json:"log_id"`
+	LogID            cttypes.LogID `json:"log_id"`
 	MMD              int           `json:"mmd"`
 	URL              string        `json:"url,omitempty"`            // only for rfc6962 logs
 	SubmissionURL    string        `json:"submission_url,omitempty"` // only for static-ct-api logs
@@ -43,6 +43,9 @@ type Log struct {
 		StartInclusive time.Time `json:"start_inclusive"`
 		EndExclusive   time.Time `json:"end_exclusive"`
 	} `json:"temporal_interval"`
+
+	DownloadWorkers int `json:"certspotter_download_workers,omitempty"`
+	DownloadJobSize int `json:"certspotter_download_job_size,omitempty"`
 
 	// TODO: add previous_operators
 }

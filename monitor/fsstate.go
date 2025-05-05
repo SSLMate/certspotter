@@ -21,8 +21,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
+	"software.sslmate.com/src/certspotter/merkletree"
 )
 
 type FilesystemState struct {
@@ -77,17 +78,17 @@ func (s *FilesystemState) StoreLogState(ctx context.Context, logID LogID, state 
 	return writeJSONFile(filePath, state, 0666)
 }
 
-func (s *FilesystemState) StoreSTH(ctx context.Context, logID LogID, sth *ct.SignedTreeHead) error {
+func (s *FilesystemState) StoreSTH(ctx context.Context, logID LogID, sth *cttypes.SignedTreeHead) error {
 	sthsDirPath := filepath.Join(s.logStateDir(logID), "unverified_sths")
 	return storeSTHInDir(sthsDirPath, sth)
 }
 
-func (s *FilesystemState) LoadSTHs(ctx context.Context, logID LogID) ([]*ct.SignedTreeHead, error) {
+func (s *FilesystemState) LoadSTHs(ctx context.Context, logID LogID) ([]*cttypes.SignedTreeHead, error) {
 	sthsDirPath := filepath.Join(s.logStateDir(logID), "unverified_sths")
 	return loadSTHsFromDir(sthsDirPath)
 }
 
-func (s *FilesystemState) RemoveSTH(ctx context.Context, logID LogID, sth *ct.SignedTreeHead) error {
+func (s *FilesystemState) RemoveSTH(ctx context.Context, logID LogID, sth *cttypes.SignedTreeHead) error {
 	sthsDirPath := filepath.Join(s.logStateDir(logID), "unverified_sths")
 	return removeSTHFromDir(sthsDirPath, sth)
 }
@@ -154,24 +155,17 @@ func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEn
 		textPath  = filepath.Join(dirPath, fmt.Sprintf("%d.txt", entry.Index))
 	)
 
-	summary := fmt.Sprintf("Unable to Parse Entry %d in %s", entry.Index, entry.Log.URL)
-
-	entryJSON := struct {
-		LeafInput []byte `json:"leaf_input"`
-		ExtraData []byte `json:"extra_data"`
-	}{
-		LeafInput: entry.LeafInput,
-		ExtraData: entry.ExtraData,
-	}
+	summary := fmt.Sprintf("Unable to Parse Entry %d in %s", entry.Index, entry.Log.GetMonitoringURL())
+	leafHash := merkletree.HashLeaf(entry.LeafInput())
 
 	text := new(strings.Builder)
 	writeField := func(name string, value any) { fmt.Fprintf(text, "\t%13s = %s\n", name, value) }
 	fmt.Fprintf(text, "Unable to determine if log entry matches your watchlist. Please file a bug report at https://github.com/SSLMate/certspotter/issues/new with the following details:\n")
-	writeField("Log Entry", fmt.Sprintf("%d @ %s", entry.Index, entry.Log.URL))
-	writeField("Leaf Hash", entry.LeafHash.Base64String())
+	writeField("Log Entry", fmt.Sprintf("%d @ %s", entry.Index, entry.Log.GetMonitoringURL()))
+	writeField("Leaf Hash", leafHash.Base64String())
 	writeField("Error", parseError.Error())
 
-	if err := writeJSONFile(entryPath, entryJSON, 0666); err != nil {
+	if err := writeJSONFile(entryPath, entry.Entry, 0666); err != nil {
 		return fmt.Errorf("error saving JSON file: %w", err)
 	}
 	if err := writeTextFile(textPath, text.String(), 0666); err != nil {
@@ -181,9 +175,9 @@ func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEn
 	environ := []string{
 		"EVENT=malformed_cert",
 		"SUMMARY=" + summary,
-		"LOG_URI=" + entry.Log.URL,
+		"LOG_URI=" + entry.Log.GetMonitoringURL(),
 		"ENTRY_INDEX=" + fmt.Sprint(entry.Index),
-		"LEAF_HASH=" + entry.LeafHash.Base64String(),
+		"LEAF_HASH=" + leafHash.Base64String(),
 		"PARSE_ERROR=" + parseError.Error(),
 		"ENTRY_FILENAME=" + entryPath,
 		"TEXT_FILENAME=" + textPath,
@@ -233,7 +227,7 @@ func (s *FilesystemState) NotifyError(ctx context.Context, ctlog *loglist.Log, e
 	if ctlog == nil {
 		log.Print(err)
 	} else {
-		log.Print(ctlog.URL, ":", err)
+		log.Print(ctlog.GetMonitoringURL(), ":", err)
 	}
 	return nil
 }

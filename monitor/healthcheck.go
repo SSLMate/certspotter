@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
 )
 
@@ -31,7 +31,7 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 		return nil
 	}
 
-	if time.Since(state.LastSuccess) < config.HealthCheckInterval {
+	if state.VerifiedSTH != nil && time.Since(state.VerifiedSTH.TimestampTime()) < config.HealthCheckInterval {
 		return nil
 	}
 
@@ -42,9 +42,8 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 
 	if len(sths) == 0 {
 		info := &StaleSTHInfo{
-			Log:         ctlog,
-			LastSuccess: state.LastSuccess,
-			LatestSTH:   state.VerifiedSTH,
+			Log:       ctlog,
+			LatestSTH: state.VerifiedSTH,
 		}
 		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about stale STH: %w", err)
@@ -69,14 +68,13 @@ type HealthCheckFailure interface {
 }
 
 type StaleSTHInfo struct {
-	Log         *loglist.Log
-	LastSuccess time.Time
-	LatestSTH   *ct.SignedTreeHead // may be nil
+	Log       *loglist.Log
+	LatestSTH *cttypes.SignedTreeHead // may be nil
 }
 
 type BacklogInfo struct {
 	Log       *loglist.Log
-	LatestSTH *ct.SignedTreeHead
+	LatestSTH *cttypes.SignedTreeHead
 	Position  uint64
 }
 
@@ -92,10 +90,10 @@ func (e *BacklogInfo) Backlog() uint64 {
 }
 
 func (e *StaleSTHInfo) Summary() string {
-	return fmt.Sprintf("Unable to contact %s since %s", e.Log.URL, e.LastSuccess)
+	return fmt.Sprintf("%s is out-of-date", e.Log.GetMonitoringURL())
 }
 func (e *BacklogInfo) Summary() string {
-	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.Log.URL)
+	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.Log.GetMonitoringURL())
 }
 func (e *StaleLogListInfo) Summary() string {
 	return fmt.Sprintf("Unable to retrieve log list since %s", e.LastSuccess)
@@ -103,7 +101,7 @@ func (e *StaleLogListInfo) Summary() string {
 
 func (e *StaleSTHInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.URL, e.LastSuccess)
+	fmt.Fprintf(text, "certspotter has been unable to get up-to-date information about %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.GetMonitoringURL())
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
@@ -116,7 +114,7 @@ func (e *StaleSTHInfo) Text() string {
 }
 func (e *BacklogInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.Log.URL)
+	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.Log.GetMonitoringURL())
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For more details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")

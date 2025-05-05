@@ -123,6 +123,10 @@ The following environment variables are set for `discovered_cert` events:
 
 :    Error parsing the serial number, if any.  If this variable is set, then `SERIAL` is unset.
 
+`CHAIN_ERROR`
+
+:    Error building or verifying the certificate chain, if any.  If this variable is set, then the certificate chain in `CERT_FILENAME` may be incomplete or invalid.
+
 ## Malformed certificate information
 
 The following environment variables are set for `malformed_cert` events:

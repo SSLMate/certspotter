@@ -63,7 +63,7 @@ func (daemon *daemon) healthCheck(ctx context.Context) error {
 
 	for _, task := range daemon.tasks {
 		if err := healthCheckLog(ctx, daemon.config, task.log); err != nil {
-			return fmt.Errorf("error checking health of log %q: %w", task.log.URL, err)
+			return fmt.Errorf("error checking health of log %q: %w", task.log.GetMonitoringURL(), err)
 		}
 	}
 	return nil
@@ -75,12 +75,12 @@ func (daemon *daemon) startTask(ctx context.Context, ctlog *loglist.Log) task {
 		defer cancel()
 		err := monitorLogContinously(ctx, daemon.config, ctlog)
 		if daemon.config.Verbose {
-			log.Printf("task for log %s stopped with error %s", ctlog.URL, err)
+			log.Printf("task for log %s stopped with error %s", ctlog.GetMonitoringURL(), err)
 		}
 		if ctx.Err() == context.Canceled && errors.Is(err, context.Canceled) {
 			return nil
 		} else {
-			return fmt.Errorf("error while monitoring %s: %w", ctlog.URL, err)
+			return fmt.Errorf("error while monitoring %s: %w", ctlog.GetMonitoringURL(), err)
 		}
 	})
 	return task{log: ctlog, stop: cancel}
@@ -113,7 +113,7 @@ func (daemon *daemon) loadLogList(ctx context.Context) error {
 			continue
 		}
 		if daemon.config.Verbose {
-			log.Printf("starting task for log %s (%s)", logID.Base64String(), ctlog.URL)
+			log.Printf("starting task for log %s (%s)", logID.Base64String(), ctlog.GetMonitoringURL())
 		}
 		daemon.tasks[logID] = daemon.startTask(ctx, ctlog)
 	}

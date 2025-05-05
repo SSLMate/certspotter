@@ -11,17 +11,25 @@ package monitor
 
 import (
 	"context"
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/merkletree"
-	"time"
 )
 
 type LogState struct {
 	DownloadPosition *merkletree.CollapsedTree `json:"download_position"`
 	VerifiedPosition *merkletree.CollapsedTree `json:"verified_position"`
-	VerifiedSTH      *ct.SignedTreeHead        `json:"verified_sth"`
-	LastSuccess      time.Time                 `json:"last_success"`
+	VerifiedSTH      *cttypes.SignedTreeHead   `json:"verified_sth"`
+}
+
+func (state *LogState) rewindDownloadPosition() {
+	position := state.VerifiedPosition.Clone()
+	state.DownloadPosition = &position
+}
+
+func (state *LogState) advanceVerifiedPosition() {
+	position := state.DownloadPosition.Clone()
+	state.VerifiedPosition = &position
 }
 
 // Methods are safe to call concurrently.
@@ -43,14 +51,14 @@ type StateProvider interface {
 
 	// Store STH for retrieval by LoadSTHs.  If an STH with the same
 	// timestamp and root hash is already stored, this STH can be ignored.
-	StoreSTH(context.Context, LogID, *ct.SignedTreeHead) error
+	StoreSTH(context.Context, LogID, *cttypes.SignedTreeHead) error
 
 	// Load all STHs for this log previously stored with StoreSTH.
 	// The returned slice must be sorted by tree size.
-	LoadSTHs(context.Context, LogID) ([]*ct.SignedTreeHead, error)
+	LoadSTHs(context.Context, LogID) ([]*cttypes.SignedTreeHead, error)
 
 	// Remove an STH so it is no longer returned by LoadSTHs.
-	RemoveSTH(context.Context, LogID, *ct.SignedTreeHead) error
+	RemoveSTH(context.Context, LogID, *cttypes.SignedTreeHead) error
 
 	// Called when a certificate matching the watch list is discovered.
 	NotifyCert(context.Context, *DiscoveredCert) error

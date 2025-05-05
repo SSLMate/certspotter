@@ -12,11 +12,11 @@ package monitor
 import (
 	"context"
 	"fmt"
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
 )
 
-type LogID = ct.SHA256Hash
+type LogID = cttypes.LogID
 
 func getLogList(ctx context.Context, source string, token *loglist.ModificationToken) (map[LogID]*loglist.Log, *loglist.ModificationToken, error) {
 	list, newToken, err := loglist.LoadIfModified(ctx, source, token)
@@ -28,6 +28,13 @@ func getLogList(ctx context.Context, source string, token *loglist.ModificationT
 	for operatorIndex := range list.Operators {
 		for logIndex := range list.Operators[operatorIndex].Logs {
 			log := &list.Operators[operatorIndex].Logs[logIndex]
+			if _, exists := logs[log.LogID]; exists {
+				return nil, nil, fmt.Errorf("log list contains more than one entry with ID %s", log.LogID.Base64String())
+			}
+			logs[log.LogID] = log
+		}
+		for logIndex := range list.Operators[operatorIndex].TiledLogs {
+			log := &list.Operators[operatorIndex].TiledLogs[logIndex]
 			if _, exists := logs[log.LogID]; exists {
 				return nil, nil, fmt.Errorf("log list contains more than one entry with ID %s", log.LogID.Base64String())
 			}

@@ -10,15 +10,8 @@
 package certspotter
 
 import (
-	"fmt"
 	"math/big"
-
-	"software.sslmate.com/src/certspotter/ct"
 )
-
-func IsPrecert(entry *ct.LogEntry) bool {
-	return entry.Leaf.TimestampedEntry.EntryType == ct.PrecertLogEntryType
-}
 
 type CertInfo struct {
 	TBS *TBSCertificate
@@ -66,19 +59,6 @@ func MakeCertInfoFromRawCert(certBytes []byte) (*CertInfo, error) {
 		return nil, err
 	}
 	return MakeCertInfoFromRawTBS(cert.GetRawTBSCertificate())
-}
-
-func MakeCertInfoFromLogEntry(entry *ct.LogEntry) (*CertInfo, error) {
-	switch entry.Leaf.TimestampedEntry.EntryType {
-	case ct.X509LogEntryType:
-		return MakeCertInfoFromRawCert(entry.Leaf.TimestampedEntry.X509Entry)
-
-	case ct.PrecertLogEntryType:
-		return MakeCertInfoFromRawTBS(entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate)
-
-	default:
-		return nil, fmt.Errorf("MakeCertInfoFromCTEntry: unknown CT entry type (neither X509 nor precert)")
-	}
 }
 
 func MatchesWildcard(dnsName string, pattern string) bool {

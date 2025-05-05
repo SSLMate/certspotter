@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Opsmate, Inc.
+// Copyright (C) 2025 Opsmate, Inc.
 //
 // This Source Code Form is subject to the terms of the Mozilla
 // Public License, v. 2.0. If a copy of the MPL was not distributed
@@ -10,79 +10,94 @@
 package monitor
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
+
 	"software.sslmate.com/src/certspotter"
-	"software.sslmate.com/src/certspotter/ct"
+	"software.sslmate.com/src/certspotter/ctclient"
+	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
-	"software.sslmate.com/src/certspotter/merkletree"
 )
 
 type LogEntry struct {
-	Log       *loglist.Log
-	Index     uint64
-	LeafInput []byte
-	ExtraData []byte
-	LeafHash  merkletree.Hash
+	ctclient.Entry
+	Index uint64
+	Log   *loglist.Log
 }
 
-func processLogEntry(ctx context.Context, config *Config, entry *LogEntry) error {
-	leaf, err := ct.ReadMerkleTreeLeaf(bytes.NewReader(entry.LeafInput))
+func processLogEntry(ctx context.Context, config *Config, issuerGetter ctclient.IssuerGetter, entry *LogEntry) error {
+	leaf, err := cttypes.ParseLeafInput(entry.LeafInput())
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing Merkle Tree Leaf: %w", err))
 	}
 	switch leaf.TimestampedEntry.EntryType {
-	case ct.X509LogEntryType:
-		return processX509LogEntry(ctx, config, entry, leaf.TimestampedEntry.X509Entry)
-	case ct.PrecertLogEntryType:
-		return processPrecertLogEntry(ctx, config, entry, leaf.TimestampedEntry.PrecertEntry)
+	case cttypes.X509EntryType:
+		return processX509LogEntry(ctx, config, issuerGetter, entry, leaf.TimestampedEntry.SignedEntryASN1Cert)
+	case cttypes.PrecertEntryType:
+		return processPrecertLogEntry(ctx, config, issuerGetter, entry, leaf.TimestampedEntry.SignedEntryPreCert)
 	default:
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("unknown log entry type %d", leaf.TimestampedEntry.EntryType))
 	}
+	return nil
 }
 
-func processX509LogEntry(ctx context.Context, config *Config, entry *LogEntry, cert ct.ASN1Cert) error {
-	certInfo, err := certspotter.MakeCertInfoFromRawCert(cert)
+func processX509LogEntry(ctx context.Context, config *Config, issuerGetter ctclient.IssuerGetter, entry *LogEntry, cert *cttypes.ASN1Cert) error {
+	certInfo, err := certspotter.MakeCertInfoFromRawCert(*cert)
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing X.509 certificate: %w", err))
 	}
-
-	chain, err := ct.UnmarshalX509ChainArray(entry.ExtraData)
-	if err != nil {
-		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing extra_data for X.509 entry: %w", err))
-	}
-	chain = append([]ct.ASN1Cert{cert}, chain...)
-
 	if precertTBS, err := certspotter.ReconstructPrecertTBS(certInfo.TBS); err == nil {
 		certInfo.TBS = precertTBS
 	} else {
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error reconstructing precertificate TBSCertificate: %w", err))
 	}
 
-	return processCertificate(ctx, config, entry, certInfo, chain)
+	getChain := func(ctx context.Context) ([]cttypes.ASN1Cert, error) {
+		var (
+			chain = []cttypes.ASN1Cert{*cert}
+			errs  = []error{}
+		)
+		if issuers, err := entry.GetChain(ctx, issuerGetter); err == nil {
+			chain = append(chain, issuers...)
+		} else {
+			errs = append(errs, err)
+		}
+		return chain, errors.Join(errs...)
+	}
+	return processCertificate(ctx, config, entry, certInfo, getChain)
 }
 
-func processPrecertLogEntry(ctx context.Context, config *Config, entry *LogEntry, precert ct.PreCert) error {
+func processPrecertLogEntry(ctx context.Context, config *Config, issuerGetter ctclient.IssuerGetter, entry *LogEntry, precert *cttypes.PreCert) error {
 	certInfo, err := certspotter.MakeCertInfoFromRawTBS(precert.TBSCertificate)
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing precert TBSCertificate: %w", err))
 	}
-
-	chain, err := ct.UnmarshalPrecertChainArray(entry.ExtraData)
+	precertBytes, err := entry.Precertificate()
 	if err != nil {
-		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error parsing extra_data for precert entry: %w", err))
+		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("error getting precert entry's precertificate: %w", err))
 	}
 
-	if _, err := certspotter.ValidatePrecert(chain[0], precert.TBSCertificate); err != nil {
-		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("precertificate in extra_data does not match TBSCertificate in leaf_input: %w", err))
+	getChain := func(ctx context.Context) ([]cttypes.ASN1Cert, error) {
+		var (
+			chain = []cttypes.ASN1Cert{precertBytes}
+			errs  = []error{}
+		)
+		if issuers, err := entry.GetChain(ctx, issuerGetter); err == nil {
+			chain = append(chain, issuers...)
+		} else {
+			errs = append(errs, err)
+		}
+		if _, err := certspotter.ValidatePrecert(precertBytes, precert.TBSCertificate); err != nil {
+			errs = append(errs, fmt.Errorf("precertificate in extra_data does not match TBSCertificate in leaf_input: %w", err))
+		}
+		return chain, errors.Join(errs...)
 	}
-
-	return processCertificate(ctx, config, entry, certInfo, chain)
+	return processCertificate(ctx, config, entry, certInfo, getChain)
 }
 
-func processCertificate(ctx context.Context, config *Config, entry *LogEntry, certInfo *certspotter.CertInfo, chain []ct.ASN1Cert) error {
+func processCertificate(ctx context.Context, config *Config, entry *LogEntry, certInfo *certspotter.CertInfo, getChain func(context.Context) ([]cttypes.ASN1Cert, error)) error {
 	identifiers, err := certInfo.ParseIdentifiers()
 	if err != nil {
 		return processMalformedLogEntry(ctx, config, entry, err)
@@ -92,11 +107,17 @@ func processCertificate(ctx context.Context, config *Config, entry *LogEntry, ce
 		return nil
 	}
 
+	chain, chainErr := getChain(ctx)
+	if errors.Is(chainErr, context.Canceled) {
+		return chainErr
+	}
+
 	cert := &DiscoveredCert{
 		WatchItem:    watchItem,
 		LogEntry:     entry,
 		Info:         certInfo,
 		Chain:        chain,
+		ChainError:   chainErr,
 		TBSSHA256:    sha256.Sum256(certInfo.TBS.Raw),
 		SHA256:       sha256.Sum256(chain[0]),
 		PubkeySHA256: sha256.Sum256(certInfo.TBS.PublicKey.FullBytes),
@@ -112,7 +133,7 @@ func processCertificate(ctx context.Context, config *Config, entry *LogEntry, ce
 
 func processMalformedLogEntry(ctx context.Context, config *Config, entry *LogEntry, parseError error) error {
 	if err := config.State.NotifyMalformedEntry(ctx, entry, parseError); err != nil {
-		return fmt.Errorf("error notifying about malformed log entry %d in %s (%q): %w", entry.Index, entry.Log.URL, parseError, err)
+		return fmt.Errorf("error notifying about malformed log entry %d in %s (%q): %w", entry.Index, entry.Log.GetMonitoringURL(), parseError, err)
 	}
 	return nil
 }

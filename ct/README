@@ -1,4 +1,0 @@
-The code in this directory is based on Google's Certificiate Transparency Go library
-(originally at <https://github.com/google/certificate-transparency/tree/master/go>;
-now at <https://github.com/google/certificate-transparency-go>).
-See AUTHORS for the copyright holders, and LICENSE for the license.
