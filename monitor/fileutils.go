@@ -25,9 +25,24 @@ func randomFileSuffix() string {
 	return hex.EncodeToString(randomBytes[:])
 }
 
+func writeSyncFile(filename string, data []byte, perm os.FileMode) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err2 := f.Sync(); err2 != nil && err == nil {
+		err = err2
+	}
+	if err2 := f.Close(); err2 != nil && err == nil {
+		err = err2
+	}
+	return err
+}
+
 func writeFile(filename string, data []byte, perm os.FileMode) error {
 	tempname := filename + ".tmp." + randomFileSuffix()
-	if err := os.WriteFile(tempname, data, perm); err != nil {
+	if err := writeSyncFile(tempname, data, perm); err != nil {
 		return fmt.Errorf("error writing %s: %w", filename, err)
 	}
 	if err := os.Rename(tempname, filename); err != nil {
