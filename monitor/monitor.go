@@ -38,15 +38,15 @@ func downloadJobSize(ctlog *loglist.Log) uint64 {
 	} else if ctlog.GetEntriesSize != 0 {
 		return uint64(ctlog.GetEntriesSize)
 	} else {
-		return 256
+		return 1000
 	}
 }
 
 func downloadWorkers(ctlog *loglist.Log) int {
-	if ctlog.DownloadWorkers != 0 {
-		return ctlog.DownloadWorkers
+	if ctlog.ParallelGetEntries != 0 {
+		return ctlog.ParallelGetEntries
 	} else {
-		return 4
+		return 1
 	}
 }
 
