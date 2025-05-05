@@ -53,6 +53,7 @@ func (tree *FragmentedCollapsedTree) Add(subtree CollapsedTree) error {
 }
 
 func (tree *FragmentedCollapsedTree) Merge(other FragmentedCollapsedTree) error {
+	// TODO: try to make this linear time instead of quadratic; it should be possible since the subtrees are sorted by offset
 	for _, subtree := range other.subtrees {
 		if err := tree.Add(subtree); err != nil {
 			return err
