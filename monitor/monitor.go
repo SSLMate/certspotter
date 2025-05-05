@@ -35,16 +35,16 @@ const (
 func downloadJobSize(ctlog *loglist.Log) uint64 {
 	if ctlog.IsStaticCTAPI() {
 		return ctclient.StaticTileWidth
-	} else if ctlog.GetEntriesSize != 0 {
-		return uint64(ctlog.GetEntriesSize)
+	} else if ctlog.CertspotterDownloadSize != 0 {
+		return uint64(ctlog.CertspotterDownloadSize)
 	} else {
 		return 1000
 	}
 }
 
 func downloadWorkers(ctlog *loglist.Log) int {
-	if ctlog.ParallelGetEntries != 0 {
-		return ctlog.ParallelGetEntries
+	if ctlog.CertspotterDownloadJobs != 0 {
+		return ctlog.CertspotterDownloadJobs
 	} else {
 		return 1
 	}

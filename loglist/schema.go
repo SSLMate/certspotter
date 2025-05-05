@@ -45,8 +45,8 @@ type Log struct {
 	} `json:"temporal_interval"`
 
 	// certspotter-specific extensions
-	GetEntriesSize     int `json:"get_entries_size,omitempty"`
-	ParallelGetEntries int `json:"parallel_get_entries,omitempty"`
+	CertspotterDownloadSize int `json:"certspotter_download_size,omitempty"`
+	CertspotterDownloadJobs int `json:"certspotter_download_jobs,omitempty"`
 
 	// TODO: add previous_operators
 }
