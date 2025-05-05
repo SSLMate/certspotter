@@ -35,8 +35,8 @@ const (
 func downloadJobSize(ctlog *loglist.Log) uint64 {
 	if ctlog.IsStaticCTAPI() {
 		return ctclient.StaticTileWidth
-	} else if ctlog.DownloadJobSize != 0 {
-		return uint64(ctlog.DownloadJobSize)
+	} else if ctlog.GetEntriesSize != 0 {
+		return uint64(ctlog.GetEntriesSize)
 	} else {
 		return 256
 	}

@@ -44,8 +44,9 @@ type Log struct {
 		EndExclusive   time.Time `json:"end_exclusive"`
 	} `json:"temporal_interval"`
 
+	// certspotter-specific extensions
+	GetEntriesSize  int `json:"get_entries_size,omitempty"`
 	DownloadWorkers int `json:"certspotter_download_workers,omitempty"`
-	DownloadJobSize int `json:"certspotter_download_job_size,omitempty"`
 
 	// TODO: add previous_operators
 }
