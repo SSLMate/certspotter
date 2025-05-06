@@ -374,6 +374,10 @@ func generateBatches(ctx context.Context, ctlog *loglist.Log, position uint64, n
 		// Round down to the tile boundary to avoid downloading a partial tile that was recently discovered
 		// In a future invocation of this function, either enough time will have passed that this code path will be skipped, or the log will have grown and treeSize will be rounded to a larger tile boundary
 		treeSize -= treeSize % ctclient.StaticTileWidth
+		if treeSize < position {
+			// This can arise with a brand new log when config.StartAtEnd is true
+			return position, number, nil
+		}
 	}
 	for {
 		batch := &batch{
