@@ -142,22 +142,34 @@ func (client *logClient) ReconstructTree(ctx context.Context, sth *cttypes.Signe
 }
 
 type issuerGetter struct {
+	state     StateProvider
 	logGetter ctclient.IssuerGetter
 }
 
-func (ig *issuerGetter) GetIssuer(ctx context.Context, fingerprint *[32]byte) (issuer []byte, err error) {
-	// TODO-2 check cache
-	err = withRetry(ctx, 7, func() error {
+func (ig *issuerGetter) GetIssuer(ctx context.Context, fingerprint *[32]byte) ([]byte, error) {
+	if issuer, err := ig.state.LoadIssuer(ctx, fingerprint); err != nil {
+		log.Printf("error loading cached issuer %x (issuer will be retrieved from log instead): %s", *fingerprint, err)
+	} else if issuer != nil {
+		return issuer, nil
+	}
+
+	var issuer []byte
+	if err := withRetry(ctx, 7, func() error {
+		var err error
 		issuer, err = ig.logGetter.GetIssuer(ctx, fingerprint)
 		return err
-	})
-	if err == nil {
-		// TODO-2 insert into cache
+	}); err != nil {
+		return nil, err
 	}
-	return
+
+	if err := ig.state.StoreIssuer(ctx, fingerprint, issuer); err != nil {
+		log.Printf("error caching issuer %x (issuer will be re-retrieved from log in the future): %s", *fingerprint, err)
+	}
+
+	return issuer, nil
 }
 
-func newLogClient(ctlog *loglist.Log) (ctclient.Log, ctclient.IssuerGetter, error) {
+func newLogClient(config *Config, ctlog *loglist.Log) (ctclient.Log, ctclient.IssuerGetter, error) {
 	switch {
 	case ctlog.IsRFC6962():
 		logURL, err := url.Parse(ctlog.URL)
@@ -186,6 +198,7 @@ func newLogClient(ctlog *loglist.Log) (ctclient.Log, ctclient.IssuerGetter, erro
 				log:    ctlog,
 				client: client,
 			}, &issuerGetter{
+				state:     config.State,
 				logGetter: client,
 			}, nil
 	default:
@@ -194,7 +207,7 @@ func newLogClient(ctlog *loglist.Log) (ctclient.Log, ctclient.IssuerGetter, erro
 }
 
 func monitorLogContinously(ctx context.Context, config *Config, ctlog *loglist.Log) (returnedErr error) {
-	client, issuerGetter, err := newLogClient(ctlog)
+	client, issuerGetter, err := newLogClient(config, ctlog)
 	if err != nil {
 		return err
 	}

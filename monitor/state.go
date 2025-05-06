@@ -63,6 +63,14 @@ type StateProvider interface {
 	// Remove an STH so it is no longer returned by LoadSTHs.
 	RemoveSTH(context.Context, LogID, *cttypes.SignedTreeHead) error
 
+	// Store a DER-encoded issuer certificate with the given fingerprint for
+	// retrieval by LoadIssuer.  Returns nil if the issuer has already been stored.
+	StoreIssuer(context.Context, *[32]byte, []byte) error
+
+	// Retrieve a DER-encoded issuer certificate previously stored with StoreIssuer.
+	// Returns nil, nil if this issuer certificate has not been stored.
+	LoadIssuer(context.Context, *[32]byte) ([]byte, error)
+
 	// Called when a certificate matching the watch list is discovered.
 	NotifyCert(context.Context, *DiscoveredCert) error
 

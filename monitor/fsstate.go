@@ -93,6 +93,23 @@ func (s *FilesystemState) RemoveSTH(ctx context.Context, logID LogID, sth *cttyp
 	return removeSTHFromDir(sthsDirPath, sth)
 }
 
+func (s *FilesystemState) StoreIssuer(ctx context.Context, fingerprint *[32]byte, issuer []byte) error {
+	filePath := filepath.Join(s.StateDir, "issuers", hex.EncodeToString(fingerprint[:]))
+	return writeFile(filePath, issuer, 0666)
+}
+
+func (s *FilesystemState) LoadIssuer(ctx context.Context, fingerprint *[32]byte) ([]byte, error) {
+	filePath := filepath.Join(s.StateDir, "issuers", hex.EncodeToString(fingerprint[:]))
+	issuer, err := os.ReadFile(filePath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	} else {
+		return issuer, err
+	}
+}
+
 func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) error {
 	var notifiedPath string
 	var paths *certPaths
