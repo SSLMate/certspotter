@@ -83,10 +83,10 @@ func withRetry(ctx context.Context, maxRetries int, f func() error) error {
 	return ctx.Err()
 }
 
-func getEntriesFull(ctx context.Context, client ctclient.Log, startInclusive, endInclusive uint64) ([]ctclient.Entry, error) {
-	allEntries := make([]ctclient.Entry, 0, endInclusive-startInclusive+1)
-	for startInclusive <= endInclusive {
-		entries, err := client.GetEntries(ctx, startInclusive, endInclusive)
+func getEntriesFull(ctx context.Context, client ctclient.Log, startInclusive, endExclusive uint64) ([]ctclient.Entry, error) {
+	allEntries := make([]ctclient.Entry, 0, endExclusive-startInclusive)
+	for startInclusive < endExclusive {
+		entries, err := client.GetEntries(ctx, startInclusive, endExclusive-1)
 		if err != nil {
 			return nil, err
 		}
@@ -418,7 +418,7 @@ func downloadWorker(ctx context.Context, config *Config, ctlog *loglist.Log, cli
 		case batch = <-batchesIn:
 		}
 
-		entries, err := getEntriesFull(ctx, client, batch.begin, batch.end-1)
+		entries, err := getEntriesFull(ctx, client, batch.begin, batch.end)
 		if err != nil {
 			return err
 		}
