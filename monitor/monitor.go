@@ -418,11 +418,13 @@ func downloadWorker(ctx context.Context, config *Config, ctlog *loglist.Log, cli
 		case batch = <-batchesIn:
 		}
 
-		entries, err := getEntriesFull(ctx, client, batch.begin, batch.end)
-		if err != nil {
-			return err
+		if batch.end > batch.begin {
+			entries, err := getEntriesFull(ctx, client, batch.begin, batch.end)
+			if err != nil {
+				return err
+			}
+			batch.entries = entries
 		}
-		batch.entries = entries
 
 		select {
 		case <-ctx.Done():
