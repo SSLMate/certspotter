@@ -20,6 +20,7 @@ import (
 	"software.sslmate.com/src/certspotter/merkletree"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func readVersion(stateDir string) (int, error) {
@@ -79,6 +80,7 @@ func migrateLogStateDirV1(dir string) error {
 		DownloadPosition: &tree,
 		VerifiedPosition: &tree,
 		VerifiedSTH:      &sth,
+		LastSuccess:      time.Now(),
 	}
 	if err := writeJSONFile(filepath.Join(dir, "state.json"), stateFile, 0666); err != nil {
 		return err

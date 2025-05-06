@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -24,16 +25,22 @@ import (
 	"software.sslmate.com/src/certspotter/cttypes"
 	"strconv"
 	"strings"
+	"time"
 )
 
-func loadSTHsFromDir(dirPath string) ([]*cttypes.SignedTreeHead, error) {
+type StoredSTH struct {
+	cttypes.SignedTreeHead
+	StoredAt time.Time `json:"stored_at"` // time at which the STH was first stored
+}
+
+func loadSTHsFromDir(dirPath string) ([]*StoredSTH, error) {
 	entries, err := os.ReadDir(dirPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		return []*cttypes.SignedTreeHead{}, nil
+		return []*StoredSTH{}, nil
 	} else if err != nil {
 		return nil, err
 	}
-	sths := make([]*cttypes.SignedTreeHead, 0, len(entries))
+	sths := make([]*StoredSTH, 0, len(entries))
 	for _, entry := range entries {
 		filename := entry.Name()
 		if strings.HasPrefix(filename, ".") || !strings.HasSuffix(filename, ".json") {
@@ -45,17 +52,30 @@ func loadSTHsFromDir(dirPath string) ([]*cttypes.SignedTreeHead, error) {
 		}
 		sths = append(sths, sth)
 	}
-	slices.SortFunc(sths, func(a, b *cttypes.SignedTreeHead) int { return cmp.Compare(a.TreeSize, b.TreeSize) })
+	slices.SortFunc(sths, func(a, b *StoredSTH) int { return cmp.Compare(a.TreeSize, b.TreeSize) })
 	return sths, nil
 }
 
-func readSTHFile(filePath string) (*cttypes.SignedTreeHead, error) {
-	fileBytes, err := os.ReadFile(filePath)
+func readSTHFile(filePath string) (*StoredSTH, error) {
+	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
 	}
-	sth := new(cttypes.SignedTreeHead)
-	if err := json.Unmarshal(fileBytes, sth); err != nil {
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	sth := &StoredSTH{
+		StoredAt: info.ModTime(),
+	}
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %s: %w", filePath, err)
+	}
+	if err := json.Unmarshal(fileBytes, &sth.SignedTreeHead); err != nil {
 		return nil, fmt.Errorf("error parsing %s: %w", filePath, err)
 	}
 	return sth, nil
@@ -64,6 +84,8 @@ func readSTHFile(filePath string) (*cttypes.SignedTreeHead, error) {
 func storeSTHInDir(dirPath string, sth *cttypes.SignedTreeHead) error {
 	filePath := filepath.Join(dirPath, sthFilename(sth))
 	if fileExists(filePath) {
+		// If the file already exists, we don't want its mtime to change
+		// because StoredSTH.StoredAt needs to be the time the STH was *first* stored.
 		return nil
 	}
 	return writeJSONFile(filePath, sth, 0666)

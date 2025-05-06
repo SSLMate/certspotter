@@ -11,6 +11,8 @@ package monitor
 
 import (
 	"context"
+	"time"
+
 	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/merkletree"
@@ -20,6 +22,7 @@ type LogState struct {
 	DownloadPosition *merkletree.CollapsedTree `json:"download_position"`
 	VerifiedPosition *merkletree.CollapsedTree `json:"verified_position"`
 	VerifiedSTH      *cttypes.SignedTreeHead   `json:"verified_sth"`
+	LastSuccess      time.Time                 `json:"last_success"`
 }
 
 func (state *LogState) rewindDownloadPosition() {
@@ -55,7 +58,7 @@ type StateProvider interface {
 
 	// Load all STHs for this log previously stored with StoreSTH.
 	// The returned slice must be sorted by tree size.
-	LoadSTHs(context.Context, LogID) ([]*cttypes.SignedTreeHead, error)
+	LoadSTHs(context.Context, LogID) ([]*StoredSTH, error)
 
 	// Remove an STH so it is no longer returned by LoadSTHs.
 	RemoveSTH(context.Context, LogID, *cttypes.SignedTreeHead) error

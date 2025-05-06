@@ -104,9 +104,6 @@ func getAndVerifySTH(ctx context.Context, ctlog *loglist.Log, client ctclient.Lo
 	if err := ctcrypto.PublicKey(ctlog.Key).Verify(ctcrypto.SignatureInputForSTH(sth), sth.Signature); err != nil {
 		return nil, "", fmt.Errorf("STH has invalid signature: %w", err)
 	}
-	if now := time.Now(); sth.TimestampTime().After(now) {
-		return nil, "", fmt.Errorf("STH timestamp %s is after current time %s (either log is misbehaving or your system clock is incorrect)", sth.TimestampTime(), now)
-	}
 	return sth, url, nil
 }
 
@@ -222,12 +219,14 @@ func monitorLogContinously(ctx context.Context, config *Config, ctlog *loglist.L
 				DownloadPosition: tree,
 				VerifiedPosition: tree,
 				VerifiedSTH:      sth,
+				LastSuccess:      time.Now(),
 			}
 		} else {
 			state = &LogState{
 				DownloadPosition: merkletree.EmptyCollapsedTree(),
 				VerifiedPosition: merkletree.EmptyCollapsedTree(),
 				VerifiedSTH:      nil,
+				LastSuccess:      time.Now(),
 			}
 		}
 		if config.Verbose {
@@ -303,8 +302,8 @@ func getSTHWorker(ctx context.Context, config *Config, ctlog *loglist.Log, clien
 type batch struct {
 	number     uint64
 	begin, end uint64
-	sths       []*cttypes.SignedTreeHead // STHs with sizes in range [begin,end], sorted by TreeSize
-	entries    []ctclient.Entry          // in range [begin,end)
+	sths       []*StoredSTH     // STHs with sizes in range [begin,end], sorted by TreeSize
+	entries    []ctclient.Entry // in range [begin,end)
 }
 
 func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.Log, position uint64, batches chan<- *batch) error {
@@ -317,7 +316,7 @@ func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.L
 		}
 		for len(sths) > 0 && sths[0].TreeSize < position {
 			// TODO-4: audit sths[0] against log's verified STH
-			if err := config.State.RemoveSTH(ctx, ctlog.LogID, sths[0]); err != nil {
+			if err := config.State.RemoveSTH(ctx, ctlog.LogID, &sths[0].SignedTreeHead); err != nil {
 				return fmt.Errorf("error removing STH: %w", err)
 			}
 			sths = sths[1:]
@@ -335,30 +334,30 @@ func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.L
 	return ctx.Err()
 }
 
-// return the earliest STH timestamp within the right-most tile
-func tileEarliestTimestamp(sths []*cttypes.SignedTreeHead) time.Time {
+// return the time at which the right-most tile indicated by sths was discovered
+func tileDiscoveryTime(sths []*StoredSTH) time.Time {
 	largestSTH, sths := sths[len(sths)-1], sths[:len(sths)-1]
 	tileNumber := largestSTH.TreeSize / ctclient.StaticTileWidth
-	earliest := largestSTH.TimestampTime()
+	storedAt := largestSTH.StoredAt
 	for _, sth := range slices.Backward(sths) {
 		if sth.TreeSize/ctclient.StaticTileWidth != tileNumber {
 			break
 		}
-		if timestamp := sth.TimestampTime(); timestamp.Before(earliest) {
-			earliest = timestamp
+		if sth.StoredAt.Before(storedAt) {
+			storedAt = sth.StoredAt
 		}
 	}
-	return earliest
+	return storedAt
 }
 
-func generateBatches(ctx context.Context, ctlog *loglist.Log, position uint64, number uint64, sths []*cttypes.SignedTreeHead, batches chan<- *batch) (uint64, uint64, error) {
+func generateBatches(ctx context.Context, ctlog *loglist.Log, position uint64, number uint64, sths []*StoredSTH, batches chan<- *batch) (uint64, uint64, error) {
 	downloadJobSize := downloadJobSize(ctlog)
 	if len(sths) == 0 {
 		return position, number, nil
 	}
 	largestSTH := sths[len(sths)-1]
 	treeSize := largestSTH.TreeSize
-	if ctlog.IsStaticCTAPI() && time.Since(tileEarliestTimestamp(sths)) < 5*time.Minute {
+	if ctlog.IsStaticCTAPI() && time.Since(tileDiscoveryTime(sths)) < 5*time.Minute {
 		// Round down to the tile boundary to avoid downloading a partial tile that was recently discovered
 		// In a future invocation of this function, either enough time will have passed that this code path will be skipped, or the log will have grown and treeSize will be rounded to a larger tile boundary
 		treeSize -= treeSize % ctclient.StaticTileWidth
@@ -471,17 +470,18 @@ func saveStateWorker(ctx context.Context, config *Config, ctlog *loglist.Log, st
 				batch.sths = batch.sths[1:]
 				if sth.RootHash != rootHash {
 					return &verifyEntriesError{
-						sth:             sth,
+						sth:             &sth.SignedTreeHead,
 						entriesRootHash: rootHash,
 					}
 				}
 				state.advanceVerifiedPosition()
-				state.VerifiedSTH = sth
+				state.LastSuccess = sth.StoredAt
+				state.VerifiedSTH = &sth.SignedTreeHead
 				if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil {
 					return fmt.Errorf("error storing log state: %w", err)
 				}
 				// don't remove the STH until state has been durably stored
-				if err := config.State.RemoveSTH(ctx, ctlog.LogID, sth); err != nil {
+				if err := config.State.RemoveSTH(ctx, ctlog.LogID, &sth.SignedTreeHead); err != nil {
 					return fmt.Errorf("error removing verified STH: %w", err)
 				}
 			}

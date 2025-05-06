@@ -31,7 +31,7 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 		return nil
 	}
 
-	if state.VerifiedSTH != nil && time.Since(state.VerifiedSTH.TimestampTime()) < config.HealthCheckInterval {
+	if time.Since(state.LastSuccess) < config.HealthCheckInterval {
 		return nil
 	}
 
@@ -42,8 +42,9 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 
 	if len(sths) == 0 {
 		info := &StaleSTHInfo{
-			Log:       ctlog,
-			LatestSTH: state.VerifiedSTH,
+			Log:         ctlog,
+			LastSuccess: state.LastSuccess,
+			LatestSTH:   state.VerifiedSTH,
 		}
 		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about stale STH: %w", err)
@@ -68,13 +69,14 @@ type HealthCheckFailure interface {
 }
 
 type StaleSTHInfo struct {
-	Log       *loglist.Log
-	LatestSTH *cttypes.SignedTreeHead // may be nil
+	Log         *loglist.Log
+	LastSuccess time.Time
+	LatestSTH   *cttypes.SignedTreeHead // may be nil
 }
 
 type BacklogInfo struct {
 	Log       *loglist.Log
-	LatestSTH *cttypes.SignedTreeHead
+	LatestSTH *StoredSTH
 	Position  uint64
 }
 
@@ -90,7 +92,7 @@ func (e *BacklogInfo) Backlog() uint64 {
 }
 
 func (e *StaleSTHInfo) Summary() string {
-	return fmt.Sprintf("%s is out-of-date", e.Log.GetMonitoringURL())
+	return fmt.Sprintf("Unable to contact %s since %s", e.Log.GetMonitoringURL(), e.LastSuccess)
 }
 func (e *BacklogInfo) Summary() string {
 	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.Log.GetMonitoringURL())
@@ -101,12 +103,12 @@ func (e *StaleLogListInfo) Summary() string {
 
 func (e *StaleSTHInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to get up-to-date information about %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.GetMonitoringURL())
+	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.GetMonitoringURL(), e.LastSuccess)
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
 	if e.LatestSTH != nil {
-		fmt.Fprintf(text, "Latest known log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.TimestampTime())
+		fmt.Fprintf(text, "Latest known log size = %d\n", e.LatestSTH.TreeSize)
 	} else {
 		fmt.Fprintf(text, "Latest known log size = none\n")
 	}
@@ -118,7 +120,7 @@ func (e *BacklogInfo) Text() string {
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For more details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
-	fmt.Fprintf(text, "Current log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.TimestampTime())
+	fmt.Fprintf(text, "Current log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.StoredAt)
 	fmt.Fprintf(text, "Current position = %d\n", e.Position)
 	fmt.Fprintf(text, "         Backlog = %d\n", e.Backlog())
 	return text.String()

@@ -83,7 +83,7 @@ func (s *FilesystemState) StoreSTH(ctx context.Context, logID LogID, sth *cttype
 	return storeSTHInDir(sthsDirPath, sth)
 }
 
-func (s *FilesystemState) LoadSTHs(ctx context.Context, logID LogID) ([]*cttypes.SignedTreeHead, error) {
+func (s *FilesystemState) LoadSTHs(ctx context.Context, logID LogID) ([]*StoredSTH, error) {
 	sthsDirPath := filepath.Join(s.logStateDir(logID), "unverified_sths")
 	return loadSTHsFromDir(sthsDirPath)
 }
