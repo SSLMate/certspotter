@@ -145,11 +145,23 @@ func prepareStateDir(stateDir string) error {
 		return fmt.Errorf("%s was created by a newer version of certspotter; upgrade to the latest version of certspotter or remove this directory to start from scratch", stateDir)
 	}
 
-	for _, subdir := range []string{"certs", "logs", "healthchecks", "issuers"} {
+	for _, subdir := range []string{"certs", "logs", "healthchecks"} {
 		if err := os.Mkdir(filepath.Join(stateDir, subdir), 0777); err != nil && !errors.Is(err, fs.ErrExist) {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func prepareCacheDir(cacheDir string) error {
+	if err := os.MkdirAll(cacheDir, 0777); err != nil {
+		return err
+	}
+	for _, subdir := range []string{"issuers"} {
+		if err := os.Mkdir(filepath.Join(cacheDir, subdir), 0777); err != nil && !errors.Is(err, fs.ErrExist) {
+			return err
+		}
+	}
 	return nil
 }

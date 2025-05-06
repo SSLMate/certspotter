@@ -89,6 +89,13 @@ func defaultConfigDir() string {
 		return filepath.Join(homedir(), ".certspotter")
 	}
 }
+func defaultCacheDir() string {
+	userCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		panic(fmt.Errorf("unable to determine user cache directory: %w", err))
+	}
+	return filepath.Join(userCacheDir, "certspotter")
+}
 func defaultWatchListPath() string {
 	return filepath.Join(defaultConfigDir(), "watchlist")
 }
@@ -192,6 +199,7 @@ func main() {
 
 	fsstate := &monitor.FilesystemState{
 		StateDir:  flags.stateDir,
+		CacheDir:  defaultCacheDir(),
 		SaveCerts: !flags.noSave,
 		Script:    flags.script,
 		ScriptDir: defaultScriptDir(),

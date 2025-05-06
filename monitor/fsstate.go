@@ -28,6 +28,7 @@ import (
 
 type FilesystemState struct {
 	StateDir  string
+	CacheDir  string
 	SaveCerts bool
 	Script    string
 	ScriptDir string
@@ -40,7 +41,13 @@ func (s *FilesystemState) logStateDir(logID LogID) string {
 }
 
 func (s *FilesystemState) Prepare(ctx context.Context) error {
-	return prepareStateDir(s.StateDir)
+	if err := prepareStateDir(s.StateDir); err != nil {
+		return err
+	}
+	if err := prepareCacheDir(s.CacheDir); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *FilesystemState) PrepareLog(ctx context.Context, logID LogID) error {
@@ -94,12 +101,12 @@ func (s *FilesystemState) RemoveSTH(ctx context.Context, logID LogID, sth *cttyp
 }
 
 func (s *FilesystemState) StoreIssuer(ctx context.Context, fingerprint *[32]byte, issuer []byte) error {
-	filePath := filepath.Join(s.StateDir, "issuers", hex.EncodeToString(fingerprint[:]))
+	filePath := filepath.Join(s.CacheDir, "issuers", hex.EncodeToString(fingerprint[:]))
 	return writeFile(filePath, issuer, 0666)
 }
 
 func (s *FilesystemState) LoadIssuer(ctx context.Context, fingerprint *[32]byte) ([]byte, error) {
-	filePath := filepath.Join(s.StateDir, "issuers", hex.EncodeToString(fingerprint[:]))
+	filePath := filepath.Join(s.CacheDir, "issuers", hex.EncodeToString(fingerprint[:]))
 	issuer, err := os.ReadFile(filePath)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
