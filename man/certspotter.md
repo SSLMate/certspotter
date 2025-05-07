@@ -235,7 +235,7 @@ certspotter-script(8)
 
 # COPYRIGHT
 
-Copyright (c) 2016-2023 Opsmate, Inc.
+Copyright (c) 2016-2025 Opsmate, Inc.
 
 # BUGS
 
