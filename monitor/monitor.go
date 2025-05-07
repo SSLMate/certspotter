@@ -60,9 +60,8 @@ func (e *verifyEntriesError) Error() string {
 }
 
 func withRetry(ctx context.Context, maxRetries int, f func() error) error {
-	const minSleep = 1 * time.Second
-	const maxSleep = 10 * time.Minute
 
+	minSleep := 1 * time.Second
 	numRetries := 0
 	for ctx.Err() == nil {
 		err := f()
@@ -72,12 +71,11 @@ func withRetry(ctx context.Context, maxRetries int, f func() error) error {
 		if maxRetries != -1 && numRetries >= maxRetries {
 			return fmt.Errorf("%w (retried %d times)", err, numRetries)
 		}
-		upperBound := min(minSleep*(1<<numRetries)*2, maxSleep)
-		lowerBound := max(upperBound/2, minSleep)
-		sleepTime := lowerBound + mathrand.N(upperBound-lowerBound)
+		sleepTime := minSleep + mathrand.N(minSleep)
 		if err := sleep(ctx, sleepTime); err != nil {
 			return err
 		}
+		minSleep = min(minSleep*2, 5*time.Minute)
 		numRetries++
 	}
 	return ctx.Err()
