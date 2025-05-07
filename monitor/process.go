@@ -40,7 +40,6 @@ func processLogEntry(ctx context.Context, config *Config, issuerGetter ctclient.
 	default:
 		return processMalformedLogEntry(ctx, config, entry, fmt.Errorf("unknown log entry type %d", leaf.TimestampedEntry.EntryType))
 	}
-	return nil
 }
 
 func processX509LogEntry(ctx context.Context, config *Config, issuerGetter ctclient.IssuerGetter, entry *LogEntry, cert *cttypes.ASN1Cert) error {

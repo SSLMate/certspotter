@@ -439,7 +439,6 @@ func downloadWorker(ctx context.Context, config *Config, ctlog *loglist.Log, cli
 		case batchesOut <- batch:
 		}
 	}
-	return nil
 }
 
 func processWorker(ctx context.Context, config *Config, ctlog *loglist.Log, issuerGetter ctclient.IssuerGetter, batchesIn <-chan *batch, batchesOut *sequencer.Channel[batch]) error {
