@@ -97,7 +97,7 @@ func getEntriesFull(ctx context.Context, client ctclient.Log, startInclusive, en
 func getAndVerifySTH(ctx context.Context, ctlog *loglist.Log, client ctclient.Log) (*cttypes.SignedTreeHead, string, error) {
 	sth, url, err := client.GetSTH(ctx)
 	if err != nil {
-		return nil, "", fmt.Errorf("error getting STH: %w", err)
+		return nil, "", err
 	}
 	if err := ctcrypto.PublicKey(ctlog.Key).Verify(ctcrypto.SignatureInputForSTH(sth), sth.Signature); err != nil {
 		return nil, "", fmt.Errorf("STH has invalid signature: %w", err)
