@@ -59,8 +59,7 @@ func (e *verifyEntriesError) Error() string {
 	return fmt.Sprintf("error verifying at tree size %d: the STH root hash (%x) does not match the entries returned by the log (%x)", e.sth.TreeSize, e.sth.RootHash, e.entriesRootHash)
 }
 
-func withRetry(ctx context.Context, maxRetries int, f func() error) error {
-
+func withRetry(ctx context.Context, config *Config, ctlog *loglist.Log, maxRetries int, f func() error) error {
 	minSleep := 1 * time.Second
 	numRetries := 0
 	for ctx.Err() == nil {
@@ -71,6 +70,7 @@ func withRetry(ctx context.Context, maxRetries int, f func() error) error {
 		if maxRetries != -1 && numRetries >= maxRetries {
 			return fmt.Errorf("%w (retried %d times)", err, numRetries)
 		}
+		recordError(ctx, config, ctlog, err)
 		sleepTime := minSleep + mathrand.N(minSleep)
 		if err := sleep(ctx, sleepTime); err != nil {
 			return err
@@ -106,33 +106,34 @@ func getAndVerifySTH(ctx context.Context, ctlog *loglist.Log, client ctclient.Lo
 }
 
 type logClient struct {
+	config *Config
 	log    *loglist.Log
 	client ctclient.Log
 }
 
 func (client *logClient) GetSTH(ctx context.Context) (sth *cttypes.SignedTreeHead, url string, err error) {
-	err = withRetry(ctx, -1, func() error {
+	err = withRetry(ctx, client.config, client.log, -1, func() error {
 		sth, url, err = getAndVerifySTH(ctx, client.log, client.client)
 		return err
 	})
 	return
 }
 func (client *logClient) GetRoots(ctx context.Context) (roots [][]byte, err error) {
-	err = withRetry(ctx, -1, func() error {
+	err = withRetry(ctx, client.config, client.log, -1, func() error {
 		roots, err = client.client.GetRoots(ctx)
 		return err
 	})
 	return
 }
 func (client *logClient) GetEntries(ctx context.Context, startInclusive, endInclusive uint64) (entries []ctclient.Entry, err error) {
-	err = withRetry(ctx, -1, func() error {
+	err = withRetry(ctx, client.config, client.log, -1, func() error {
 		entries, err = client.client.GetEntries(ctx, startInclusive, endInclusive)
 		return err
 	})
 	return
 }
 func (client *logClient) ReconstructTree(ctx context.Context, sth *cttypes.SignedTreeHead) (tree *merkletree.CollapsedTree, err error) {
-	err = withRetry(ctx, -1, func() error {
+	err = withRetry(ctx, client.config, client.log, -1, func() error {
 		tree, err = client.client.ReconstructTree(ctx, sth)
 		return err
 	})
@@ -140,19 +141,20 @@ func (client *logClient) ReconstructTree(ctx context.Context, sth *cttypes.Signe
 }
 
 type issuerGetter struct {
-	state     StateProvider
+	config    *Config
+	log       *loglist.Log
 	logGetter ctclient.IssuerGetter
 }
 
 func (ig *issuerGetter) GetIssuer(ctx context.Context, fingerprint *[32]byte) ([]byte, error) {
-	if issuer, err := ig.state.LoadIssuer(ctx, fingerprint); err != nil {
+	if issuer, err := ig.config.State.LoadIssuer(ctx, fingerprint); err != nil {
 		log.Printf("error loading cached issuer %x (issuer will be retrieved from log instead): %s", *fingerprint, err)
 	} else if issuer != nil {
 		return issuer, nil
 	}
 
 	var issuer []byte
-	if err := withRetry(ctx, 7, func() error {
+	if err := withRetry(ctx, ig.config, ig.log, 7, func() error {
 		var err error
 		issuer, err = ig.logGetter.GetIssuer(ctx, fingerprint)
 		return err
@@ -160,7 +162,7 @@ func (ig *issuerGetter) GetIssuer(ctx context.Context, fingerprint *[32]byte) ([
 		return nil, err
 	}
 
-	if err := ig.state.StoreIssuer(ctx, fingerprint, issuer); err != nil {
+	if err := ig.config.State.StoreIssuer(ctx, fingerprint, issuer); err != nil {
 		log.Printf("error caching issuer %x (issuer will be re-retrieved from log in the future): %s", *fingerprint, err)
 	}
 
@@ -175,6 +177,7 @@ func newLogClient(config *Config, ctlog *loglist.Log) (ctclient.Log, ctclient.Is
 			return nil, nil, fmt.Errorf("log has invalid URL: %w", err)
 		}
 		return &logClient{
+			config: config,
 			log:    ctlog,
 			client: &ctclient.RFC6962Log{URL: logURL},
 		}, nil, nil
@@ -193,10 +196,12 @@ func newLogClient(config *Config, ctlog *loglist.Log) (ctclient.Log, ctclient.Is
 			ID:            ctlog.LogID,
 		}
 		return &logClient{
+				config: config,
 				log:    ctlog,
 				client: client,
 			}, &issuerGetter{
-				state:     config.State,
+				config:    config,
+				log:       ctlog,
 				logGetter: client,
 			}, nil
 	default:
