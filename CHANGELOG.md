@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.19.1 (2025-05-07)
+- Fix panic when retrying failed log requests.
+- Properly log failed log requests.
+
 ## v0.19.0 (2025-05-07) (RETRACTED)
 - Add support for static-ct-api logs, the next generation of CT logs.
 - Add support for downloading entries in parallel, to avoid backlogs when
