@@ -251,7 +251,7 @@ func (s *FilesystemState) NotifyError(ctx context.Context, ctlog *loglist.Log, e
 	if ctlog == nil {
 		log.Print(err)
 	} else {
-		log.Print(ctlog.GetMonitoringURL(), ":", err)
+		log.Print(ctlog.GetMonitoringURL(), ": ", err)
 	}
 	return nil
 }
