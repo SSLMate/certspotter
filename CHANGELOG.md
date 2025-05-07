@@ -1,5 +1,13 @@
 # Change Log
 
+## v0.19.0 (2025-05-07)
+- Add support for static-ct-api logs, the next generation of CT logs.
+- Add support for downloading entries in parallel, to avoid backlogs when
+  monitoring fast-growing logs.
+- Use $EMAIL environment variable to determine sender of emails.
+- Remove submitct command.
+- Make certspotter more resilient to system crashes such as power failures.
+
 ## v0.18.0 (2023-11-13)
 - Fix bug with downloading entries that did not materialize in practice
   with any of the current logs.
