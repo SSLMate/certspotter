@@ -24,7 +24,7 @@ You can use Cert Spotter to detect:
 
 ## Quickstart
 
-Cert Spotter requires Go version 1.19 or higher.
+The following instructions require you to have [Go version 1.21 or higher](https://go.dev/dl/) installed.
 
 1. Install the certspotter command using the `go` command:
 
@@ -64,6 +64,8 @@ Cert Spotter.  By default, Google Chrome and Apple only accept certificates that
 are logged, so any certificate that works in Chrome or Safari will be detected
 by Cert Spotter.
 
+Cert Spotter will monitor both traditional RFC6962 logs, and modern static-ct-api logs.
+
 ## Security
 
 Cert Spotter assumes an adversarial model in which an attacker produces
@@ -100,6 +102,6 @@ to ensure the log is presenting a single view.
 
 ## Copyright
 
-Copyright © 2016-2023 Opsmate, Inc.
+Copyright © 2016-2025 Opsmate, Inc.
 
 Licensed under the [Mozilla Public License Version 2.0](LICENSE).
