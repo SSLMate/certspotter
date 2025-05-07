@@ -11,6 +11,7 @@
 package ctclient
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -79,7 +80,7 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, 
 	}
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("Get %q: %s (%q)", fullURL, response.Status, string(responseBody))
+		return nil, fmt.Errorf("Get %q: %s (%q)", fullURL, response.Status, bytes.TrimSpace(responseBody))
 	}
 
 	return responseBody, nil
