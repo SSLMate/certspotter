@@ -17,8 +17,8 @@ import (
 	"net/url"
 	"slices"
 
-	"software.sslmate.com/src/certspotter/merkletree"
 	"software.sslmate.com/src/certspotter/cttypes"
+	"software.sslmate.com/src/certspotter/merkletree"
 )
 
 type RFC6962Log struct {

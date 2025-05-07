@@ -12,8 +12,8 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"testing"
 	mathrand "math/rand/v2"
+	"testing"
 	"time"
 )
 
@@ -127,7 +127,7 @@ func TestSequencerOutOfOrder(t *testing.T) {
 	for range 4 {
 		go func() {
 			for i := range ch {
-				time.Sleep(mathrand.N(10*time.Millisecond))
+				time.Sleep(mathrand.N(10 * time.Millisecond))
 				//t.Logf("seq.Add %d", i)
 				err := seq.Add(ctx, i, &i)
 				if err != nil {

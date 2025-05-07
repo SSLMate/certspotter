@@ -27,9 +27,9 @@ var (
 )
 
 type PrecertInfo struct {
-	SameIssuer		bool	// The pre-certificate was issued from the same CA as the final certificate
-	Issuer			[]byte	// The pre-certificate's issuer, if different from the final certificate
-	AKI			[]byte	// The pre-certificate's AKI, if present and different from the final certificate
+	SameIssuer bool   // The pre-certificate was issued from the same CA as the final certificate
+	Issuer     []byte // The pre-certificate's issuer, if different from the final certificate
+	AKI        []byte // The pre-certificate's AKI, if present and different from the final certificate
 }
 
 func ValidatePrecert(precertBytes []byte, tbsBytes []byte) (*PrecertInfo, error) {

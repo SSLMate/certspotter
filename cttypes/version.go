@@ -27,4 +27,3 @@ func (v Version) Marshal(b *cryptobyte.Builder) error {
 func (v *Version) Unmarshal(s *cryptobyte.String) bool {
 	return s.ReadUint8((*uint8)(v))
 }
-

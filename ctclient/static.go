@@ -22,8 +22,8 @@ import (
 
 	"golang.org/x/crypto/cryptobyte"
 
-	"software.sslmate.com/src/certspotter/merkletree"
 	"software.sslmate.com/src/certspotter/cttypes"
+	"software.sslmate.com/src/certspotter/merkletree"
 )
 
 const (
