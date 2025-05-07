@@ -42,7 +42,7 @@ type certPaths struct {
 func (cert *DiscoveredCert) pemChain() []byte {
 	var buffer bytes.Buffer
 	if cert.ChainError != nil {
-		fmt.Fprintln(&buffer, "Warning: this chain may be incomplete or invalid: %s", cert.ChainError)
+		fmt.Fprintln(&buffer, "Warning: this chain may be incomplete or invalid: ", cert.ChainError)
 	}
 	for _, certBytes := range cert.Chain {
 		if err := pem.Encode(&buffer, &pem.Block{
