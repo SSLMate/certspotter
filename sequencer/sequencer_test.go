@@ -11,6 +11,7 @@ package sequencer
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	mathrand "math/rand/v2"
 	"time"
@@ -23,7 +24,7 @@ func TestSequencerBasic(t *testing.T) {
 		for i := range uint64(10_000) {
 			err := seq.Add(ctx, i, &i)
 			if err != nil {
-				t.Fatalf("%d: seq.Add returned unexpected error %v", i, err)
+				panic(fmt.Sprintf("%d: seq.Add returned unexpected error %v", i, err))
 			}
 		}
 	}()
@@ -46,7 +47,7 @@ func TestSequencerNonZeroStart(t *testing.T) {
 		for i := range uint64(10_000) {
 			err := seq.Add(ctx, i+10, &i)
 			if err != nil {
-				t.Fatalf("%d: seq.Add returned unexpected error %v", i, err)
+				panic(fmt.Sprintf("%d: seq.Add returned unexpected error %v", i, err))
 			}
 		}
 	}()
@@ -69,7 +70,7 @@ func TestSequencerCapacity1(t *testing.T) {
 		for i := range uint64(10_000) {
 			err := seq.Add(ctx, i, &i)
 			if err != nil {
-				t.Fatalf("%d: seq.Add returned unexpected error %v", i, err)
+				panic(fmt.Sprintf("%d: seq.Add returned unexpected error %v", i, err))
 			}
 		}
 	}()
@@ -130,7 +131,7 @@ func TestSequencerOutOfOrder(t *testing.T) {
 				//t.Logf("seq.Add %d", i)
 				err := seq.Add(ctx, i, &i)
 				if err != nil {
-					t.Fatalf("%d: seq.Add returned unexpected error %v", i, err)
+					panic(fmt.Sprintf("%d: seq.Add returned unexpected error %v", i, err))
 				}
 			}
 		}()
