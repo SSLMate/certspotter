@@ -9,3 +9,5 @@ require (
 )
 
 require golang.org/x/text v0.24.0 // indirect
+
+retract v0.19.0 // Contains serious bugs.
