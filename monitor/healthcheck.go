@@ -24,15 +24,23 @@ func healthCheckFilename() string {
 }
 
 func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) error {
-	state, err := config.State.LoadLogState(ctx, ctlog.LogID)
-	if err != nil {
-		return fmt.Errorf("error loading log state: %w", err)
-	} else if state == nil {
-		return nil
-	}
+	var (
+		position    uint64
+		lastSuccess time.Time
+		verifiedSTH *cttypes.SignedTreeHead
+	)
 
-	if time.Since(state.LastSuccess) < config.HealthCheckInterval {
-		return nil
+	if state, err := config.State.LoadLogState(ctx, ctlog.LogID); err != nil {
+		return fmt.Errorf("error loading log state: %w", err)
+	} else if state != nil {
+		if time.Since(state.LastSuccess) < config.HealthCheckInterval {
+			// log is healthy
+			return nil
+		}
+
+		position = state.DownloadPosition.Size()
+		lastSuccess = state.LastSuccess
+		verifiedSTH = state.VerifiedSTH
 	}
 
 	sths, err := config.State.LoadSTHs(ctx, ctlog.LogID)
@@ -43,8 +51,8 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 	if len(sths) == 0 {
 		info := &StaleSTHInfo{
 			Log:         ctlog,
-			LastSuccess: state.LastSuccess,
-			LatestSTH:   state.VerifiedSTH,
+			LastSuccess: lastSuccess,
+			LatestSTH:   verifiedSTH,
 		}
 		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about stale STH: %w", err)
@@ -53,7 +61,7 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 		info := &BacklogInfo{
 			Log:       ctlog,
 			LatestSTH: sths[len(sths)-1],
-			Position:  state.DownloadPosition.Size(),
+			Position:  position,
 		}
 		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about backlog: %w", err)
@@ -70,7 +78,7 @@ type HealthCheckFailure interface {
 
 type StaleSTHInfo struct {
 	Log         *loglist.Log
-	LastSuccess time.Time
+	LastSuccess time.Time               // may be zero
 	LatestSTH   *cttypes.SignedTreeHead // may be nil
 }
 
@@ -87,12 +95,19 @@ type StaleLogListInfo struct {
 	LastErrorTime time.Time
 }
 
+func (e *StaleSTHInfo) LastSuccessString() string {
+	if e.LastSuccess.IsZero() {
+		return "never"
+	} else {
+		return e.LastSuccess.String()
+	}
+}
 func (e *BacklogInfo) Backlog() uint64 {
 	return e.LatestSTH.TreeSize - e.Position
 }
 
 func (e *StaleSTHInfo) Summary() string {
-	return fmt.Sprintf("Unable to contact %s since %s", e.Log.GetMonitoringURL(), e.LastSuccess)
+	return fmt.Sprintf("Unable to contact %s since %s", e.Log.GetMonitoringURL(), e.LastSuccessString())
 }
 func (e *BacklogInfo) Summary() string {
 	return fmt.Sprintf("Backlog of size %d from %s", e.Backlog(), e.Log.GetMonitoringURL())
@@ -103,7 +118,7 @@ func (e *StaleLogListInfo) Summary() string {
 
 func (e *StaleSTHInfo) Text() string {
 	text := new(strings.Builder)
-	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.GetMonitoringURL(), e.LastSuccess)
+	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.GetMonitoringURL(), e.LastSuccessString())
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "For details, see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
