@@ -30,11 +30,6 @@ You can use Cert Spotter to detect:
 
 # OPTIONS
 
--batch_size *NUMBER*
-
-:   Maximum number of entries to request per call to get-entries.
-    You should not generally need to change this. Defaults to 1000.
-
 -email *ADDRESS*
 
 :   Email address to contact when a matching certificate is discovered, or

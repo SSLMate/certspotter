@@ -161,7 +161,6 @@ func main() {
 	loglist.UserAgent = fmt.Sprintf("certspotter/%s (%s; %s; %s)", certspotterVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
 
 	var flags struct {
-		batchSize   int // TODO-4: respect this option
 		email       []string
 		healthcheck time.Duration
 		logs        string
@@ -174,7 +173,6 @@ func main() {
 		version     bool
 		watchlist   string
 	}
-	flag.IntVar(&flags.batchSize, "batch_size", 1000, "Max number of entries to request per call to get-entries (advanced)")
 	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
 	flag.DurationVar(&flags.healthcheck, "healthcheck", 24*time.Hour, "How frequently to perform a health check")
 	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
