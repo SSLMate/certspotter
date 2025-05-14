@@ -32,9 +32,7 @@ func NewHTTPClient(dialContext func(context.Context, string, string) (net.Conn, 
 			TLSHandshakeTimeout:   15 * time.Second,
 			ResponseHeaderTimeout: 30 * time.Second,
 			MaxIdleConnsPerHost:   10,
-			DisableKeepAlives:     false,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       15 * time.Second,
+			IdleConnTimeout:       90 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 			TLSClientConfig: &tls.Config{
 				// We have to disable TLS certificate validation because because several logs
@@ -46,7 +44,8 @@ func NewHTTPClient(dialContext func(context.Context, string, string) (net.Conn, 
 				// updating should a log ever change to a different CA.)
 				InsecureSkipVerify: true,
 			},
-			DialContext: dialContext,
+			DialContext:       dialContext,
+			ForceAttemptHTTP2: true,
 		},
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return errors.New("redirects not followed")
