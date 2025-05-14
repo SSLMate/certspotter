@@ -22,6 +22,8 @@ type seqWriter struct {
 
 // Channel[T] is a multi-producer, single-consumer channel of items with monotonicaly-increasing sequence numbers.
 // Items can be sent in any order, but they are always received in order of their sequence number.
+// It is unsafe to call Next concurrently with itself, or to call Add/Reserve concurrently with another Add/Reserve
+// call for the same sequence number.  Otherwise, methods are safe to call concurrently.
 type Channel[T any] struct {
 	mu          sync.Mutex
 	next        uint64
