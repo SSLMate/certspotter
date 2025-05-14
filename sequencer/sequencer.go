@@ -72,6 +72,27 @@ func (seq *Channel[T]) index(seqNbr uint64) int {
 	return int(seqNbr % seq.Cap())
 }
 
+// Wait until the channel has capacity for an item with the given sequence number.
+// After this function returns nil, calling Add with the same sequence number will not block.
+func (seq *Channel[T]) Reserve(ctx context.Context, sequenceNumber uint64) error {
+	seq.mu.Lock()
+	if sequenceNumber >= seq.next+seq.Cap() {
+		ready := seq.parkWriter(sequenceNumber)
+		seq.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			seq.mu.Lock()
+			seq.forgetWriter(sequenceNumber)
+			seq.mu.Unlock()
+			return ctx.Err()
+		case <-ready:
+		}
+	} else {
+		seq.mu.Unlock()
+	}
+	return nil
+}
+
 // Send an item with the given sequence number.  Blocks if the channel does not have capacity for the item.
 // It is undefined behavior to send a sequence number that has previously been sent.
 func (seq *Channel[T]) Add(ctx context.Context, sequenceNumber uint64, item *T) error {

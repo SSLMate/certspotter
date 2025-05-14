@@ -147,3 +147,49 @@ func TestSequencerOutOfOrder(t *testing.T) {
 		//t.Logf("seq.Next %d", i)
 	}
 }
+
+func TestSequencerOutOfOrderReserve(t *testing.T) {
+	ctx := context.Background()
+	seq := New[uint64](0, 10)
+	ch := make(chan uint64)
+	go func() {
+		for i := range uint64(10_000) {
+			ch <- i
+		}
+	}()
+	ch2 := make(chan uint64)
+	for job := range 4 {
+		go func() {
+			for i := range ch {
+				time.Sleep(mathrand.N(11 * time.Duration(job+1) * time.Millisecond))
+				err := seq.Reserve(ctx, i)
+				if err != nil {
+					panic(fmt.Sprintf("%d: seq.Reserve returned unexpected error %v", i, err))
+				}
+				ch2 <- i
+			}
+		}()
+	}
+	for range 4 {
+		go func() {
+			for i := range ch2 {
+				time.Sleep(mathrand.N(7 * time.Millisecond))
+				t.Logf("seq.Add %d", i)
+				err := seq.Add(ctx, i, &i)
+				if err != nil {
+					panic(fmt.Sprintf("%d: seq.Add returned unexpected error %v", i, err))
+				}
+			}
+		}()
+	}
+	for i := range uint64(10_000) {
+		next, err := seq.Next(ctx)
+		if err != nil {
+			t.Fatalf("%d: seq.Next returned unexpected error %v", i, err)
+		}
+		if *next != i {
+			t.Fatalf("%d: got unexpected value %d", i, *next)
+		}
+		t.Logf("seq.Next %d", i)
+	}
+}
