@@ -136,10 +136,10 @@ the script interface, see certspotter-script(8).
 # OPERATION
 
 certspotter continuously monitors all browser-recognized Certificate
-Transparency logs looking for certificates which are valid for any domain
-on your watch list. When certspotter detects a matching certificate, it
-emails you, executes a script, and/or writes a report to standard out,
-as described above.
+Transparency logs looking for certificates (including precertificates)
+which are valid for any domain on your watch list. When certspotter
+detects a matching certificate, it emails you, executes a script, and/or
+writes a report to standard out, as described above.
 
 certspotter also saves a copy of matching certificates in
 `$CERTSPOTTER_STATE_DIR/certs` ("~/.certspotter/certs" by default)

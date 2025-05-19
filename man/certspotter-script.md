@@ -65,7 +65,7 @@ The following environment variables are set for `discovered_cert` events:
 
 `CERT_SHA256`
 
-:    The hex-encoded SHA-256 digest (sometimes called fingerprint) of the certificate.
+:    The hex-encoded SHA-256 digest (sometimes called fingerprint) of the certificate or precertificate.
      The digest is computed over the ASN.1 DER encoding. 
 
 `PUBKEY_SHA256`
