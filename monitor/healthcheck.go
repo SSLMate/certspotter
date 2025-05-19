@@ -120,7 +120,7 @@ func (e *StaleSTHInfo) Text() string {
 	text := new(strings.Builder)
 	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.GetMonitoringURL(), e.LastSuccessString())
 	fmt.Fprintf(text, "\n")
-	fmt.Fprintf(text, "For details, see certspotter's stderr output.\n")
+	fmt.Fprintf(text, "For details, enable -verbose and see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
 	if e.LatestSTH != nil {
 		fmt.Fprintf(text, "Latest known log size = %d\n", e.LatestSTH.TreeSize)
@@ -133,7 +133,7 @@ func (e *BacklogInfo) Text() string {
 	text := new(strings.Builder)
 	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.Log.GetMonitoringURL())
 	fmt.Fprintf(text, "\n")
-	fmt.Fprintf(text, "For more details, see certspotter's stderr output.\n")
+	fmt.Fprintf(text, "For details, enable -verbose and see certspotter's stderr output.\n")
 	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "Current log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.StoredAt)
 	fmt.Fprintf(text, "Current position = %d\n", e.Position)

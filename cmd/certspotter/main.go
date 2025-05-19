@@ -203,6 +203,7 @@ func main() {
 		ScriptDir: defaultScriptDir(),
 		Email:     flags.email,
 		Stdout:    flags.stdout,
+		Quiet:     !flags.verbose,
 	}
 	config := &monitor.Config{
 		LogListSource:       flags.logs,

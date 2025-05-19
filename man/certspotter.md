@@ -173,7 +173,7 @@ to write a file or execute a script), it prints a message to stderr and
 exits with a non-zero status.
 
 When certspotter encounters a problem monitoring a log, it prints a message
-to stderr and continues running.  It will try monitoring the log again later;
+to stderr if `-verbose` is specified and continues running.  It will try monitoring the log again later;
 most log errors are transient.
 
 Every 24 hours (unless overridden by `-healthcheck`), certspotter performs the
@@ -190,7 +190,7 @@ standard out, as described above.
 
 Health check failures should be rare, and you should take them seriously because it means
 certspotter might not detect all certificates.  It might also be an indication
-of CT log misbehavior.  Consult certspotter's stderr output for details, and if
+of CT log misbehavior.  Enable the `-verbose` flag and consult stderr for details, and if
 you need help, file an issue at <https://github.com/SSLMate/certspotter>.
 
 # EXIT STATUS

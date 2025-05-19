@@ -34,6 +34,7 @@ type FilesystemState struct {
 	ScriptDir string
 	Email     []string
 	Stdout    bool
+	Quiet     bool
 }
 
 func (s *FilesystemState) logStateDir(logID LogID) string {
@@ -248,10 +249,12 @@ func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *l
 }
 
 func (s *FilesystemState) NotifyError(ctx context.Context, ctlog *loglist.Log, err error) error {
-	if ctlog == nil {
-		log.Print(err)
-	} else {
-		log.Print(ctlog.GetMonitoringURL(), ": ", err)
+	if !s.Quiet {
+		if ctlog == nil {
+			log.Print(err)
+		} else {
+			log.Print(ctlog.GetMonitoringURL(), ": ", err)
+		}
 	}
 	return nil
 }
