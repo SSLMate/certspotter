@@ -224,6 +224,20 @@ and non-zero when a serious error occurs.
 
 :   Path to the sendmail binary used for sending emails. Defaults to `/usr/sbin/sendmail`.
 
+# DIRECTORIES
+
+Config directory
+
+: Stores configuration, such as the watch list. The location is: (1) the `CERTSPOTTER_CONFIG_DIR` environment variable, if set, or (2) the default location `~/.certspotter`. certspotter does not write to this directory.
+
+State directory
+
+: Stores state, such as the position of each log and a store of discovered certificates. The location is: (1) the `-state_dir` command line flag, if provided, (2) the `CERTSPOTTER_STATE_DIR` environment variable, if set, or (3) the default location `~/.certspotter`.  certspotter creates this directory if necessary.
+
+Cache directory
+
+: Stores cached data. The location is `$XDG_CACHE_HOME/certspotter` (which on Linux is `~/.cache/certspotter` by default).  You can delete this directory without without impacting functionality, but certspotter may need to perform additional computation or network requests.
+
 # SEE ALSO
 
 certspotter-script(8)
