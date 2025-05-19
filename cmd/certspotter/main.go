@@ -251,7 +251,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := monitor.Run(ctx, config); err != nil && !errors.Is(err, context.Canceled) {
+	if err := monitor.Run(ctx, config); ctx.Err() == context.Canceled && errors.Is(err, context.Canceled) {
+		if flags.verbose {
+			fmt.Fprintf(os.Stderr, "%s: exiting due to SIGINT or SIGTERM\n", programName)
+		}
+		os.Exit(0)
+	} else {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)
 		os.Exit(1)
 	}
