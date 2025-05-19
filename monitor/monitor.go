@@ -246,17 +246,18 @@ func monitorLogContinously(ctx context.Context, config *Config, ctlog *loglist.L
 			}
 		}
 		if config.Verbose {
-			log.Printf("brand new log %s (starting from %d)", ctlog.GetMonitoringURL(), state.DownloadPosition.Size())
+			log.Printf("%s: monitoring brand new log starting from position %d", ctlog.GetMonitoringURL(), state.DownloadPosition.Size())
 		}
 		if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil {
 			return fmt.Errorf("error storing log state: %w", err)
 		}
+	} else {
+		if config.Verbose {
+			log.Printf("%s: resuming monitoring from position %d", ctlog.GetMonitoringURL(), state.DownloadPosition.Size())
+		}
 	}
 
 	defer func() {
-		if config.Verbose {
-			log.Printf("saving state in defer for %s", ctlog.GetMonitoringURL())
-		}
 		storeCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := config.State.StoreLogState(storeCtx, ctlog.LogID, state); err != nil && returnedErr == nil {
@@ -502,6 +503,9 @@ func saveStateWorker(ctx context.Context, config *Config, ctlog *loglist.Log, st
 				// don't remove the STH until state has been durably stored
 				if err := config.State.RemoveSTH(ctx, ctlog.LogID, &sth.SignedTreeHead); err != nil {
 					return fmt.Errorf("error removing verified STH: %w", err)
+				}
+				if config.Verbose {
+					log.Printf("%s: verified position is now %d", ctlog.GetMonitoringURL(), sth.SignedTreeHead.TreeSize)
 				}
 			}
 			if len(batch.entries) == 0 {

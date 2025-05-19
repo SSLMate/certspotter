@@ -75,7 +75,7 @@ func (daemon *daemon) startTask(ctx context.Context, ctlog *loglist.Log) task {
 		defer cancel()
 		err := monitorLogContinously(ctx, daemon.config, ctlog)
 		if daemon.config.Verbose {
-			log.Printf("task for log %s stopped with error %s", ctlog.GetMonitoringURL(), err)
+			log.Printf("%s: task stopped with error: %s", ctlog.GetMonitoringURL(), err)
 		}
 		if ctx.Err() == context.Canceled && errors.Is(err, context.Canceled) {
 			return nil
