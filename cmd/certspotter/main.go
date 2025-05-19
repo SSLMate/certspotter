@@ -181,7 +181,7 @@ func main() {
 	flag.BoolVar(&flags.startAtEnd, "start_at_end", false, "Start monitoring new logs from the end rather than the beginning (saves considerable bandwidth)")
 	flag.StringVar(&flags.stateDir, "state_dir", defaultStateDir(), "Directory for storing log position and discovered certificates")
 	flag.BoolVar(&flags.stdout, "stdout", false, "Write matching certificates to stdout")
-	flag.BoolVar(&flags.verbose, "verbose", false, "Be verbose")
+	flag.BoolVar(&flags.verbose, "verbose", false, "Print detailed information about certspotter's operation to stderr")
 	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
 	flag.StringVar(&flags.watchlist, "watchlist", defaultWatchListPathIfExists(), "File containing domain names to watch")
 	flag.Parse()

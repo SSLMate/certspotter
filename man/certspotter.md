@@ -90,7 +90,7 @@ You can use Cert Spotter to detect:
 
 -verbose
 
-:   Be verbose.
+:   Print detailed information about certspotter's operation (such as errors contacting logs) to stderr.
 
 -version
 
