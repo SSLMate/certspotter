@@ -47,7 +47,9 @@ func loadSTHsFromDir(dirPath string) ([]*StoredSTH, error) {
 			continue
 		}
 		sth, err := readSTHFile(filepath.Join(dirPath, filename))
-		if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		} else if err != nil {
 			return nil, err
 		}
 		sths = append(sths, sth)
