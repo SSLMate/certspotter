@@ -269,7 +269,13 @@ func monitorLogContinously(ctx context.Context, config *Config, ctlog *loglist.L
 retry:
 	position := state.DownloadPosition.Size()
 
-	// generateBatchesWorker ==> downloadWorker ==> processWorker ==> saveStateWorker
+	// logs are monitored using the following pipeline of workers, with each worker sending results to the next worker:
+	//     1 getSTHWorker ==> 1 generateBatchesWorker ==> multiple downloadWorkers ==> multiple processWorkers ==> 1 saveStateWorker
+	// getSTHWorker          - periodically download STHs from the log
+	// generateBatchesWorker - generate batches of work
+	// downloadWorkers       - download the entries in each batch
+	// processWorkers        - process the certificates (store/notify if matches watch list) in each batch
+	// saveStateWorker       - builds the Merkle Tree and compares against STHs
 
 	sths := make(chan *cttypes.SignedTreeHead, 1)
 	batches := make(chan *batch, downloadWorkers(ctlog))
