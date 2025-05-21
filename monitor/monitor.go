@@ -357,7 +357,7 @@ func newBatch(number uint64, begin uint64, sths []*StoredSTH, downloadJobSize ui
 func appendSTH(sths []*StoredSTH, sth *StoredSTH) []*StoredSTH {
 	i := len(sths)
 	for i > 0 {
-		if sths[i-1].TreeSize == sth.TreeSize && sths[i-1].RootHash == sth.RootHash {
+		if sths[i-1].Same(&sth.SignedTreeHead) {
 			return sths
 		}
 		if sths[i-1].TreeSize < sth.TreeSize {

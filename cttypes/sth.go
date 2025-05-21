@@ -31,3 +31,7 @@ type GossipedSignedTreeHead struct {
 func (sth *SignedTreeHead) TimestampTime() time.Time {
 	return time.UnixMilli(int64(sth.Timestamp))
 }
+
+func (sth *SignedTreeHead) Same(other *SignedTreeHead) bool {
+	return sth.TreeSize == other.TreeSize && sth.Timestamp == other.Timestamp && sth.RootHash == other.RootHash
+}
