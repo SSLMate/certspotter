@@ -444,11 +444,6 @@ func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.L
 
 func downloadWorker(ctx context.Context, config *Config, ctlog *loglist.Log, client ctclient.Log, batchesIn <-chan *batch, batchesOut chan<- *batch) error {
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
 		var batch *batch
 		select {
 		case <-ctx.Done():
@@ -465,11 +460,6 @@ func downloadWorker(ctx context.Context, config *Config, ctlog *loglist.Log, cli
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
 		case batchesOut <- batch:
 		}
 	}
@@ -477,11 +467,6 @@ func downloadWorker(ctx context.Context, config *Config, ctlog *loglist.Log, cli
 
 func processWorker(ctx context.Context, config *Config, ctlog *loglist.Log, issuerGetter ctclient.IssuerGetter, batchesIn <-chan *batch, batchesOut *sequencer.Channel[batch]) error {
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
 		var batch *batch
 		select {
 		case <-ctx.Done():

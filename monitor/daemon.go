@@ -137,9 +137,10 @@ func (daemon *daemon) run(ctx context.Context) error {
 	healthCheckTicker := time.NewTicker(daemon.config.HealthCheckInterval)
 	defer healthCheckTicker.Stop()
 
-	for ctx.Err() == nil {
+	for {
 		select {
 		case <-ctx.Done():
+			return ctx.Err()
 		case <-reloadLogListTicker.C:
 			if err := daemon.loadLogList(ctx); err != nil {
 				daemon.logListError = err.Error()
@@ -153,7 +154,6 @@ func (daemon *daemon) run(ctx context.Context) error {
 			}
 		}
 	}
-	return ctx.Err()
 }
 
 func Run(ctx context.Context, config *Config) error {
