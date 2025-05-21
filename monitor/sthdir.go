@@ -83,14 +83,26 @@ func readSTHFile(filePath string) (*StoredSTH, error) {
 	return sth, nil
 }
 
-func storeSTHInDir(dirPath string, sth *cttypes.SignedTreeHead) error {
+func storeSTHInDir(dirPath string, sth *cttypes.SignedTreeHead) (*StoredSTH, error) {
 	filePath := filepath.Join(dirPath, sthFilename(sth))
-	if fileExists(filePath) {
-		// If the file already exists, we don't want its mtime to change
-		// because StoredSTH.StoredAt needs to be the time the STH was *first* stored.
-		return nil
+
+	if info, err := os.Lstat(filePath); err == nil {
+		return &StoredSTH{
+			SignedTreeHead: *sth,
+			StoredAt:       info.ModTime(),
+		}, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
 	}
-	return writeJSONFile(filePath, sth, 0666)
+
+	if err := writeJSONFile(filePath, sth, 0666); err != nil {
+		return nil, err
+	}
+
+	return &StoredSTH{
+		SignedTreeHead: *sth,
+		StoredAt:       time.Now(), // not the exact modtime of the file, but close enough for our purposes
+	}, nil
 }
 
 func removeSTHFromDir(dirPath string, sth *cttypes.SignedTreeHead) error {

@@ -86,7 +86,7 @@ func (s *FilesystemState) StoreLogState(ctx context.Context, logID LogID, state 
 	return writeJSONFile(filePath, state, 0666)
 }
 
-func (s *FilesystemState) StoreSTH(ctx context.Context, logID LogID, sth *cttypes.SignedTreeHead) error {
+func (s *FilesystemState) StoreSTH(ctx context.Context, logID LogID, sth *cttypes.SignedTreeHead) (*StoredSTH, error) {
 	sthsDirPath := filepath.Join(s.logStateDir(logID), "unverified_sths")
 	return storeSTHInDir(sthsDirPath, sth)
 }

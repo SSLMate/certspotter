@@ -54,7 +54,7 @@ type StateProvider interface {
 
 	// Store STH for retrieval by LoadSTHs.  If an STH with the same
 	// timestamp and root hash is already stored, this STH can be ignored.
-	StoreSTH(context.Context, LogID, *cttypes.SignedTreeHead) error
+	StoreSTH(context.Context, LogID, *cttypes.SignedTreeHead) (*StoredSTH, error)
 
 	// Load all STHs for this log previously stored with StoreSTH.
 	// The returned slice must be sorted by tree size.
