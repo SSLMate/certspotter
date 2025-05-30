@@ -262,21 +262,6 @@ func (ids *Identifiers) AddIPAddress(value net.IP) {
 	ids.appendIPAddress(value)
 }
 
-func (ids *Identifiers) dnsNamesString(sep string) string {
-	return strings.Join(ids.DNSNames, sep)
-}
-
-func (ids *Identifiers) ipAddrsString(sep string) string {
-	str := ""
-	for _, ipAddr := range ids.IPAddrs {
-		if str != "" {
-			str += sep
-		}
-		str += ipAddr.String()
-	}
-	return str
-}
-
 func (cert *CertInfo) ParseIdentifiers() (*Identifiers, error) {
 	ids := NewIdentifiers()
 
