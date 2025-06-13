@@ -37,31 +37,11 @@ const defaultLogList = "https://loglist.certspotter.org/monitor.json"
 func certspotterVersion() string {
 	if Version != "" {
 		return Version + "?"
-	}
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
+	} else if info, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(info.Main.Version, "v") {
+		return info.Main.Version
+	} else {
 		return "unknown"
 	}
-	if strings.HasPrefix(info.Main.Version, "v") {
-		return info.Main.Version
-	}
-	var vcs, vcsRevision, vcsModified string
-	for _, s := range info.Settings {
-		switch s.Key {
-		case "vcs":
-			vcs = s.Value
-		case "vcs.revision":
-			vcsRevision = s.Value
-		case "vcs.modified":
-			vcsModified = s.Value
-		}
-	}
-	if vcs == "git" && vcsRevision != "" && vcsModified == "true" {
-		return vcsRevision + "+"
-	} else if vcs == "git" && vcsRevision != "" {
-		return vcsRevision
-	}
-	return "unknown"
 }
 
 func fileExists(filename string) bool {
