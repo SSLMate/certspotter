@@ -1,5 +1,13 @@
 # Change Log
 
+## v0.20.0 (2025-06-13)
+- Remove -batch_size option, which is obsolete due to new parallel download system.
+- Only print log errors to stderr if -verbose is specified.
+- Fix bug that could cause unverified STHs to be deleted prematurely.
+- Fail health check if log has never been successfully contacted.
+- Improve -verbose.
+- Improve documentation.
+
 ## v0.19.1 (2025-05-07)
 - Fix panic when retrying failed log requests.
 - Properly log failed log requests.
