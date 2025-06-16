@@ -10,6 +10,7 @@
 package merkletree
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -19,6 +20,10 @@ import (
 const HashLen = 32
 
 type Hash [HashLen]byte
+
+func (h Hash) Compare(other Hash) int {
+	return bytes.Compare(h[:], other[:])
+}
 
 func (h Hash) Base64String() string {
 	return base64.StdEncoding.EncodeToString(h[:])

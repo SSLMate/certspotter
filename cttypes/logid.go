@@ -10,12 +10,17 @@
 package cttypes
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"golang.org/x/crypto/cryptobyte"
 )
 
 type LogID [32]byte
+
+func (id LogID) Compare(other LogID) int {
+	return bytes.Compare(id[:], other[:])
+}
 
 func (v *LogID) Unmarshal(s *cryptobyte.String) bool {
 	return s.CopyBytes((*v)[:])
