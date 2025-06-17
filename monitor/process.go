@@ -107,8 +107,15 @@ func processCertificate(ctx context.Context, config *Config, entry *LogEntry, ce
 	}
 
 	chain, chainErr := getChain(ctx)
-	if errors.Is(chainErr, context.Canceled) {
-		return chainErr
+	if chainErr != nil {
+		if ctx.Err() != nil {
+			// Getting chain failed, but it was probably because our context
+			// has been canceled, so just act like we never called getChain.
+			return ctx.Err()
+		}
+		// Although getting the chain failed, we still want to notify
+		// the user about the matching certificate. We'll include chainErr in the
+		// notification so the user knows why the chain is missing or incorrect.
 	}
 
 	cert := &DiscoveredCert{
