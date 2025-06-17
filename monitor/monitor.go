@@ -360,7 +360,9 @@ func newBatch(number uint64, begin uint64, sths []*StoredSTH, downloadJobSize ui
 	return batch
 }
 
-func appendSTH(sths []*StoredSTH, sth *StoredSTH) []*StoredSTH {
+// insert sth into sths, which is sorted by TreeSize, and return a new, still-sorted slice.
+// if an equivalent STH is already in sths, it is returned unchanged.
+func insertSTH(sths []*StoredSTH, sth *StoredSTH) []*StoredSTH {
 	i := len(sths)
 	for i > 0 {
 		if sths[i-1].Same(&sth.SignedTreeHead) {
@@ -377,11 +379,11 @@ func appendSTH(sths []*StoredSTH, sth *StoredSTH) []*StoredSTH {
 func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.Log, position uint64, sthsIn <-chan *cttypes.SignedTreeHead, batchesOut chan<- *batch) error {
 	downloadJobSize := downloadJobSize(ctlog)
 
-	// sths is sorted by TreeSize and contains only STHs with TreeSize >= position
 	sths, err := config.State.LoadSTHs(ctx, ctlog.LogID)
 	if err != nil {
 		return fmt.Errorf("error loading STHs: %w", err)
 	}
+	// sths is sorted by TreeSize but may contain STHs with TreeSize < position; get rid of them
 	for len(sths) > 0 && sths[0].TreeSize < position {
 		// TODO-4: audit sths[0] against log's verified STH
 		if err := config.State.RemoveSTH(ctx, ctlog.LogID, &sths[0].SignedTreeHead); err != nil {
@@ -389,6 +391,7 @@ func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.L
 		}
 		sths = sths[1:]
 	}
+	// from this point, sths is sorted by TreeSize and contains only STHs with TreeSize >= position
 	handleSTH := func(sth *cttypes.SignedTreeHead) error {
 		if sth.TreeSize < position {
 			// TODO-4: audit against log's verified STH
@@ -397,7 +400,7 @@ func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.L
 			if err != nil {
 				return fmt.Errorf("error storing STH: %w", err)
 			}
-			sths = appendSTH(sths, storedSTH)
+			sths = insertSTH(sths, storedSTH)
 		}
 		return nil
 	}
