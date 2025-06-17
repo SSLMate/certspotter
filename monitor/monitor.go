@@ -337,8 +337,8 @@ type batch struct {
 	entries      []ctclient.Entry // in range [begin,end)
 }
 
-// create a batch starting from begin, based on sths (which must be non-empty, sorted by TreeSize, and contain only STHs with TreeSize >= begin)
-func newBatch(number uint64, begin uint64, sths []*StoredSTH, downloadJobSize uint64) *batch {
+// Create a batch starting from begin, based on sths (which must be non-empty, sorted by TreeSize, and contain only STHs with TreeSize >= begin).  Returns the batch, plus the remaining STHs.
+func newBatch(number uint64, begin uint64, sths []*StoredSTH, downloadJobSize uint64) (*batch, []*StoredSTH) {
 	batch := &batch{
 		number:       number,
 		begin:        begin,
@@ -357,7 +357,7 @@ func newBatch(number uint64, begin uint64, sths []*StoredSTH, downloadJobSize ui
 			break
 		}
 	}
-	return batch
+	return batch, sths[len(batch.sths):]
 }
 
 // insert sth into sths, which is sorted by TreeSize, and return a new, still-sorted slice.
@@ -418,7 +418,7 @@ func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.L
 			}
 		}
 
-		batch := newBatch(number, position, sths, downloadJobSize)
+		batch, remainingSTHs := newBatch(number, position, sths, downloadJobSize)
 
 		if ctlog.IsStaticCTAPI() && batch.end%downloadJobSize != 0 {
 			// Wait to download this partial tile until it's old enough
@@ -446,7 +446,7 @@ func generateBatchesWorker(ctx context.Context, config *Config, ctlog *loglist.L
 		case batchesOut <- batch:
 			number = batch.number + 1
 			position = batch.end
-			sths = sths[len(batch.sths):]
+			sths = remainingSTHs
 		}
 	}
 }
