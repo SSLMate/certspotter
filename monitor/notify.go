@@ -94,8 +94,9 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	sendmail := exec.CommandContext(sendmailCtx, sendmailPath(), args...)
 	sendmail.Stdin = stdin
 	sendmail.Stderr = stderr
+	sendmail.WaitDelay = 5 * time.Second
 
-	if err := sendmail.Run(); err == nil {
+	if err := sendmail.Run(); err == nil || err == exec.ErrWaitDelay {
 		return nil
 	} else if sendmailCtx.Err() != nil && ctx.Err() == nil {
 		return fmt.Errorf("error sending email to %v: sendmail command timed out")
@@ -116,8 +117,9 @@ func execScript(ctx context.Context, scriptName string, notif *notification) err
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, notif.environ...)
 	cmd.Stderr = stderr
+	cmd.WaitDelay = 5 * time.Second
 
-	if err := cmd.Run(); err == nil {
+	if err := cmd.Run(); err == nil || err == exec.ErrWaitDelay {
 		return nil
 	} else if ctx.Err() != nil {
 		return ctx.Err()
