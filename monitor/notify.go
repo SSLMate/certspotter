@@ -105,6 +105,8 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 		return ctx.Err()
 	} else if exitErr, isExitError := err.(*exec.ExitError); isExitError && exitErr.Exited() {
 		return fmt.Errorf("error sending email to %v: sendmail failed with exit code %d and error %q", to, exitErr.ExitCode(), strings.TrimSpace(stderr.String()))
+	} else if isExitError {
+		return fmt.Errorf("error sending email to %v: sendmail terminated by signal with error %q", to, strings.TrimSpace(stderr.String()))
 	} else {
 		return fmt.Errorf("error sending email to %v: error running sendmail command: %w", to, err)
 	}
@@ -122,6 +124,7 @@ func execScript(ctx context.Context, scriptName string, notif *notification) err
 	if err := cmd.Run(); err == nil || err == exec.ErrWaitDelay {
 		return nil
 	} else if ctx.Err() != nil {
+		// if the context was canceled, we can't be sure that the error is the fault of the script, so ignore it
 		return ctx.Err()
 	} else if exitErr, isExitError := err.(*exec.ExitError); isExitError && exitErr.Exited() {
 		return fmt.Errorf("script %q exited with code %d and error %q", scriptName, exitErr.ExitCode(), strings.TrimSpace(stderr.String()))
