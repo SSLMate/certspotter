@@ -89,18 +89,23 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	args = append(args, "--")
 	args = append(args, to...)
 
-	sendmail := exec.CommandContext(ctx, sendmailPath(), args...)
+	sendmailCtx, cancel := context.WithDeadline(ctx, time.Now().Add(2*time.Minute))
+	defer cancel()
+	sendmail := exec.CommandContext(sendmailCtx, sendmailPath(), args...)
 	sendmail.Stdin = stdin
 	sendmail.Stderr = stderr
 
 	if err := sendmail.Run(); err == nil {
 		return nil
+	} else if sendmailCtx.Err() != nil && ctx.Err() == nil {
+		return fmt.Errorf("error sending email to %v: sendmail command timed out")
 	} else if ctx.Err() != nil {
+		// if the context was canceled, we can't be sure that the error is the fault of sendmail, so ignore it
 		return ctx.Err()
 	} else if exitErr, isExitError := err.(*exec.ExitError); isExitError && exitErr.Exited() {
 		return fmt.Errorf("error sending email to %v: sendmail failed with exit code %d and error %q", to, exitErr.ExitCode(), strings.TrimSpace(stderr.String()))
 	} else {
-		return fmt.Errorf("error sending email to %v: %w", to, err)
+		return fmt.Errorf("error sending email to %v: error running sendmail command: %w", to, err)
 	}
 }
 
