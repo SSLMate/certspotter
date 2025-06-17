@@ -504,12 +504,11 @@ func saveStateWorker(ctx context.Context, config *Config, ctlog *loglist.Log, st
 		if batch.begin != state.DownloadPosition.Size() {
 			panic(fmt.Errorf("saveStateWorker: expected batch to start at %d but got %d instead", state.DownloadPosition.Size(), batch.begin))
 		}
-		rootHash := state.DownloadPosition.CalculateRoot()
 		for {
 			for len(batch.sths) > 0 && batch.sths[0].TreeSize == state.DownloadPosition.Size() {
 				sth := batch.sths[0]
 				batch.sths = batch.sths[1:]
-				if sth.RootHash != rootHash {
+				if rootHash := state.DownloadPosition.CalculateRoot(); sth.RootHash != rootHash {
 					return &verifyEntriesError{
 						sth:             &sth.SignedTreeHead,
 						entriesRootHash: rootHash,
@@ -536,7 +535,6 @@ func saveStateWorker(ctx context.Context, config *Config, ctlog *loglist.Log, st
 			batch.entries = batch.entries[1:]
 			leafHash := merkletree.HashLeaf(entry.LeafInput())
 			state.DownloadPosition.Add(leafHash)
-			rootHash = state.DownloadPosition.CalculateRoot()
 		}
 
 		if err := config.State.StoreLogState(ctx, ctlog.LogID, state); err != nil {
