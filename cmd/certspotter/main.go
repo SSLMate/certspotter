@@ -86,6 +86,16 @@ func defaultWatchListPathIfExists() string {
 		return ""
 	}
 }
+func defaultKeyListPath() string {
+	return filepath.Join(defaultConfigDir(), "keylist")
+}
+func defaultKeyListPathIfExists() string {
+	if fileExists(defaultKeyListPath()) {
+		return defaultKeyListPath()
+	} else {
+		return ""
+	}
+}
 func defaultScriptDir() string {
 	return filepath.Join(defaultConfigDir(), "hooks.d")
 }
@@ -109,6 +119,15 @@ func readWatchListFile(filename string) (monitor.WatchList, error) {
 	}
 	defer file.Close()
 	return monitor.ReadWatchList(file)
+}
+
+func readKeyListFile(filename string) (monitor.KeyList, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, simplifyError(err)
+	}
+	defer file.Close()
+	return monitor.ReadKeyList(file)
 }
 
 func readEmailFile(filename string) ([]string, error) {
@@ -153,6 +172,7 @@ func main() {
 		verbose     bool
 		version     bool
 		watchlist   string
+		keylist     string
 	}
 	flag.Func("batch_size", "Obsolete; do not use", func(string) error { flags.batchSize = true; return nil }) // TODO: remove in 0.21.0
 	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
@@ -166,6 +186,7 @@ func main() {
 	flag.BoolVar(&flags.verbose, "verbose", false, "Print detailed information about certspotter's operation to stderr")
 	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
 	flag.StringVar(&flags.watchlist, "watchlist", defaultWatchListPathIfExists(), "File containing domain names to watch")
+	flag.StringVar(&flags.keylist, "keylist", defaultKeyListPathIfExists(), "File containing known key information")
 	flag.Parse()
 
 	if flags.batchSize {
@@ -234,6 +255,15 @@ func main() {
 		}
 		config.WatchList = watchlist
 	}
+
+        if flags.keylist != "" {
+		keylist, err := readKeyListFile(flags.keylist)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: error reading keylist from %q: %s\n", programName, flags.keylist, err)
+			os.Exit(1)
+		}
+		config.KeyList = keylist
+        }
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
