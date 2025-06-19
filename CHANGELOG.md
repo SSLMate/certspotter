@@ -1,5 +1,11 @@
 # Change Log
 
+## v0.20.1 (2025-06-19)
+- Add resilience against sendmail hanging indefinitely.
+- Add resilience against hooks which fork and keep stderr open.
+- Upgrade dependencies to latest versions.
+- Minor improvements to error handling, code quality, and efficiency.
+
 ## v0.20.0 (2025-06-13)
 - Remove -batch_size option, which is obsolete due to new parallel download system.
 - Only print log errors to stderr if -verbose is specified.
