@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	"software.sslmate.com/src/certspotter/ctclient"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/monitor"
 )
@@ -139,6 +140,7 @@ func appendFunc(slice *[]string) func(string) error {
 
 func main() {
 	loglist.UserAgent = fmt.Sprintf("certspotter/%s (%s; %s; %s)", certspotterVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	ctclient.UserAgent = fmt.Sprintf("certspotter/%s (+https://github.com/SSLMate/certspotter)", certspotterVersion())
 
 	var flags struct {
 		batchSize   bool

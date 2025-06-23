@@ -24,6 +24,8 @@ import (
 	"time"
 )
 
+var UserAgent = "software.sslmate.com/src/certspotter"
+
 // Create an HTTP client suitable for communicating with CT logs.  dialContext, if non-nil, is used for dialing.
 func NewHTTPClient(dialContext func(context.Context, string, string) (net.Conn, error)) *http.Client {
 	return &http.Client{
@@ -61,7 +63,7 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("User-Agent", "") // Don't send a User-Agent to make life harder for malicious logs
+	request.Header.Set("User-Agent", UserAgent)
 
 	if httpClient == nil {
 		httpClient = defaultHTTPClient

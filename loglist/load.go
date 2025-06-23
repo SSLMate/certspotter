@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-var UserAgent = "certspotter"
+var UserAgent = "software.sslmate.com/src/certspotter"
 
 type ModificationToken struct {
 	etag     string
