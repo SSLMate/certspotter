@@ -206,7 +206,7 @@ func newLogClient(config *Config, ctlog *loglist.Log) (ctclient.Log, ctclient.Is
 				logGetter: client,
 			}, nil
 	default:
-		return nil, nil, fmt.Errorf("log uses unknown protocol")
+		return nil, nil, errors.New("log uses unknown protocol")
 	}
 }
 

@@ -99,7 +99,7 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	if err := sendmail.Run(); err == nil || err == exec.ErrWaitDelay {
 		return nil
 	} else if sendmailCtx.Err() != nil && ctx.Err() == nil {
-		return fmt.Errorf("error sending email to %v: sendmail command timed out")
+		return fmt.Errorf("error sending email to %v: sendmail command timed out", to)
 	} else if ctx.Err() != nil {
 		// if the context was canceled, we can't be sure that the error is the fault of sendmail, so ignore it
 		return ctx.Err()
