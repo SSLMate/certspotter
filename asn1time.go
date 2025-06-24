@@ -253,5 +253,5 @@ func decodeASN1Time(value *asn1.RawValue) (time.Time, error) {
 			return parseGeneralizedTime(value.Bytes)
 		}
 	}
-	return time.Time{}, errors.New("Not a time value")
+	return time.Time{}, errors.New("not a time value")
 }

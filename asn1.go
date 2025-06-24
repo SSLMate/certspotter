@@ -46,7 +46,7 @@ func decodeASN1String(value *asn1.RawValue) (string, error) {
 		if value.Tag == 12 {
 			// UTF8String
 			if !utf8.Valid(value.Bytes) {
-				return "", errors.New("Malformed UTF8String")
+				return "", errors.New("malformed UTF8String")
 			}
 			return string(value.Bytes), nil
 		} else if value.Tag == 19 || value.Tag == 22 || value.Tag == 20 || value.Tag == 26 {
@@ -74,5 +74,5 @@ func decodeASN1String(value *asn1.RawValue) (string, error) {
 			return stringFromUint32Slice(runes), nil
 		}
 	}
-	return "", errors.New("Not a string")
+	return "", errors.New("not a string")
 }

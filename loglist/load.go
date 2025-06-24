@@ -112,7 +112,7 @@ func Unmarshal(jsonBytes []byte) (*List, error) {
 		return nil, err
 	}
 	if err := list.Validate(); err != nil {
-		return nil, fmt.Errorf("Invalid log list: %s", err)
+		return nil, fmt.Errorf("invalid log list: %s", err)
 	}
 	return list, nil
 }
