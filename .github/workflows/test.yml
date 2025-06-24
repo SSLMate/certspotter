@@ -1,0 +1,36 @@
+name: Test and lint Go Code
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '42 9 * * *' # Runs daily at 09:42 UTC
+  workflow_dispatch:     # Allows manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: CGO_ENABLED=1 go test -race ./...
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Run staticcheck
+        run: staticcheck ./...
