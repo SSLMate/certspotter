@@ -2,7 +2,6 @@ name: Test and lint Go Code
 
 on:
   push:
-  pull_request:
   schedule:
     - cron: '42 9 * * *' # Runs daily at 09:42 UTC
   workflow_dispatch:     # Allows manual triggering
