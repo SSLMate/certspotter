@@ -44,8 +44,6 @@ type daemon struct {
 	tasks          map[LogID]task
 	logsLoadedAt   time.Time
 	logListToken   *loglist.ModificationToken
-	logListError   string
-	logListErrorAt time.Time
 }
 
 func (daemon *daemon) healthCheck(ctx context.Context) error {
@@ -61,8 +59,6 @@ func (daemon *daemon) healthCheck(ctx context.Context) error {
 		info := &StaleLogListInfo{
 			Source:        daemon.config.LogListSource,
 			LastSuccess:   daemon.logsLoadedAt,
-			LastError:     daemon.logListError,
-			LastErrorTime: daemon.logListErrorAt,
 			RecentErrors:  errors,
 			ErrorsDir:     errorsDir,
 		}
@@ -153,8 +149,6 @@ func (daemon *daemon) run(ctx context.Context) error {
 			return ctx.Err()
 		case <-reloadLogListTicker.C:
 			if err := daemon.loadLogList(ctx); err != nil {
-				daemon.logListError = err.Error()
-				daemon.logListErrorAt = time.Now()
 				recordError(ctx, daemon.config, nil, fmt.Errorf("error reloading log list (will try again later): %w", err))
 			}
 			reloadLogListTicker.Reset(reloadLogListInterval())

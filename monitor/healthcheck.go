@@ -114,8 +114,6 @@ type BacklogInfo struct {
 type StaleLogListInfo struct {
 	Source        string
 	LastSuccess   time.Time
-	LastError     string
-	LastErrorTime time.Time
 	RecentErrors  string
 	ErrorsDir     string
 }
