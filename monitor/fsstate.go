@@ -262,6 +262,10 @@ func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *l
 }
 
 func (s *FilesystemState) NotifyError(ctx context.Context, ctlog *loglist.Log, notifyErr error) error {
+	if ctlog == nil {
+		log.Print(notifyErr)
+	}
+
 	var (
 		now      = time.Now()
 		filePath = filepath.Join(s.errorDir(ctlog), now.Format(errorDateFormat))
