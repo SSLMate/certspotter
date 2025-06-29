@@ -53,8 +53,8 @@ You can use Cert Spotter to detect:
 :   Filename or HTTPS URL of a v2 or v3 JSON log list containing logs to monitor.
     The schema for this file can be found at <https://www.gstatic.com/ct/log_list/v3/log_list_schema.json>.
     Defaults to <https://loglist.certspotter.org/monitor.json>, which includes
-    the union of active logs recognized by Chrome and Apple.  certspotter periodically
-    reloads the log list in case it has changed.
+    the union of active logs recognized by Chrome and Apple.  certspotter loads the
+    log list when starting up, and periodically reloads it in case it has changed.
 
 -no\_save
 
@@ -90,7 +90,7 @@ You can use Cert Spotter to detect:
 
 -verbose
 
-:   Print detailed information about certspotter's operation (such as errors contacting logs) to stderr.
+:   Print detailed information about certspotter's operation to stderr.
 
 -version
 
@@ -136,7 +136,7 @@ the script interface, see certspotter-script(8).
 # OPERATION
 
 certspotter continuously monitors all browser-recognized Certificate
-Transparency logs looking for certificates (including precertificates)
+Transparency logs (both RFC6962 and static-ct-api) looking for certificates (including precertificates)
 which are valid for any domain on your watch list. When certspotter
 detects a matching certificate, it emails you, executes a script, and/or
 writes a report to standard out, as described above.
@@ -169,12 +169,17 @@ API <https://sslmate.com/ct_search_api>, or a CT search engine such as
 # ERROR HANDLING
 
 When certspotter encounters a problem with the local system (e.g. failure
-to write a file or execute a script), it prints a message to stderr and
+to write a file, send an email, or execute a script), it prints a message to stderr and
 exits with a non-zero status.
 
-When certspotter encounters a problem monitoring a log, it prints a message
-to stderr if `-verbose` is specified and continues running.  It will try monitoring the log again later;
-most log errors are transient.
+When certspotter encounters a problem loading the log list during startup, it
+prints a message to stderr and exits with a non-zero status.  When certspotter encounters a problem
+reloading the log list, it prints a message to stderr and continues running with the previously-loaded
+log list.  It will try reloading the log list again later.
+
+When certspotter encounters a problem contacting a log, it writes the error to a file in
+the state directory and continues running.  It will try contacting the log again later;
+most log errors are transient.  The last 7 days of errors are kept.
 
 Every 24 hours (unless overridden by `-healthcheck`), certspotter performs the
 following health checks:
@@ -186,11 +191,12 @@ following health checks:
  * Ensure that certspotter is not falling behind monitoring any logs.
 
 If any health check fails, certspotter notifies you by email, script, and/or
-standard out, as described above.
+standard out, as described above.  The notification includes the last several errors
+encountered when contacting the log.
 
 Health check failures should be rare, and you should take them seriously because it means
 certspotter might not detect all certificates.  It might also be an indication
-of CT log misbehavior.  Enable the `-verbose` flag and consult stderr for details, and if
+of CT log misbehavior.  Check the error files for details, and if
 you need help, file an issue at <https://github.com/SSLMate/certspotter>.
 
 # EXIT STATUS
