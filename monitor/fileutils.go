@@ -14,7 +14,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"slices"
 )
 
 func randomFileSuffix() string {
@@ -68,4 +70,48 @@ func writeJSONFile(filename string, data any, perm os.FileMode) error {
 func fileExists(filename string) bool {
 	_, err := os.Lstat(filename)
 	return err == nil
+}
+
+func tailFile(filename string, linesWanted int) ([]byte, int, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer file.Close()
+	return tail(file, linesWanted, 4096)
+}
+
+func tail(r io.ReadSeeker, linesWanted int, chunkSize int) ([]byte, int, error) {
+	var buf []byte
+	linesGot := 0
+
+	offset, err := r.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, 0, err
+	}
+	for offset > 0 {
+		readSize := chunkSize
+		if offset < int64(readSize) {
+			readSize = int(offset)
+		}
+		offset -= int64(readSize)
+		if _, err := r.Seek(offset, io.SeekStart); err != nil {
+			return nil, 0, err
+		}
+		buf = slices.Grow(buf, readSize)
+		copy(buf[readSize:len(buf)+readSize], buf)
+		buf = buf[:len(buf)+readSize]
+		if _, err := io.ReadFull(r, buf[:readSize]); err != nil {
+			return nil, 0, err
+		}
+		for i := readSize; i > 0; i-- {
+			if buf[i-1] == '\n' {
+				if linesGot == linesWanted {
+					return buf[i:], linesGot, nil
+				}
+				linesGot++
+			}
+		}
+	}
+	return buf, linesGot, nil
 }

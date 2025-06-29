@@ -192,7 +192,6 @@ func main() {
 		ScriptDir: defaultScriptDir(),
 		Email:     flags.email,
 		Stdout:    flags.stdout,
-		Quiet:     !flags.verbose,
 	}
 	config := &monitor.Config{
 		LogListSource:       flags.logs,
@@ -240,6 +239,19 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	go func() {
+		ticker := time.NewTicker(24*time.Hour)
+		defer ticker.Stop()
+		for {
+			fsstate.PruneOldErrors()
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
 
 	if err := monitor.Run(ctx, config); ctx.Err() == context.Canceled && errors.Is(err, context.Canceled) {
 		if flags.verbose {

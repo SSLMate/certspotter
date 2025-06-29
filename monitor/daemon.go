@@ -50,11 +50,21 @@ type daemon struct {
 
 func (daemon *daemon) healthCheck(ctx context.Context) error {
 	if time.Since(daemon.logsLoadedAt) >= daemon.config.HealthCheckInterval {
+		errors, err := daemon.config.State.GetErrors(ctx, nil, recentErrorCount)
+		if err != nil {
+			return fmt.Errorf("error getting recent errors: %w", err)
+		}
+		var errorsDir string
+		if fsstate, ok := daemon.config.State.(*FilesystemState); ok {
+			errorsDir = fsstate.errorDir(nil)
+		}
 		info := &StaleLogListInfo{
 			Source:        daemon.config.LogListSource,
 			LastSuccess:   daemon.logsLoadedAt,
 			LastError:     daemon.logListError,
 			LastErrorTime: daemon.logListErrorAt,
+			RecentErrors:  errors,
+			ErrorsDir:     errorsDir,
 		}
 		if err := daemon.config.State.NotifyHealthCheckFailure(ctx, nil, info); err != nil {
 			return fmt.Errorf("error notifying about stale log list: %w", err)

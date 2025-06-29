@@ -19,6 +19,8 @@ import (
 	"software.sslmate.com/src/certspotter/loglist"
 )
 
+const recentErrorCount = 10
+
 func healthCheckFilename() string {
 	return time.Now().UTC().Format(time.RFC3339) + ".txt"
 }
@@ -48,20 +50,37 @@ func healthCheckLog(ctx context.Context, config *Config, ctlog *loglist.Log) err
 		return fmt.Errorf("error loading STHs: %w", err)
 	}
 
+	var errorsDir string
+	if fsstate, ok := config.State.(*FilesystemState); ok {
+		errorsDir = fsstate.errorDir(ctlog)
+	}
+
 	if len(sths) == 0 {
+		errors, err := config.State.GetErrors(ctx, ctlog, recentErrorCount)
+		if err != nil {
+			return fmt.Errorf("error getting recent errors: %w", err)
+		}
 		info := &StaleSTHInfo{
-			Log:         ctlog,
-			LastSuccess: lastSuccess,
-			LatestSTH:   verifiedSTH,
+			Log:          ctlog,
+			LastSuccess:  lastSuccess,
+			LatestSTH:    verifiedSTH,
+			RecentErrors: errors,
+			ErrorsDir:    errorsDir,
 		}
 		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about stale STH: %w", err)
 		}
 	} else {
+		errors, err := config.State.GetErrors(ctx, ctlog, recentErrorCount)
+		if err != nil {
+			return fmt.Errorf("error getting recent errors: %w", err)
+		}
 		info := &BacklogInfo{
-			Log:       ctlog,
-			LatestSTH: sths[len(sths)-1],
-			Position:  position,
+			Log:          ctlog,
+			LatestSTH:    sths[len(sths)-1],
+			Position:     position,
+			RecentErrors: errors,
+			ErrorsDir:    errorsDir,
 		}
 		if err := config.State.NotifyHealthCheckFailure(ctx, ctlog, info); err != nil {
 			return fmt.Errorf("error notifying about backlog: %w", err)
@@ -77,15 +96,19 @@ type HealthCheckFailure interface {
 }
 
 type StaleSTHInfo struct {
-	Log         *loglist.Log
-	LastSuccess time.Time               // may be zero
-	LatestSTH   *cttypes.SignedTreeHead // may be nil
+	Log          *loglist.Log
+	LastSuccess  time.Time               // may be zero
+	LatestSTH    *cttypes.SignedTreeHead // may be nil
+	RecentErrors string
+	ErrorsDir    string
 }
 
 type BacklogInfo struct {
-	Log       *loglist.Log
-	LatestSTH *StoredSTH
-	Position  uint64
+	Log          *loglist.Log
+	LatestSTH    *StoredSTH
+	Position     uint64
+	RecentErrors string
+	ErrorsDir    string
 }
 
 type StaleLogListInfo struct {
@@ -93,6 +116,8 @@ type StaleLogListInfo struct {
 	LastSuccess   time.Time
 	LastError     string
 	LastErrorTime time.Time
+	RecentErrors  string
+	ErrorsDir     string
 }
 
 func (e *StaleSTHInfo) LastSuccessString() string {
@@ -120,12 +145,16 @@ func (e *StaleSTHInfo) Text() string {
 	text := new(strings.Builder)
 	fmt.Fprintf(text, "certspotter has been unable to contact %s since %s. Consequentially, certspotter may fail to notify you about certificates in this log.\n", e.Log.GetMonitoringURL(), e.LastSuccessString())
 	fmt.Fprintf(text, "\n")
-	fmt.Fprintf(text, "For details, enable -verbose and see certspotter's stderr output.\n")
-	fmt.Fprintf(text, "\n")
 	if e.LatestSTH != nil {
 		fmt.Fprintf(text, "Latest known log size = %d\n", e.LatestSTH.TreeSize)
 	} else {
 		fmt.Fprintf(text, "Latest known log size = none\n")
+	}
+	if e.RecentErrors != "" {
+		fmt.Fprintf(text, "\n")
+		fmt.Fprintf(text, "Recent errors (see %s for complete records):\n", e.ErrorsDir)
+		fmt.Fprintf(text, "\n")
+		fmt.Fprint(text, e.RecentErrors)
 	}
 	return text.String()
 }
@@ -133,20 +162,28 @@ func (e *BacklogInfo) Text() string {
 	text := new(strings.Builder)
 	fmt.Fprintf(text, "certspotter has been unable to download entries from %s in a timely manner. Consequentially, certspotter may be slow to notify you about certificates in this log.\n", e.Log.GetMonitoringURL())
 	fmt.Fprintf(text, "\n")
-	fmt.Fprintf(text, "For details, enable -verbose and see certspotter's stderr output.\n")
-	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "Current log size = %d (as of %s)\n", e.LatestSTH.TreeSize, e.LatestSTH.StoredAt)
 	fmt.Fprintf(text, "Current position = %d\n", e.Position)
 	fmt.Fprintf(text, "         Backlog = %d\n", e.Backlog())
+	if e.RecentErrors != "" {
+		fmt.Fprintf(text, "\n")
+		fmt.Fprintf(text, "Recent errors (see %s for complete records):\n", e.ErrorsDir)
+		fmt.Fprintf(text, "\n")
+		fmt.Fprint(text, e.RecentErrors)
+	}
 	return text.String()
 }
 func (e *StaleLogListInfo) Text() string {
 	text := new(strings.Builder)
 	fmt.Fprintf(text, "certspotter has been unable to retrieve the log list from %s since %s.\n", e.Source, e.LastSuccess)
 	fmt.Fprintf(text, "\n")
-	fmt.Fprintf(text, "Last error (at %s): %s\n", e.LastErrorTime, e.LastError)
-	fmt.Fprintf(text, "\n")
 	fmt.Fprintf(text, "Consequentially, certspotter may not be monitoring all logs, and might fail to detect certificates.\n")
+	if e.RecentErrors != "" {
+		fmt.Fprintf(text, "\n")
+		fmt.Fprintf(text, "Recent errors (see %s for complete records):\n", e.ErrorsDir)
+		fmt.Fprintf(text, "\n")
+		fmt.Fprint(text, e.RecentErrors)
+	}
 	return text.String()
 }
 

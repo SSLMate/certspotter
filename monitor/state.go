@@ -85,4 +85,7 @@ type StateProvider interface {
 	// not associated with a log.  Note that most errors are transient, and
 	// certspotter will retry the failed operation later.
 	NotifyError(context.Context, *loglist.Log, error) error
+
+	// Retrieve the specified number of most recent errors.
+	GetErrors(context.Context, *loglist.Log, int) (string, error)
 }

@@ -20,11 +20,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/merkletree"
 )
+
+const keepErrorDays = 7
+const errorDateFormat = "2006-01-02"
 
 type FilesystemState struct {
 	StateDir  string
@@ -34,7 +39,7 @@ type FilesystemState struct {
 	ScriptDir string
 	Email     []string
 	Stdout    bool
-	Quiet     bool
+	errorMu   sync.Mutex
 }
 
 func (s *FilesystemState) logStateDir(logID LogID) string {
@@ -57,8 +62,9 @@ func (s *FilesystemState) PrepareLog(ctx context.Context, logID LogID) error {
 		sthsDirPath         = filepath.Join(stateDirPath, "unverified_sths")
 		malformedDirPath    = filepath.Join(stateDirPath, "malformed_entries")
 		healthchecksDirPath = filepath.Join(stateDirPath, "healthchecks")
+		errorsDirPath       = filepath.Join(stateDirPath, "errors")
 	)
-	for _, dirPath := range []string{stateDirPath, sthsDirPath, malformedDirPath, healthchecksDirPath} {
+	for _, dirPath := range []string{stateDirPath, sthsDirPath, malformedDirPath, healthchecksDirPath, errorsDirPath} {
 		if err := os.Mkdir(dirPath, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
 			return err
 		}
@@ -227,6 +233,13 @@ func (s *FilesystemState) healthCheckDir(ctlog *loglist.Log) string {
 	}
 }
 
+func (s *FilesystemState) errorDir(ctlog *loglist.Log) string {
+	if ctlog == nil {
+		return filepath.Join(s.StateDir, "errors")
+	}
+	return filepath.Join(s.logStateDir(ctlog.LogID), "errors")
+}
+
 func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *loglist.Log, info HealthCheckFailure) error {
 	textPath := filepath.Join(s.healthCheckDir(ctlog), healthCheckFilename())
 	environ := []string{
@@ -248,13 +261,80 @@ func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *l
 	return nil
 }
 
-func (s *FilesystemState) NotifyError(ctx context.Context, ctlog *loglist.Log, err error) error {
-	if !s.Quiet {
-		if ctlog == nil {
-			log.Print(err)
-		} else {
-			log.Print(ctlog.GetMonitoringURL(), ": ", err)
+func (s *FilesystemState) NotifyError(ctx context.Context, ctlog *loglist.Log, notifyErr error) error {
+	var (
+		now      = time.Now()
+		filePath = filepath.Join(s.errorDir(ctlog), now.Format(errorDateFormat))
+		line     = now.Format(time.RFC3339) + " " + notifyErr.Error() + "\n"
+	)
+
+	s.errorMu.Lock()
+	defer s.errorMu.Unlock()
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if _, err := file.WriteString(line); err != nil {
+		return err
+	}
+	return file.Close()
+}
+
+func (s *FilesystemState) GetErrors(ctx context.Context, ctlog *loglist.Log, count int) (string, error) {
+	dir := s.errorDir(ctlog)
+	now := time.Now()
+	var buf []byte
+	for daysBack := 0; count > 0 && daysBack < keepErrorDays; daysBack++ {
+		datePath := filepath.Join(dir, now.AddDate(0, 0, -daysBack).Format(errorDateFormat))
+		dateBuf, dateLines, err := tailFile(datePath, count)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return "", err
+		}
+		buf = append(dateBuf, buf...)
+		count -= dateLines
+	}
+	return string(buf), nil
+}
+
+func (s *FilesystemState) PruneOldErrors() {
+	cutoff := time.Now().AddDate(0, 0, -keepErrorDays)
+	pruneDir := func(dir string) {
+		entries, err := os.ReadDir(dir)
+		if errors.Is(err, fs.ErrNotExist) {
+			return
+		} else if err != nil {
+			log.Printf("unable to read error directory: %s", err)
+			return
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			date, err := time.Parse(errorDateFormat, entry.Name())
+			if err != nil {
+				continue
+			}
+			if date.Before(cutoff) {
+				if err := os.Remove(filepath.Join(dir, entry.Name())); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					log.Printf("unable to remove old error file: %s", err)
+				}
+			}
 		}
 	}
-	return nil
+	pruneDir(filepath.Join(s.StateDir, "errors"))
+	logsDir := filepath.Join(s.StateDir, "logs")
+	logDirs, err := os.ReadDir(logsDir)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		log.Printf("unable to read logs directory: %s", err)
+		return
+	}
+	for _, d := range logDirs {
+		if !d.IsDir() {
+			continue
+		}
+		pruneDir(filepath.Join(logsDir, d.Name(), "errors"))
+	}
 }
