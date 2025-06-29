@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-var UserAgent = "software.sslmate.com/src/certspotter"
+var UserAgent = ""
 
 // Create an HTTP client suitable for communicating with CT logs.  dialContext, if non-nil, is used for dialing.
 func NewHTTPClient(dialContext func(context.Context, string, string) (net.Conn, error)) *http.Client {

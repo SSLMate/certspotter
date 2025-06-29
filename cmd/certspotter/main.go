@@ -31,17 +31,16 @@ import (
 )
 
 var programName = os.Args[0]
-var Version = ""
+var Version = "unknown"
+var Source = "unknown"
 
 const defaultLogList = "https://loglist.certspotter.org/monitor.json"
 
-func certspotterVersion() string {
-	if Version != "" {
-		return Version + "?"
-	} else if info, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(info.Main.Version, "v") {
-		return info.Main.Version
+func certspotterVersion() (string, string) {
+	if buildinfo, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(buildinfo.Main.Version, "v") {
+		return strings.TrimPrefix(buildinfo.Main.Version, "v"), buildinfo.Main.Path
 	} else {
-		return "unknown"
+		return Version, Source
 	}
 }
 
@@ -139,8 +138,10 @@ func appendFunc(slice *[]string) func(string) error {
 }
 
 func main() {
-	loglist.UserAgent = fmt.Sprintf("certspotter/%s (%s; %s; %s)", certspotterVersion(), runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	ctclient.UserAgent = fmt.Sprintf("certspotter/%s (+https://github.com/SSLMate/certspotter)", certspotterVersion())
+	version, source := certspotterVersion()
+
+	ctclient.UserAgent = fmt.Sprintf("certspotter/%s (%s; %s; %s; %s; +https://github.com/SSLMate/certspotter)", version, source, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	loglist.UserAgent = ctclient.UserAgent
 
 	var flags struct {
 		batchSize   bool
@@ -175,7 +176,7 @@ func main() {
 		os.Exit(2)
 	}
 	if flags.version {
-		fmt.Fprintf(os.Stdout, "certspotter version %s\n", certspotterVersion())
+		fmt.Fprintf(os.Stdout, "certspotter version %s (%s)\n", version, source)
 		os.Exit(0)
 	}
 	if flags.watchlist == "" {
