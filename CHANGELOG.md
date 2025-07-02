@@ -1,5 +1,10 @@
 # Change Log
 
+## v0.21.0 (2025-07-02)
+- Instead of writing log errors to stderr, save the last 7 days worth in the
+  state directory, and include recent errors in failed health check notifications.
+- Send a meaningful User-Agent string with HTTP requests.
+
 ## v0.20.1 (2025-06-19)
 - Add resilience against sendmail hanging indefinitely.
 - Add resilience against hooks which fork and keep stderr open.
