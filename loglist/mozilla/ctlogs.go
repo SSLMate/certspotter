@@ -24,6 +24,7 @@ import (
 type CTLogInfo struct {
 	Name          string
 	State         string // Admissible or Retired
+	Protocol      string // RFC6962 or Tiled
 	Timestamp     time.Time
 	OperatorIndex int
 	Key           []byte
@@ -116,7 +117,7 @@ func readLogEntry(firstLine string, s *bufio.Scanner) (CTLogInfo, error) {
 	var log CTLogInfo
 
 	// Example first line:
-	// {"Name", CTLogState::Admissible,
+	// {"Name", CTLogState::Admissible, CTLogFormat::RFC6962,
 	firstLine = strings.TrimSpace(firstLine)
 	if !strings.HasPrefix(firstLine, "{") {
 		return log, errors.New("invalid log entry start")
@@ -125,22 +126,18 @@ func readLogEntry(firstLine string, s *bufio.Scanner) (CTLogInfo, error) {
 	firstLine = strings.TrimSuffix(firstLine, ",")
 
 	parts := splitCSV(firstLine)
-	var statePart string
-	switch len(parts) {
-	case 2:
-		log.Name = trimQuotes(parts[0])
-		statePart = parts[1]
-	case 1:
-		log.Name = trimQuotes(parts[0])
+
+	for len(parts) < 3 {
 		if !s.Scan() {
 			return log, io.ErrUnexpectedEOF
 		}
-		statePart = strings.TrimSpace(s.Text())
-	default:
-		return log, errors.New("invalid log entry header")
+		next := strings.TrimSpace(strings.TrimSuffix(s.Text(), ","))
+		parts = append(parts, splitCSV(next)...)
 	}
-	statePart = strings.TrimSuffix(strings.TrimSpace(statePart), ",")
-	log.State = strings.TrimPrefix(statePart, "CTLogState::")
+
+	log.Name = trimQuotes(parts[0])
+	log.State = strings.TrimPrefix(strings.TrimSpace(parts[1]), "CTLogState::")
+	log.Protocol = strings.TrimPrefix(strings.TrimSpace(parts[2]), "CTLogFormat::")
 
 	// Next line: timestamp
 	if !s.Scan() {

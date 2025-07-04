@@ -44,12 +44,12 @@ func ExampleParse() {
 	tw.Flush()
 
 	tw = tabwriter.NewWriter(os.Stdout, 0, 8, 1, ' ', 0)
-	fmt.Fprintln(tw, "LogID\tState\tTimestamp\tOperator\tName")
+	fmt.Fprintln(tw, "LogID\tProtocol\tState\tTimestamp\tOperator\tName")
 	for _, l := range logs {
 		hash := sha256.Sum256(l.Key)
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%s\n",
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%s\n",
 			base64.StdEncoding.EncodeToString(hash[:]),
-			l.State, l.Timestamp.UTC().Format(time.RFC3339), l.OperatorIndex, l.Name)
+			l.Protocol, l.State, l.Timestamp.UTC().Format(time.RFC3339), l.OperatorIndex, l.Name)
 	}
 	tw.Flush()
 }

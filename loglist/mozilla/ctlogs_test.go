@@ -73,6 +73,9 @@ func TestParseFromURL(t *testing.T) {
 		if l.State != "Admissible" && l.State != "Retired" {
 			t.Errorf("unexpected state %q", l.State)
 		}
+		if l.Protocol != "RFC6962" && l.Protocol != "Tiled" {
+			t.Errorf("unexpected protocol %q", l.Protocol)
+		}
 		hash := sha256.Sum256(l.Key)
 		if base64.StdEncoding.EncodeToString(hash[:]) == targetHash {
 			foundHash = true
