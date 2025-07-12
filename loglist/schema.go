@@ -16,37 +16,36 @@ import (
 )
 
 type List struct {
-	Version          string     `json:"version"`
-	LogListTimestamp time.Time  `json:"log_list_timestamp"` // Only present in v3 of schema
-	Operators        []Operator `json:"operators"`
+	Version          string     `json:"version,omitzero"`
+	LogListTimestamp time.Time  `json:"log_list_timestamp,omitzero"` // Only present in v3 of schema
+	Operators        []Operator `json:"operators,omitzero"`
 }
 
 type Operator struct {
 	Name      string   `json:"name"`
-	Email     []string `json:"email"`
-	Logs      []Log    `json:"logs"`
-	TiledLogs []Log    `json:"tiled_logs"`
+	Email     []string `json:"email,omitzero"`
+	Logs      []Log    `json:"logs,omitzero"`
+	TiledLogs []Log    `json:"tiled_logs,omitzero"`
 }
 
 type Log struct {
 	Key              []byte        `json:"key"`
 	LogID            cttypes.LogID `json:"log_id"`
 	MMD              int           `json:"mmd"`
-	URL              string        `json:"url,omitempty"`            // only for rfc6962 logs
-	SubmissionURL    string        `json:"submission_url,omitempty"` // only for static-ct-api logs
-	MonitoringURL    string        `json:"monitoring_url,omitempty"` // only for static-ct-api logs
+	URL              string        `json:"url,omitzero"`            // only for rfc6962 logs
+	SubmissionURL    string        `json:"submission_url,omitzero"` // only for static-ct-api logs
+	MonitoringURL    string        `json:"monitoring_url,omitzero"` // only for static-ct-api logs
 	Description      string        `json:"description"`
-	State            State         `json:"state"`
-	DNS              string        `json:"dns"`
-	LogType          LogType       `json:"log_type"`
+	State            State         `json:"state,omitzero"`
+	LogType          LogType       `json:"log_type,omitzero"`
 	TemporalInterval *struct {
 		StartInclusive time.Time `json:"start_inclusive"`
 		EndExclusive   time.Time `json:"end_exclusive"`
-	} `json:"temporal_interval"`
+	} `json:"temporal_interval,omitzero"`
 
 	// certspotter-specific extensions
-	CertspotterDownloadSize int `json:"certspotter_download_size,omitempty"`
-	CertspotterDownloadJobs int `json:"certspotter_download_jobs,omitempty"`
+	CertspotterDownloadSize int `json:"certspotter_download_size,omitzero"`
+	CertspotterDownloadJobs int `json:"certspotter_download_jobs,omitzero"`
 
 	// TODO: add previous_operators
 }
@@ -77,15 +76,15 @@ func (log *Log) GetMonitoringURL() string {
 type State struct {
 	Pending *struct {
 		Timestamp time.Time `json:"timestamp"`
-	} `json:"pending"`
+	} `json:"pending,omitzero"`
 
 	Qualified *struct {
 		Timestamp time.Time `json:"timestamp"`
-	} `json:"qualified"`
+	} `json:"qualified,omitzero"`
 
 	Usable *struct {
 		Timestamp time.Time `json:"timestamp"`
-	} `json:"usable"`
+	} `json:"usable,omitzero"`
 
 	Readonly *struct {
 		Timestamp     time.Time `json:"timestamp"`
@@ -93,15 +92,15 @@ type State struct {
 			TreeSize       int64  `json:"tree_size"`
 			SHA256RootHash []byte `json:"sha256_root_hash"`
 		} `json:"final_tree_head"`
-	} `json:"readonly"`
+	} `json:"readonly,omitzero"`
 
 	Retired *struct {
 		Timestamp time.Time `json:"timestamp"`
-	} `json:"retired"`
+	} `json:"retired,omitzero"`
 
 	Rejected *struct {
 		Timestamp time.Time `json:"timestamp"`
-	} `json:"rejected"`
+	} `json:"rejected,omitzero"`
 }
 
 func (state *State) IsApproved() bool {
