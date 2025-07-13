@@ -23,20 +23,18 @@ type SignedCertificateTimestamp struct {
 	Signature  tlstypes.DigitallySigned `json:"signature"`
 }
 
+func (sct *SignedCertificateTimestamp) Bytes() ([]byte, error) {
+	var builder cryptobyte.Builder
+	builder.AddValue(sct)
+	return builder.Bytes()
+}
+
 func (sct *SignedCertificateTimestamp) Marshal(b *cryptobyte.Builder) error {
-	if err := sct.SCTVersion.Marshal(b); err != nil {
-		return err
-	}
-	if err := sct.ID.Marshal(b); err != nil {
-		return err
-	}
+	b.AddValue(sct.SCTVersion)
+	b.AddValue(sct.ID)
 	b.AddUint64(sct.Timestamp)
-	if err := sct.Extensions.Marshal(b); err != nil {
-		return err
-	}
-	if err := sct.Signature.Marshal(b); err != nil {
-		return err
-	}
+	b.AddValue(sct.Extensions)
+	b.AddValue(sct.Signature)
 	return nil
 }
 
