@@ -95,7 +95,7 @@ func getEntriesFull(ctx context.Context, client ctclient.Log, startInclusive, en
 	return allEntries, nil
 }
 
-func getAndVerifySTH(ctx context.Context, ctlog *loglist.Log, client ctclient.Log) (*cttypes.SignedTreeHead, string, error) {
+func getAuthenticSTH(ctx context.Context, ctlog *loglist.Log, client ctclient.Log) (*cttypes.SignedTreeHead, string, error) {
 	sth, url, err := client.GetSTH(ctx)
 	if err != nil {
 		return nil, "", err
@@ -114,7 +114,7 @@ type logClient struct {
 
 func (client *logClient) GetSTH(ctx context.Context) (sth *cttypes.SignedTreeHead, url string, err error) {
 	err = withRetry(ctx, client.config, client.log, -1, func() error {
-		sth, url, err = getAndVerifySTH(ctx, client.log, client.client)
+		sth, url, err = getAuthenticSTH(ctx, client.log, client.client)
 		return err
 	})
 	return
