@@ -49,5 +49,9 @@ func (log *Log) Validate() error {
 		return fmt.Errorf("inconsistent URLs provided")
 	}
 
+	if log.MMD < 0 {
+		return fmt.Errorf("log has a negative MMD")
+	}
+
 	return nil
 }
