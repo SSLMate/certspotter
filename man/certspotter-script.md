@@ -166,7 +166,7 @@ The following environment variables are set for `error` events:
 # JSON FILE FORMAT
 
 Unless `-no_save` is used, certspotter saves a JSON file for every discovered certificate
-under `$CERTSPOTTER_STATE_DIR`, and puts the path to the file in `$JSON_FILENAME`.  Your
+in its state directory, and puts the path to the file in `$JSON_FILENAME`.  Your
 script can read the JSON file, such as with the jq(1) command, to get additional information
 about the certificate which isn't appropriate for environment variables.
 

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -55,8 +56,13 @@ func homedir() string {
 	}
 	return homedir
 }
+func startedBySupervisor() bool {
+	return os.Getenv("SYSTEMD_EXEC_PID") == strconv.Itoa(os.Getpid())
+}
 func defaultStateDir() string {
 	if envVar := os.Getenv("CERTSPOTTER_STATE_DIR"); envVar != "" {
+		return envVar
+	} else if envVar := os.Getenv("STATE_DIRECTORY"); envVar != "" && startedBySupervisor() {
 		return envVar
 	} else {
 		return filepath.Join(homedir(), ".certspotter")
@@ -65,11 +71,16 @@ func defaultStateDir() string {
 func defaultConfigDir() string {
 	if envVar := os.Getenv("CERTSPOTTER_CONFIG_DIR"); envVar != "" {
 		return envVar
+	} else if envVar := os.Getenv("CONFIGURATION_DIRECTORY"); envVar != "" && startedBySupervisor() {
+		return envVar
 	} else {
 		return filepath.Join(homedir(), ".certspotter")
 	}
 }
 func defaultCacheDir() string {
+	if envVar := os.Getenv("CACHE_DIRECTORY"); envVar != "" && startedBySupervisor() {
+		return envVar
+	}
 	userCacheDir, err := os.UserCacheDir()
 	if err != nil {
 		panic(fmt.Errorf("unable to determine user cache directory: %w", err))
@@ -252,6 +263,13 @@ func main() {
 			}
 		}
 	}()
+
+	if startedBySupervisor() {
+		// Prevent any process that we spawn from erroneously writing to our directories
+		os.Unsetenv("CACHE_DIRECTORY")
+		os.Unsetenv("CONFIGURATION_DIRECTORY")
+		os.Unsetenv("STATE_DIRECTORY")
+	}
 
 	if err := monitor.Run(ctx, config); ctx.Err() == context.Canceled && errors.Is(err, context.Canceled) {
 		if flags.verbose {
