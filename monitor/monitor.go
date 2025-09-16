@@ -68,8 +68,11 @@ func withRetry(ctx context.Context, config *Config, ctlog *loglist.Log, maxRetri
 		if err == nil || errors.Is(err, context.Canceled) {
 			return err
 		}
+		if numRetries > 0 {
+			err = fmt.Errorf("%w (retried %d times)", err, numRetries)
+		}
 		if maxRetries != -1 && numRetries >= maxRetries {
-			return fmt.Errorf("%w (retried %d times)", err, numRetries)
+			return err
 		}
 		recordError(ctx, config, ctlog, err)
 		sleepTime := minSleep + mathrand.N(minSleep)
