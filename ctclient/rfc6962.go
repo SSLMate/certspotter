@@ -31,6 +31,14 @@ type RFC6962LogEntry struct {
 	Extra_data []byte `json:"extra_data"`
 }
 
+func (ctlog *RFC6962Log) AddChain(ctx context.Context, chain [][]byte) (*cttypes.SignedCertificateTimestamp, error) {
+	return addChainOrPreChain(ctx, ctlog.HTTPClient, ctlog.URL, false, chain)
+}
+
+func (ctlog *RFC6962Log) AddPreChain(ctx context.Context, chain [][]byte) (*cttypes.SignedCertificateTimestamp, error) {
+	return addChainOrPreChain(ctx, ctlog.HTTPClient, ctlog.URL, true, chain)
+}
+
 func (ctlog *RFC6962Log) GetSTH(ctx context.Context) (*cttypes.SignedTreeHead, string, error) {
 	fullURL := ctlog.URL.JoinPath("/ct/v1/get-sth").String()
 	sth := new(cttypes.SignedTreeHead)

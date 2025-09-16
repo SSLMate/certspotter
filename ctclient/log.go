@@ -16,6 +16,12 @@ import (
 	"software.sslmate.com/src/certspotter/merkletree"
 )
 
+type WritableLog interface {
+	AddChain(context.Context, [][]byte) (*cttypes.SignedCertificateTimestamp, error)
+	AddPreChain(context.Context, [][]byte) (*cttypes.SignedCertificateTimestamp, error)
+	GetRoots(context.Context) ([][]byte, error)
+}
+
 type Log interface {
 	GetSTH(context.Context) (*cttypes.SignedTreeHead, string, error)
 	GetRoots(context.Context) ([][]byte, error)

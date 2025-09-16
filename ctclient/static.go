@@ -46,6 +46,14 @@ type StaticLogEntry struct {
 	chain            [][32]byte
 }
 
+func (ctlog *StaticLog) AddChain(ctx context.Context, chain [][]byte) (*cttypes.SignedCertificateTimestamp, error) {
+	return addChainOrPreChain(ctx, ctlog.HTTPClient, ctlog.SubmissionURL, false, chain)
+}
+
+func (ctlog *StaticLog) AddPreChain(ctx context.Context, chain [][]byte) (*cttypes.SignedCertificateTimestamp, error) {
+	return addChainOrPreChain(ctx, ctlog.HTTPClient, ctlog.SubmissionURL, true, chain)
+}
+
 func (ctlog *StaticLog) GetSTH(ctx context.Context) (*cttypes.SignedTreeHead, string, error) {
 	fullURL := ctlog.MonitoringURL.JoinPath("/checkpoint").String()
 	responseBody, err := get(ctx, ctlog.HTTPClient, fullURL)

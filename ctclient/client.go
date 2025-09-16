@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"software.sslmate.com/src/certspotter/cttypes"
 )
 
 var UserAgent = ""
@@ -107,4 +109,56 @@ func getRoots(ctx context.Context, httpClient *http.Client, logURL *url.URL) ([]
 		return nil, err
 	}
 	return parsedResponse.Certificates, nil
+}
+
+func addChainOrPreChain(ctx context.Context, httpClient *http.Client, logURL *url.URL, isPreChain bool, chain [][]byte) (*cttypes.SignedCertificateTimestamp, error) {
+	var endpoint string
+	if isPreChain {
+		endpoint = "/ct/v1/add-pre-chain"
+	} else {
+		endpoint = "/ct/v1/add-chain"
+	}
+	fullURL := logURL.JoinPath(endpoint).String()
+
+	requestBody, err := json.Marshal(struct {
+		Chain [][]byte `json:"chain"`
+	}{
+		Chain: chain,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(requestBody))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("User-Agent", UserAgent)
+	request.Header.Set("Content-Type", "application/json")
+
+	if httpClient == nil {
+		httpClient = defaultHTTPClient
+	}
+
+	response, err := httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := io.ReadAll(response.Body)
+	response.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("Post %q: error reading response: %w", fullURL, err)
+	}
+
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("Post %q: %s (%q)", fullURL, response.Status, bytes.TrimSpace(responseBody))
+	}
+
+	sct := new(cttypes.SignedCertificateTimestamp)
+	if err := json.Unmarshal(responseBody, sct); err != nil {
+		return nil, fmt.Errorf("Post %q: error parsing response JSON: %w", fullURL, err)
+	}
+
+	return sct, nil
 }
