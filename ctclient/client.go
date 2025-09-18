@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"software.sslmate.com/src/certspotter/cttypes"
@@ -83,7 +84,7 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, 
 	}
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("Get %q: %s (%q)", fullURL, response.Status, bytes.TrimSpace(responseBody))
+		return nil, fmt.Errorf("Get %q: %s (%s)", fullURL, response.Status, formatResponseBody(responseBody))
 	}
 
 	return responseBody, nil
@@ -152,7 +153,7 @@ func addChainOrPreChain(ctx context.Context, httpClient *http.Client, logURL *ur
 	}
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("Post %q: %s (%q)", fullURL, response.Status, bytes.TrimSpace(responseBody))
+		return nil, fmt.Errorf("Post %q: %s (%s)", fullURL, response.Status, formatResponseBody(responseBody))
 	}
 
 	sct := new(cttypes.SignedCertificateTimestamp)
@@ -161,4 +162,14 @@ func addChainOrPreChain(ctx context.Context, httpClient *http.Client, logURL *ur
 	}
 
 	return sct, nil
+}
+
+func formatResponseBody(body []byte) string {
+	const maxLen = 200
+	body = bytes.TrimSpace(body)
+	if len(body) > maxLen {
+		return strconv.QuoteToASCII(string(body[:maxLen])) + "..."
+	} else {
+		return strconv.QuoteToASCII(string(body))
+	}
 }
