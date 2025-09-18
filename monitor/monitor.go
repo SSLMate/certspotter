@@ -61,7 +61,7 @@ func (e *verifyEntriesError) Error() string {
 }
 
 func withRetry(ctx context.Context, config *Config, ctlog *loglist.Log, maxRetries int, f func() error) error {
-	minSleep := 1 * time.Second
+	minSleep := 100 * time.Millisecond
 	numRetries := 0
 	for ctx.Err() == nil {
 		err := f()
@@ -79,7 +79,7 @@ func withRetry(ctx context.Context, config *Config, ctlog *loglist.Log, maxRetri
 		if err := sleep(ctx, sleepTime); err != nil {
 			return err
 		}
-		minSleep = min(minSleep*2, 5*time.Minute)
+		minSleep = min(minSleep*2, 30*time.Second)
 		numRetries++
 	}
 	return ctx.Err()
