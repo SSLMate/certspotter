@@ -161,7 +161,6 @@ func main() {
 	loglist.UserAgent = ctclient.UserAgent
 
 	var flags struct {
-		batchSize   bool
 		email       []string
 		healthcheck time.Duration
 		logs        string
@@ -174,7 +173,6 @@ func main() {
 		version     bool
 		watchlist   string
 	}
-	flag.Func("batch_size", "Obsolete; do not use", func(string) error { flags.batchSize = true; return nil }) // TODO: remove in 0.21.0
 	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
 	flag.DurationVar(&flags.healthcheck, "healthcheck", 24*time.Hour, "How frequently to perform a health check")
 	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
@@ -188,10 +186,6 @@ func main() {
 	flag.StringVar(&flags.watchlist, "watchlist", defaultWatchListPathIfExists(), "File containing domain names to watch")
 	flag.Parse()
 
-	if flags.batchSize {
-		fmt.Fprintf(os.Stderr, "%s: -batch_size is obsolete; please remove it from your command line\n", programName)
-		os.Exit(2)
-	}
 	if flags.version {
 		fmt.Fprintf(os.Stdout, "certspotter version %s (%s)\n", version, source)
 		os.Exit(0)
