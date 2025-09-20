@@ -246,7 +246,7 @@ State directory
 
 Cache directory
 
-: Stores cached data. The location is (1) the `CACHE_DIRECTORY` environment, if set and certspotter is running under systemd, or (2) `$XDG_CACHE_HOME/certspotter` (which on Linux is `~/.cache/certspotter` by default).  You can delete this directory without impacting functionality, but certspotter may need to perform additional computation or network requests.
+: Stores cached data. The location is (1) the `CERTSPOTTER_CACHE_DIR` environment variable if set, (2) the `CACHE_DIRECTORY` environment, if set and certspotter is running under systemd, or (3) `$XDG_CACHE_HOME/certspotter` (which on Linux is `~/.cache/certspotter` by default).  You can delete this directory without impacting functionality, but certspotter may need to perform additional computation or network requests.
 
 # SEE ALSO
 

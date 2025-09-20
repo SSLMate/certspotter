@@ -78,7 +78,9 @@ func defaultConfigDir() string {
 	}
 }
 func defaultCacheDir() string {
-	if envVar := os.Getenv("CACHE_DIRECTORY"); envVar != "" && startedBySupervisor() {
+	if envVar := os.Getenv("CERTSPOTTER_CACHE_DIR"); envVar != "" {
+		return envVar
+	} else if envVar := os.Getenv("CACHE_DIRECTORY"); envVar != "" && startedBySupervisor() {
 		return envVar
 	}
 	userCacheDir, err := os.UserCacheDir()
