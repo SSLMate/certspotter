@@ -56,6 +56,13 @@ func homedir() string {
 	}
 	return homedir
 }
+func userCacheDir() string {
+	userCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		panic(fmt.Errorf("unable to determine user cache directory: %w", err))
+	}
+	return userCacheDir
+}
 func startedBySupervisor() bool {
 	return os.Getenv("SYSTEMD_EXEC_PID") == strconv.Itoa(os.Getpid())
 }
@@ -82,12 +89,9 @@ func defaultCacheDir() string {
 		return envVar
 	} else if envVar := os.Getenv("CACHE_DIRECTORY"); envVar != "" && startedBySupervisor() {
 		return envVar
+	} else {
+		return filepath.Join(userCacheDir(), "certspotter")
 	}
-	userCacheDir, err := os.UserCacheDir()
-	if err != nil {
-		panic(fmt.Errorf("unable to determine user cache directory: %w", err))
-	}
-	return filepath.Join(userCacheDir, "certspotter")
 }
 func defaultWatchListPath() string {
 	return filepath.Join(defaultConfigDir(), "watchlist")
