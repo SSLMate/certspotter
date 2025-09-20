@@ -1,5 +1,13 @@
 # Change Log
 
+## v0.22.0 (UNRELEASED)
+- Retry failed requests more aggressively so certspotter doesn't fall behind
+  downloading entries.
+- Support `$CERTSPOTTER_CACHE_DIR` for overriding cache directory location.
+- Support `$STATE_DIRECTORY`, `$CONFIGURATION_DIRECTORY`, and `$CACHE_DIRECTORY`
+  when running under systemd.
+- Truncate long error responses from logs, to keep size of error files down.
+
 ## v0.21.0 (2025-07-02)
 - Instead of writing log errors to stderr, save the last 7 days worth in the
   state directory, and include recent errors in failed health check notifications.
