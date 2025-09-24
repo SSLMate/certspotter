@@ -1,6 +1,6 @@
 # Change Log
 
-## v0.22.0 (UNRELEASED)
+## v0.22.0 (2025-09-24)
 - Retry failed requests more aggressively so certspotter doesn't fall behind
   downloading entries.
 - Support `$CERTSPOTTER_CACHE_DIR` for overriding cache directory location.
