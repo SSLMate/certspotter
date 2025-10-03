@@ -26,6 +26,7 @@ import (
 var stdoutMu sync.Mutex
 
 type notification struct {
+	json    any
 	environ []string
 	summary string
 	text    string

@@ -110,6 +110,59 @@ func writeCertFiles(cert *DiscoveredCert, paths *certPaths) error {
 	return nil
 }
 
+func certNotificationJson(cert *DiscoveredCert) any {
+	object := map[string]any{
+		"event":   "discovered_cert",
+		"summary": certNotificationSummary(cert),
+
+		"log_uri":       cert.LogEntry.Log.GetMonitoringURL(),
+		"entry_index":   fmt.Sprint(cert.LogEntry.Index),
+		"watch_item":    cert.WatchItem.String(),
+		"tbs_sha256":    hex.EncodeToString(cert.TBSSHA256[:]),
+		"cert_sha256":   hex.EncodeToString(cert.SHA256[:]),
+		"pubkey_sha256": hex.EncodeToString(cert.PubkeySHA256[:]),
+
+		"dns_names":    cert.Identifiers.DNSNames,
+		"ip_addresses": cert.Identifiers.IPAddrs,
+	}
+
+	if cert.Info.ValidityParseError == nil {
+		object["not_before"] = cert.Info.Validity.NotBefore
+		object["not_after"] = cert.Info.Validity.NotAfter
+	} else {
+		object["not_before"] = nil
+		object["not_after"] = nil
+		object["validity_parse_error"] = cert.Info.ValidityParseError.Error()
+	}
+
+	if cert.Info.SubjectParseError == nil {
+		object["subject_dn"] = cert.Info.Subject.String()
+	} else {
+		object["subject_dn"] = nil
+		object["subject_parser_error"] = cert.Info.SubjectParseError.Error()
+	}
+
+	if cert.Info.IssuerParseError == nil {
+		object["issuer_dn"] = cert.Info.Issuer.String()
+	} else {
+		object["issuer_dn"] = nil
+		object["issuer_parser_error"] = cert.Info.IssuerParseError.Error()
+	}
+
+	if cert.Info.SerialNumberParseError == nil {
+		object["serial"] = fmt.Sprintf("%x", cert.Info.SerialNumber)
+	} else {
+		object["serial"] = nil
+		object["serial_parse_error"] = cert.Info.SerialNumberParseError.Error()
+	}
+
+	if cert.ChainError != nil {
+		object["chain_error"] = cert.ChainError.Error()
+	}
+
+	return object
+}
+
 func certNotificationEnviron(cert *DiscoveredCert, paths *certPaths) []string {
 	env := []string{
 		"EVENT=discovered_cert",
