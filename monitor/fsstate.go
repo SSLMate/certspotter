@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/valkey-io/valkey-go"
+
 	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/merkletree"
@@ -32,14 +34,17 @@ const keepErrorDays = 7
 const errorDateFormat = "2006-01-02"
 
 type FilesystemState struct {
-	StateDir  string
-	CacheDir  string
-	SaveCerts bool
-	Script    string
-	ScriptDir string
-	Email     []string
-	Stdout    bool
-	errorMu   sync.Mutex
+	StateDir              string
+	CacheDir              string
+	SaveCerts             bool
+	Script                string
+	ScriptDir             string
+	Email                 []string
+	Stdout                bool
+	errorMu               sync.Mutex
+	ValkeyClient          valkey.Client
+	ValkeyStream          string
+	ValkeyStreamThreshold string
 }
 
 func (s *FilesystemState) logStateDir(logID LogID) string {
