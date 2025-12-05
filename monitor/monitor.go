@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/time/rate"
 	"log"
 	mathrand "math/rand/v2"
 	"net/url"
@@ -44,10 +45,21 @@ func downloadJobSize(ctlog *loglist.Log) uint64 {
 }
 
 func downloadWorkers(ctlog *loglist.Log) int {
-	if ctlog.CertspotterDownloadJobs != 0 {
+	if ctlog.CertspotterDownloadQPS != 0 {
+		// parallelism is effectively governed by the rate limit so for now just hard code a number here
+		return 10
+	} else if ctlog.CertspotterDownloadJobs != 0 {
 		return ctlog.CertspotterDownloadJobs
 	} else {
 		return 1
+	}
+}
+
+func downloadRateLimit(ctlog *loglist.Log) rate.Limit {
+	if ctlog.CertspotterDownloadQPS != 0 {
+		return rate.Limit(ctlog.CertspotterDownloadQPS)
+	} else {
+		return rate.Inf
 	}
 }
 
@@ -113,10 +125,14 @@ type logClient struct {
 	config *Config
 	log    *loglist.Log
 	client ctclient.Log
+	lim    *rate.Limiter
 }
 
 func (client *logClient) GetSTH(ctx context.Context) (sth *cttypes.SignedTreeHead, url string, err error) {
 	err = withRetry(ctx, client.config, client.log, -1, func() error {
+		if err := client.lim.Wait(ctx); err != nil {
+			return err
+		}
 		sth, url, err = getAuthenticSTH(ctx, client.log, client.client)
 		return err
 	})
@@ -124,6 +140,9 @@ func (client *logClient) GetSTH(ctx context.Context) (sth *cttypes.SignedTreeHea
 }
 func (client *logClient) GetRoots(ctx context.Context) (roots [][]byte, err error) {
 	err = withRetry(ctx, client.config, client.log, -1, func() error {
+		if err := client.lim.Wait(ctx); err != nil {
+			return err
+		}
 		roots, err = client.client.GetRoots(ctx)
 		return err
 	})
@@ -131,6 +150,9 @@ func (client *logClient) GetRoots(ctx context.Context) (roots [][]byte, err erro
 }
 func (client *logClient) GetEntries(ctx context.Context, startInclusive, endInclusive uint64) (entries []ctclient.Entry, err error) {
 	err = withRetry(ctx, client.config, client.log, -1, func() error {
+		if err := client.lim.Wait(ctx); err != nil {
+			return err
+		}
 		entries, err = client.client.GetEntries(ctx, startInclusive, endInclusive)
 		return err
 	})
@@ -138,6 +160,9 @@ func (client *logClient) GetEntries(ctx context.Context, startInclusive, endIncl
 }
 func (client *logClient) ReconstructTree(ctx context.Context, sth *cttypes.SignedTreeHead) (tree *merkletree.CollapsedTree, err error) {
 	err = withRetry(ctx, client.config, client.log, -1, func() error {
+		if err := client.lim.Wait(ctx); err != nil {
+			return err
+		}
 		tree, err = client.client.ReconstructTree(ctx, sth)
 		return err
 	})
@@ -184,6 +209,7 @@ func newLogClient(config *Config, ctlog *loglist.Log) (ctclient.Log, ctclient.Is
 			config: config,
 			log:    ctlog,
 			client: &ctclient.RFC6962Log{URL: logURL},
+			lim:    rate.NewLimiter(downloadRateLimit(ctlog), 1),
 		}, nil, nil
 	case ctlog.IsStaticCTAPI():
 		submissionURL, err := url.Parse(ctlog.SubmissionURL)
@@ -203,6 +229,7 @@ func newLogClient(config *Config, ctlog *loglist.Log) (ctclient.Log, ctclient.Is
 				config: config,
 				log:    ctlog,
 				client: client,
+				lim:    rate.NewLimiter(downloadRateLimit(ctlog), 1),
 			}, &issuerGetter{
 				config:    config,
 				log:       ctlog,

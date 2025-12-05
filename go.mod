@@ -8,6 +8,9 @@ require (
 	golang.org/x/sync v0.15.0
 )
 
-require golang.org/x/text v0.26.0 // indirect
+require (
+	golang.org/x/text v0.26.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
+)
 
 retract v0.19.0 // Contains serious bugs.

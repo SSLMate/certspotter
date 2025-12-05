@@ -44,8 +44,9 @@ type Log struct {
 	} `json:"temporal_interval,omitzero"`
 
 	// certspotter-specific extensions
-	CertspotterDownloadSize int `json:"certspotter_download_size,omitzero"`
-	CertspotterDownloadJobs int `json:"certspotter_download_jobs,omitzero"`
+	CertspotterDownloadSize int     `json:"certspotter_download_size,omitzero"`
+	CertspotterDownloadJobs int     `json:"certspotter_download_jobs,omitzero"`
+	CertspotterDownloadQPS  float64 `json:"certspotter_download_qps,omitzero"`
 
 	// TODO: add previous_operators
 }
