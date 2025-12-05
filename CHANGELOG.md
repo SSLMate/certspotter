@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.23.0 (2025-12-05)
+- Avoid sending queries to logs in excess of the log's rate limit, if known.
+  This should improve monitoring of the TrustAsia logs.
+
 ## v0.22.0 (2025-09-24)
 - Retry failed requests more aggressively so certspotter doesn't fall behind
   downloading entries.
