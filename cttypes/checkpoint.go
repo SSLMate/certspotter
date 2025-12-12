@@ -110,3 +110,18 @@ func ParseCheckpoint(input []byte, logID LogID) (*SignedTreeHead, error) {
 		}, nil
 	}
 }
+
+func FormatCheckpoint(sth *SignedTreeHead, origin string, logID LogID) []byte {
+	keyID := makeCheckpointKeyID(origin, logID)
+	signature := keyID[:]
+	signature = binary.BigEndian.AppendUint64(signature, sth.Timestamp)
+	signature = append(signature, sth.Signature.Bytes()...)
+
+	buf := new(bytes.Buffer)
+	fmt.Fprintln(buf, origin)
+	fmt.Fprintln(buf, sth.TreeSize)
+	fmt.Fprintln(buf, sth.RootHash.Base64String())
+	fmt.Fprintln(buf)
+	fmt.Fprintf(buf, "\u2014 %s %s\n", origin, base64.StdEncoding.EncodeToString(signature))
+	return buf.Bytes()
+}
