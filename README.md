@@ -100,6 +100,23 @@ checks that the log is obeying its append-only property.  A future
 release of Cert Spotter will support gossiping with other log monitors
 to ensure the log is presenting a single view.
 
+## Testing
+
+Every day at around 12:05 UTC, a certificate is issued and logged to CT
+for the DNS name `DAY-OF-WEEK.test.certspotter.org`. You can add one
+or more of these DNS names (or `.test.certspotter.org`) to your watch
+list to get confirmation that your certspotter instance is working.
+
+| DNS Name                         | Issuer        | Key Type |
+| -------------------------------- | ------------- | -------- |
+| `monday.test.certspotter.org`    | Sectigo       | RSA      |
+| `tuesday.test.certspotter.org`   | Let's Encrypt | ECDSA    |
+| `wednesday.test.certspotter.org` | Google        | RSA      |
+| `thursday.test.certspotter.org`  | Sectigo       | ECDSA    |
+| `friday.test.certspotter.org`    | Let's Encrypt | RSA      |
+| `saturday.test.certspotter.org`  | Google        | ECDSA    |
+| `sunday.test.certspotter.org`    | Let's Encrypt | ECDSA    |
+
 ## Copyright
 
 Copyright © 2016-2025 Opsmate, Inc.
