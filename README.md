@@ -119,6 +119,6 @@ list to get confirmation that your certspotter instance is working.
 
 ## Copyright
 
-Copyright © 2016-2025 Opsmate, Inc.
+Copyright © 2016-2026 Opsmate, Inc.
 
 Licensed under the [Mozilla Public License Version 2.0](LICENSE).
