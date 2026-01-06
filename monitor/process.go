@@ -105,6 +105,7 @@ func processCertificate(ctx context.Context, config *Config, entry *LogEntry, ce
 	if !matched {
 		return nil
 	}
+	matched, keyItem := config.KeyList.Matches(certInfo)
 
 	chain, chainErr := getChain(ctx)
 	if chainErr != nil {
@@ -122,6 +123,7 @@ func processCertificate(ctx context.Context, config *Config, entry *LogEntry, ce
 		WatchItem:    watchItem,
 		LogEntry:     entry,
 		Info:         certInfo,
+		KeyItem:      keyItem,
 		Chain:        chain,
 		ChainError:   chainErr,
 		TBSSHA256:    sha256.Sum256(certInfo.TBS.Raw),
