@@ -128,18 +128,21 @@ func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) 
 	var notifiedPath string
 	var paths *certPaths
 	if s.SaveCerts {
+		tbsHexFingerprint := hex.EncodeToString(cert.TBSSHA256[:])
 		hexFingerprint := hex.EncodeToString(cert.SHA256[:])
 		prefixPath := filepath.Join(s.StateDir, "certs", hexFingerprint[0:2])
 		var (
-			notifiedFilename      = "." + hexFingerprint + ".notified"
-			certFilename          = hexFingerprint + ".pem"
-			jsonFilename          = hexFingerprint + ".v1.json"
-			textFilename          = hexFingerprint + ".txt"
-			legacyCertFilename    = hexFingerprint + ".cert.pem"
-			legacyPrecertFilename = hexFingerprint + ".precert.pem"
+			notifiedFilename = "." + tbsHexFingerprint + ".notified"
+			certFilename     = tbsHexFingerprint + ".pem"
+			jsonFilename     = tbsHexFingerprint + ".v1.json"
+			textFilename     = tbsHexFingerprint + ".txt"
+
+			legacyNotifiedFilename = "." + hexFingerprint + ".notified"
+			legacyCertFilename     = hexFingerprint + ".cert.pem"
+			legacyPrecertFilename  = hexFingerprint + ".precert.pem"
 		)
 
-		for _, filename := range []string{notifiedFilename, legacyCertFilename, legacyPrecertFilename} {
+		for _, filename := range []string{notifiedFilename, legacyNotifiedFilename, legacyCertFilename, legacyPrecertFilename} {
 			if fileExists(filepath.Join(prefixPath, filename)) {
 				return nil
 			}
