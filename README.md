@@ -105,7 +105,7 @@ to ensure the log is presenting a single view.
 Every day at around 12:05 UTC, a certificate is issued and logged to CT
 for the DNS name `DAY-OF-WEEK.test.certspotter.org`. You can add one
 or more of these DNS names (or `.test.certspotter.org`) to your watch
-list to get confirmation that your certspotter instance is working.
+list to get confirmation that Cert Spotter is working.
 
 | DNS Name                         | Issuer        | Key Type |
 | -------------------------------- | ------------- | -------- |
