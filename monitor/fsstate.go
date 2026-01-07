@@ -128,32 +128,42 @@ func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) 
 	var notifiedPath string
 	var paths *certPaths
 	if s.SaveCerts {
-		hexFingerprint := hex.EncodeToString(cert.SHA256[:])
-		prefixPath := filepath.Join(s.StateDir, "certs", hexFingerprint[0:2])
 		var (
-			notifiedFilename      = "." + hexFingerprint + ".notified"
-			certFilename          = hexFingerprint + ".pem"
-			jsonFilename          = hexFingerprint + ".v1.json"
-			textFilename          = hexFingerprint + ".txt"
-			legacyCertFilename    = hexFingerprint + ".cert.pem"
-			legacyPrecertFilename = hexFingerprint + ".precert.pem"
+			tbsFingerprint  = hex.EncodeToString(cert.TBSSHA256[:])
+			certFingerprint = hex.EncodeToString(cert.SHA256[:])
+		)
+		var (
+			tbsDir  = filepath.Join(s.StateDir, "certs", tbsFingerprint[0:2])
+			certDir = filepath.Join(s.StateDir, "certs", certFingerprint[0:2])
 		)
 
-		for _, filename := range []string{notifiedFilename, legacyCertFilename, legacyPrecertFilename} {
-			if fileExists(filepath.Join(prefixPath, filename)) {
+		notifiedPath = filepath.Join(tbsDir, "."+tbsFingerprint+".notified")
+		if fileExists(notifiedPath) {
+			return nil
+		}
+
+		// previous versions of certspotter used these files to record that a notification was sent
+		for _, filename := range []string{
+			"." + certFingerprint + ".notified",
+			certFingerprint + ".cert.pem",
+			certFingerprint + ".precert.pem",
+		} {
+			if fileExists(filepath.Join(certDir, filename)) {
 				return nil
 			}
 		}
 
-		if err := os.Mkdir(prefixPath, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
+		if err := os.Mkdir(tbsDir, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
+			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.SHA256, err)
+		}
+		if err := os.Mkdir(certDir, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.SHA256, err)
 		}
 
-		notifiedPath = filepath.Join(prefixPath, notifiedFilename)
 		paths = &certPaths{
-			certPath: filepath.Join(prefixPath, certFilename),
-			jsonPath: filepath.Join(prefixPath, jsonFilename),
-			textPath: filepath.Join(prefixPath, textFilename),
+			certPath: filepath.Join(certDir, certFingerprint+".pem"),
+			jsonPath: filepath.Join(certDir, certFingerprint+".v1.json"),
+			textPath: filepath.Join(certDir, certFingerprint+".txt"),
 		}
 		if err := writeCertFiles(cert, paths); err != nil {
 			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
