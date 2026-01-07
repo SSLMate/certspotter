@@ -1,4 +1,4 @@
-all: certspotter-script.8 certspotter.8
+all: certspotter-script.8 certspotter.8 certspotter-authorize.8
 
 %.8: %.md
 	lowdown -s -Tman \

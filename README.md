@@ -54,7 +54,29 @@ The following instructions require you to have [Go version 1.21 or higher](https
 
 * Command line options and operational details: [certspotter(8) man page](man/certspotter.md)
 * The script interface: [certspotter-script(8) man page](man/certspotter-script.md)
+* Authorizing known certificates: [certspotter-authorize(8) man page](man/certspotter-authorize.md)
 * [Change Log](CHANGELOG.md)
+
+## Authorizing Known Certificates to Prevent False Alarms
+
+You can use the **certspotter-authorize** command to tell certspotter
+about legitimate certificates issued by your certificate authority.
+certspotter won't notify you when it discovers an authorized certificate
+(or its corresponding precertificate) in Certificate Transparency logs.
+
+To install certspotter-authorize, run:
+
+```
+go install software.sslmate.com/src/certspotter/cmd/certspotter-authorize@latest
+```
+
+To authorize a certificate, run:
+
+```
+certspotter-authorize -cert /path/to/cert.pem
+```
+
+For more details, see the [certspotter-authorize(8) man page](man/certspotter-authorize.md).
 
 ## What certificates are detected by Cert Spotter?
 
