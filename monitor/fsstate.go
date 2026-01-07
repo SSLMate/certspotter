@@ -11,6 +11,7 @@ package monitor
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -169,7 +170,19 @@ func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) 
 			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
 		}
 	} else {
-		// TODO-4: save cert to temporary files, and defer their unlinking
+		paths = &certPaths{
+			certPath: filepath.Join(os.TempDir(), "certspotter-"+rand.Text()+".pem"),
+			jsonPath: filepath.Join(os.TempDir(), "certspotter-"+rand.Text()+".v1.json"),
+			textPath: filepath.Join(os.TempDir(), "certspotter-"+rand.Text()+".txt"),
+		}
+		defer func() {
+			os.Remove(paths.certPath)
+			os.Remove(paths.jsonPath)
+			os.Remove(paths.textPath)
+		}()
+		if err := writeCertFiles(cert, paths); err != nil {
+			return fmt.Errorf("error saving certificate %x to temporary files: %w", cert.SHA256, err)
+		}
 	}
 
 	if err := s.notify(ctx, &notification{
