@@ -58,13 +58,14 @@ The following instructions require you to have [Go version 1.21 or higher](https
 
 ## What certificates are detected by Cert Spotter?
 
-In the default configuration, any certificate that is logged to a Certificate
-Transparency log recognized by Google Chrome or Apple will be detected by
-Cert Spotter.  By default, Google Chrome and Apple only accept certificates that
-are logged, so any certificate that works in Chrome or Safari will be detected
-by Cert Spotter.
+In the default configuration, any certificate that is logged to a
+Certificate Transparency log listed as Qualified, Usable, or ReadOnly
+in the Google Chrome or Apple log lists will be detected by Cert Spotter.
+By default, Chrome, Safari, Firefox, and Edge only accept certificates that are
+logged to at least one such log (Firefox and Edge use the Chrome log list), so any
+certificate that works in these browsers will be detected by Cert Spotter.
 
-Cert Spotter will monitor both traditional RFC6962 logs, and modern static-ct-api logs.
+Cert Spotter monitors both traditional RFC6962 logs and modern static-ct-api logs.
 
 ## Security
 
