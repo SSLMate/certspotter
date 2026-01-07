@@ -74,18 +74,18 @@ The following environment variables are set for `discovered_cert` events:
 
 `CERT_FILENAME`
 
-:    Path to a file containing the PEM-encoded certificate chain.  Not set if `-no_save` was used.
+:    Path to a file containing the PEM-encoded certificate chain.  When `-no_save` is used, this points to a temporary file that is automatically deleted after your script completes.
 
 `JSON_FILENAME`
 
 :    Path to a JSON file containing additional information about the certificate.  See below for the format of the JSON file.
-     Not set if `-no_save` was used.
+     When `-no_save` is used, this points to a temporary file that is automatically deleted after your script completes.
 
 `TEXT_FILENAME`
 
 :    Path to a text file containing information about the certificate.  This file contains the same text that
      certspotter uses in emails.  You should not attempt to parse this file because its format may change in the future.
-     Not set if `-no_save` was used.
+     When `-no_save` is used, this points to a temporary file that is automatically deleted after your script completes.
 
 `NOT_BEFORE`, `NOT_BEFORE_UNIXTIME`, `NOT_BEFORE_RFC3339`
 
@@ -165,10 +165,10 @@ The following environment variables are set for `error` events:
 
 # JSON FILE FORMAT
 
-Unless `-no_save` is used, certspotter saves a JSON file for every discovered certificate
-in its state directory, and puts the path to the file in `$JSON_FILENAME`.  Your
-script can read the JSON file, such as with the jq(1) command, to get additional information
-about the certificate which isn't appropriate for environment variables.
+certspotter saves a JSON file for every discovered certificate and puts the path to the file in `$JSON_FILENAME`.
+When `-no_save` is used, the JSON file is created in a temporary location and automatically deleted after your script completes.
+Otherwise, it is saved in the state directory for permanent storage. Your script can read the JSON file, such as with the jq(1) command,
+to get additional information about the certificate which isn't appropriate for environment variables.
 
 The JSON file contains an object with the following fields:
 
