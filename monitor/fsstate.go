@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/valkey-io/valkey-go"
+
 	"software.sslmate.com/src/certspotter/cttypes"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/merkletree"
@@ -33,14 +35,17 @@ const keepErrorDays = 7
 const errorDateFormat = "2006-01-02"
 
 type FilesystemState struct {
-	StateDir  string
-	CacheDir  string
-	SaveCerts bool
-	Script    string
-	ScriptDir string
-	Email     []string
-	Stdout    bool
-	errorMu   sync.Mutex
+	StateDir              string
+	CacheDir              string
+	SaveCerts             bool
+	Script                string
+	ScriptDir             string
+	Email                 []string
+	Stdout                bool
+	errorMu               sync.Mutex
+	ValkeyClient          valkey.Client
+	ValkeyStream          string
+	ValkeyStreamThreshold string
 }
 
 func (s *FilesystemState) logStateDir(logID LogID) string {
@@ -183,6 +188,7 @@ func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) 
 	}
 
 	if err := s.notify(ctx, &notification{
+		json:    certNotificationJson(cert),
 		summary: certNotificationSummary(cert),
 		environ: certNotificationEnviron(cert, paths),
 		text:    certNotificationText(cert, paths),
@@ -223,6 +229,15 @@ func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEn
 		return fmt.Errorf("error saving texT file: %w", err)
 	}
 
+	json := map[string]any{
+		"event":       "malformed_cert",
+		"summary":     summary,
+		"log_uri":     entry.Log.GetMonitoringURL(),
+		"entry_index": fmt.Sprint(entry.Index),
+		"leaf_hash":   leafHash.Base64String(),
+		"parse_error": parseError.Error(),
+	}
+
 	environ := []string{
 		"EVENT=malformed_cert",
 		"SUMMARY=" + summary,
@@ -236,6 +251,7 @@ func (s *FilesystemState) NotifyMalformedEntry(ctx context.Context, entry *LogEn
 	}
 
 	if err := s.notify(ctx, &notification{
+		json:    json,
 		environ: environ,
 		summary: summary,
 		text:    text.String(),
@@ -262,6 +278,10 @@ func (s *FilesystemState) errorDir(ctlog *loglist.Log) string {
 
 func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *loglist.Log, info HealthCheckFailure) error {
 	textPath := filepath.Join(s.healthCheckDir(ctlog), healthCheckFilename())
+	json := map[string]any{
+		"event":   "error",
+		"summary": info.Summary(),
+	}
 	environ := []string{
 		"EVENT=error",
 		"SUMMARY=" + info.Summary(),
@@ -272,6 +292,7 @@ func (s *FilesystemState) NotifyHealthCheckFailure(ctx context.Context, ctlog *l
 		return fmt.Errorf("error saving text file: %w", err)
 	}
 	if err := s.notify(ctx, &notification{
+		json:    json,
 		environ: environ,
 		summary: info.Summary(),
 		text:    text,
