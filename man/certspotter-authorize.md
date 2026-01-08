@@ -38,6 +38,10 @@ and will trigger notifications.
     `$CERTSPOTTER_STATE_DIR` if set, or `~/.certspotter` otherwise.
     This should be the same directory used by **certspotter(8)**.
 
+-printhash
+
+:   Instead of authorizing the certificate, print its TBS hash (a hex-encoded SHA-256 digest) to stdout and exit.
+
 -version
 
 :   Print version information and exit.

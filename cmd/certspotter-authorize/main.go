@@ -131,13 +131,15 @@ func main() {
 	version, source := certspotterVersion()
 
 	var flags struct {
-		cert     string
-		stateDir string
-		version  bool
+		cert      string
+		stateDir  string
+		printhash bool
+		version   bool
 	}
 
 	flag.StringVar(&flags.cert, "cert", "", "Path to a PEM-encoded certificate (- to read from stdin)")
 	flag.StringVar(&flags.stateDir, "state_dir", defaultStateDir(), "State directory used by certspotter")
+	flag.BoolVar(&flags.printhash, "printhash", false, "Instead of authorizing certificate, print its TBS hash and exit")
 	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
 	flag.Parse()
 
@@ -170,6 +172,11 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)
 		os.Exit(1)
+	}
+
+	if flags.printhash {
+		fmt.Println(hex.EncodeToString(tbsHash[:]))
+		os.Exit(0)
 	}
 
 	_, err = createNotifiedMarker(flags.stateDir, tbsHash)
