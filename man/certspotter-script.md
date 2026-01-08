@@ -62,6 +62,7 @@ The following environment variables are set for `discovered_cert` events:
 
 :    The hex-encoded SHA-256 digest of the TBSCertificate, as defined in RFC 6962 Section 3.2.
      Certificates and their corresponding precertificates have the same `TBS_SHA256` value.
+     You can compute the TBS digest of a certificate using the `-printhash` option of the certspotter-authorize(8) command.
 
 `CERT_SHA256`
 
@@ -109,7 +110,7 @@ The following environment variables are set for `discovered_cert` events:
 
 `ISSUER_DN`
 
-:    The distinguished name of the certificate's issuer.  This variable may be unset if there was a parse error, in which case `ISSUER_PARSE_ERROR` is set.
+:    The distinguished name of the certificate's issuer.  This variable may be unset if there was a parse error, in which case `ISSUER_PARSE_ERROR` is set.  Be aware that this value is controlled by the certificate authority and often contains [misleading, incorrect, or unhelpful information](https://www.agwa.name/blog/post/the_certificate_issuer_field_is_a_lie).
 
 `ISSUER_PARSE_ERROR`
 
@@ -117,7 +118,7 @@ The following environment variables are set for `discovered_cert` events:
 
 `SERIAL`
 
-:    The hex-encoded serial number of the certificate.  Prefixed with a minus (-) sign if negative.  This variable may be unset if there was a parse error, in which case `SERIAL_PARSE_ERROR` is set.
+:    The hex-encoded serial number of the certificate.  Prefixed with a minus (-) sign if negative.  This variable may be unset if there was a parse error, in which case `SERIAL_PARSE_ERROR` is set.  Be aware that malicious certificate authorities can issue certificates with duplicate serial numbers, so it is not safe to use the serial number to make security decisions (such as to determine if a certificate is legitimate or not).
 
 `SERIAL_PARSE_ERROR`
 
@@ -175,7 +176,8 @@ The JSON file contains an object with the following fields:
 `tbs_sha256`
 
 :    A string containing the hex-encoded SHA-256 digest of the TBSCertificate, as defined in RFC 6962 Section 3.2.
-     Certificates and their corresponding precertificates have the same `tbs_sha256` value.
+     Certificates and their corresponding precertificates have the same `tbs_sha256` value.  You can compute the
+     TBS digest of a certificate using the `-printhash` option of the certspotter-authorize(8) command.
 
 `pubkey_sha256`
 
@@ -205,6 +207,38 @@ The JSON file contains an object with the following fields:
 
 Additional fields will be added in the future based on user feedback. Please open
 an issue at <https://github.com/SSLMate/certspotter> if you have a use case for another field.
+
+# DETERMINING IF A CERTIFICATE IS AUTHORIZED
+
+You may want to compare a discovered certificate against a database of legitimate certificates
+to decide whether to raise an alarm about it. Beware the following caveats:
+
+ * Since certificates may be logged to CT in the form of a precertificate, it doesn't work
+   to compare the discovered certificate's fingerprint against a list of legitimate fingerprints.
+
+ * Since malicious certificate authorities can issue certificates with duplicate serial numbers,
+   it is not secure to compare the the discovered certificate's serial number against a list of
+   legitimate serial numbers.
+
+ * Since malicious certificate authorities can put any value in a certificate's Subject Key Identifier (SKI)
+   extension, it is not secure to compare a discovered certificate's Subject Key Identifier against
+   a list of legitimate Subject Key Identifiers.
+
+ * Since malicious certificate authorities can put any value in the certificate's Issuer field,
+   it is not secure to compare a discovered certificate's Issuer against a list of authorized Issuers.
+
+To determine if a certificate is legitimate, you should do one of the following:
+
+ * Compare the discovered certificate's TBS hash (as provided in the `$TBS_SHA256` variable) against
+   a list of authorized TBS hashes. The TBS hash is computed over the DER encoding of the certificate's
+   TBSCertificate, *with any SCT extension removed*. You can use the `-printhash` option
+   of the certspotter-authorize(8) command to compute a certificate's TBS hash.
+
+ * Compare the discovered certificate's public key hash (as provided in the `$PUBKEY_SHA256` variable) against
+   a list of authorized public key hashes. The public key hash is computed over the DER encoding of the
+   certificate's Subject Public Key Info. You can use the following openssl command to compute a certificate's
+   public key hash: `openssl x509 -pubkey -noout | openssl pkey -pubin -outform DER | openssl sha256`
+
 
 # EXAMPLES
 
