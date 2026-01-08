@@ -126,41 +126,38 @@ func (s *FilesystemState) LoadIssuer(ctx context.Context, fingerprint *[32]byte)
 }
 
 func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) error {
-	var notifiedPath string
-	var paths *certPaths
-	if s.SaveCerts {
-		var (
-			tbsFingerprint  = hex.EncodeToString(cert.TBSSHA256[:])
-			certFingerprint = hex.EncodeToString(cert.SHA256[:])
-		)
-		var (
-			tbsDir  = filepath.Join(s.StateDir, "certs", tbsFingerprint[0:2])
-			certDir = filepath.Join(s.StateDir, "certs", certFingerprint[0:2])
-		)
+	var (
+		tbsFingerprint  = hex.EncodeToString(cert.TBSSHA256[:])
+		certFingerprint = hex.EncodeToString(cert.SHA256[:])
+	)
+	var (
+		tbsDir  = filepath.Join(s.StateDir, "certs", tbsFingerprint[0:2])
+		certDir = filepath.Join(s.StateDir, "certs", certFingerprint[0:2])
+	)
 
-		notifiedPath = filepath.Join(tbsDir, "."+tbsFingerprint+".notified")
-		if fileExists(notifiedPath) {
+	notifiedPath := filepath.Join(tbsDir, "."+tbsFingerprint+".notified")
+	if fileExists(notifiedPath) {
+		return nil
+	}
+	// previous versions of certspotter used these files to record that a notification was sent
+	for _, filename := range []string{
+		"." + certFingerprint + ".notified",
+		certFingerprint + ".cert.pem",
+		certFingerprint + ".precert.pem",
+	} {
+		if fileExists(filepath.Join(certDir, filename)) {
 			return nil
 		}
+	}
 
-		// previous versions of certspotter used these files to record that a notification was sent
-		for _, filename := range []string{
-			"." + certFingerprint + ".notified",
-			certFingerprint + ".cert.pem",
-			certFingerprint + ".precert.pem",
-		} {
-			if fileExists(filepath.Join(certDir, filename)) {
-				return nil
-			}
-		}
-
+	var paths *certPaths
+	if s.SaveCerts {
 		if err := os.Mkdir(tbsDir, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.SHA256, err)
 		}
 		if err := os.Mkdir(certDir, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("error creating directory in which to save certificate %x: %w", cert.SHA256, err)
 		}
-
 		paths = &certPaths{
 			certPath: filepath.Join(certDir, certFingerprint+".pem"),
 			jsonPath: filepath.Join(certDir, certFingerprint+".v1.json"),
@@ -193,7 +190,7 @@ func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) 
 		return fmt.Errorf("error notifying about discovered certificate for %s (%x): %w", cert.WatchItem, cert.SHA256, err)
 	}
 
-	if notifiedPath != "" {
+	if s.SaveCerts {
 		if err := os.WriteFile(notifiedPath, nil, 0666); err != nil {
 			return fmt.Errorf("error saving certificate %x: %w", cert.SHA256, err)
 		}
