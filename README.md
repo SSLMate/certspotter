@@ -73,7 +73,7 @@ go install software.sslmate.com/src/certspotter/cmd/certspotter-authorize@latest
 To authorize a certificate, run:
 
 ```
-certspotter-authorize -cert /path/to/cert.pem
+certspotter-authorize /path/to/cert.pem
 ```
 
 For more details, see the [certspotter-authorize(8) man page](man/certspotter-authorize.md).

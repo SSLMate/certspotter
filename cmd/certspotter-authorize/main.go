@@ -131,15 +131,13 @@ func main() {
 	version, source := certspotterVersion()
 
 	var flags struct {
-		cert      string
 		stateDir  string
 		printhash bool
 		version   bool
 	}
 
-	flag.StringVar(&flags.cert, "cert", "", "Path to a PEM-encoded certificate (- to read from stdin)")
 	flag.StringVar(&flags.stateDir, "state_dir", defaultStateDir(), "State directory used by certspotter")
-	flag.BoolVar(&flags.printhash, "printhash", false, "Instead of authorizing certificate, print its TBS hash and exit")
+	flag.BoolVar(&flags.printhash, "printhash", false, "Instead of authorizing certificate, print its TBS hash")
 	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
 	flag.Parse()
 
@@ -148,41 +146,56 @@ func main() {
 		os.Exit(0)
 	}
 
-	if flags.cert == "" {
-		fmt.Fprintf(os.Stderr, "Usage: %s -cert PATH [-state_dir PATH]\n", programName)
+	args := flag.Args()
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] -|CERTFILE...\n", programName)
 		fmt.Fprintf(os.Stderr, "Purpose: suppress future certspotter notifications for a certificate and its corresponding precertificate.\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
 		os.Exit(2)
 	}
 
-	certBytes, err := readCertFile(flags.cert)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: error reading certificate: %s\n", programName, err)
-		os.Exit(1)
+	if len(args) > 1 {
+		for _, arg := range args {
+			if arg == "-" {
+				fmt.Fprintf(os.Stderr, "%s: '-' must be the only argument when used\n", programName)
+				os.Exit(2)
+			}
+		}
 	}
 
-	certDER, err := parseCertificate(certBytes)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)
-		os.Exit(1)
-	}
+	for _, certPath := range args {
+		certBytes, err := readCertFile(certPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: error reading certificate: %s\n", programName, err)
+			os.Exit(1)
+		}
 
-	tbsHash, err := computeTBSHash(certDER)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)
-		os.Exit(1)
-	}
+		certDER, err := parseCertificate(certBytes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", programName, certPath, err)
+			os.Exit(1)
+		}
 
-	if flags.printhash {
-		fmt.Println(hex.EncodeToString(tbsHash[:]))
-		os.Exit(0)
-	}
+		tbsHash, err := computeTBSHash(certDER)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", programName, certPath, err)
+			os.Exit(1)
+		}
 
-	_, err = createNotifiedMarker(flags.stateDir, tbsHash)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)
-		os.Exit(1)
+		if flags.printhash {
+			if certPath == "-" {
+				fmt.Println(hex.EncodeToString(tbsHash[:]))
+			} else {
+				fmt.Printf("%s  %s\n", hex.EncodeToString(tbsHash[:]), certPath)
+			}
+		} else {
+			_, err = createNotifiedMarker(flags.stateDir, tbsHash)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", programName, err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	os.Exit(0)

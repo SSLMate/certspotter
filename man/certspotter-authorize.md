@@ -4,13 +4,15 @@
 
 # SYNOPSIS
 
-**certspotter-authorize** `-cert` *PATH* [`-state_dir` *PATH*]
+**certspotter-authorize** [`-printhash`] *CERTFILE*...
+
+**certspotter-authorize** [`-printhash`] `-`
 
 # DESCRIPTION
 
-**certspotter-authorize** is a utility for preemptively authorizing certificates so
-that **certspotter(8)** will not send notifications when those certificates are
-discovered in Certificate Transparency logs.
+**certspotter-authorize** is a utility for preemptively authorizing
+certificates so that **certspotter(8)** will not send notifications when
+those certificates are discovered in Certificate Transparency logs.
 
 This is useful for preventing false alarms when you know in advance that a
 certificate will be issued. For example, you might run **certspotter-authorize**
@@ -25,12 +27,13 @@ as well. Certificates with different serial numbers, validity periods,
 or other changes to the TBSCertificate will not be covered by the authorization
 and will trigger notifications.
 
+# ARGUMENTS
+
+**certspotter-authorize** takes paths to one or more PEM-encoded certificates
+on the command line. If `-` is specified as the sole path, it reads the certificate
+from stdin.
+
 # OPTIONS
-
--cert *PATH*
-
-:   Path to a PEM-encoded certificate. Use `-` to read from stdin.
-    This option is required.
 
 -state\_dir *PATH*
 
@@ -40,7 +43,7 @@ and will trigger notifications.
 
 -printhash
 
-:   Instead of authorizing the certificate, print its TBS hash (a hex-encoded SHA-256 digest) to stdout and exit.
+:   Instead of authorizing the certificate, print its TBS hash (a hex-encoded SHA-256 digest) to stdout.
 
 -version
 
@@ -50,21 +53,29 @@ and will trigger notifications.
 
 Authorize a certificate from a file:
 
-    $ certspotter-authorize -cert /path/to/cert.pem
+    $ certspotter-authorize /path/to/cert.pem
+
+Authorize multiple certificates from files:
+
+    $ certspotter-authorize cert-a.pem cert-b.pem
 
 Authorize a certificate from stdin:
 
-    $ cat cert.pem | certspotter-authorize -cert -
+    $ cat cert.pem | certspotter-authorize -
 
 Authorize a certificate in a custom state directory:
 
-    $ certspotter-authorize -cert cert.pem -state_dir /var/lib/certspotter
+    $ certspotter-authorize -state_dir /var/lib/certspotter cert.pem
+
+Print the TBS hash without authorizing:
+
+    $ certspotter-authorize -printhash /path/to/cert.pem
 
 # OPERATION
 
-When **certspotter-authorize** is run with a certificate, it computes
-the SHA-256 hash of the certificate's TBSCertificate as defined by RFC
-6962 Section 3.2 creates a `.notified` marker file in the certspotter
+**certspotter-authorize** computes the SHA-256 hash of each
+certificate's TBSCertificate as defined by RFC 6962 Section 3.2 and
+creates a `.notified` marker file in the certspotter
 state directory. When certspotter later discovers a certificate with
 the same TBSCertificate in a CT log, it will skip sending notifications
 because the marker file is present.
