@@ -34,6 +34,8 @@ type DiscoveredCert struct {
 }
 
 type certPaths struct {
+	temporary bool
+
 	certPath string
 	jsonPath string
 	textPath string
@@ -175,7 +177,7 @@ func certNotificationText(cert *DiscoveredCert, paths *certPaths) string {
 	if cert.ChainError != nil {
 		writeField("Error Building Chain", cert.ChainError.Error())
 	}
-	if paths != nil {
+	if paths != nil && !paths.temporary {
 		writeField("Filename", paths.certPath)
 	}
 

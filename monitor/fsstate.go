@@ -168,6 +168,8 @@ func (s *FilesystemState) NotifyCert(ctx context.Context, cert *DiscoveredCert) 
 		}
 	} else {
 		paths = &certPaths{
+			temporary: true,
+
 			certPath: filepath.Join(os.TempDir(), "certspotter-"+rand.Text()+".pem"),
 			jsonPath: filepath.Join(os.TempDir(), "certspotter-"+rand.Text()+".v1.json"),
 			textPath: filepath.Join(os.TempDir(), "certspotter-"+rand.Text()+".txt"),
