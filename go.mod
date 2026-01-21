@@ -9,6 +9,10 @@ require (
 	golang.org/x/time v0.14.0
 )
 
-require golang.org/x/text v0.26.0 // indirect
+require (
+	github.com/valkey-io/valkey-go v1.0.66 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
+)
 
 retract v0.19.0 // Contains serious bugs.

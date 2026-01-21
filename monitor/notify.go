@@ -12,6 +12,7 @@ package monitor
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -26,6 +27,7 @@ import (
 var stdoutMu sync.Mutex
 
 type notification struct {
+	json    any
 	environ []string
 	summary string
 	text    string
@@ -50,6 +52,16 @@ func (s *FilesystemState) notify(ctx context.Context, notif *notification) error
 
 	if s.ScriptDir != "" {
 		if err := execScriptDir(ctx, s.ScriptDir, notif); err != nil {
+			return err
+		}
+	}
+
+	if s.ValkeyClient != nil {
+		notifJson, err := json.Marshal(notif.json)
+		if err != nil {
+			return err
+		}
+		if err := s.ValkeyClient.Do(ctx, s.ValkeyClient.B().Xadd().Key(s.ValkeyStream).Maxlen().Almost().Threshold(s.ValkeyStreamThreshold).Id("*").FieldValue().FieldValue("data", string(notifJson)).Build()).Error(); err != nil {
 			return err
 		}
 	}

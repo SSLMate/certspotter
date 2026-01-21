@@ -26,6 +26,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/valkey-io/valkey-go"
+
 	"software.sslmate.com/src/certspotter/ctclient"
 	"software.sslmate.com/src/certspotter/loglist"
 	"software.sslmate.com/src/certspotter/monitor"
@@ -109,6 +111,27 @@ func defaultScriptDir() string {
 func defaultEmailFile() string {
 	return filepath.Join(defaultConfigDir(), "email_recipients")
 }
+func defaultValkeyUrl() string {
+	if envVar := os.Getenv("CERTSPOTTER_VALKEY_URL"); envVar != "" {
+		return envVar
+	} else {
+		return ""
+	}
+}
+func defaultValkeyStream() string {
+	if envVar := os.Getenv("CERTSPOTTER_VALKEY_STREAM"); envVar != "" {
+		return envVar
+	} else {
+		return "certspotter"
+	}
+}
+func defaultValkeyStreamThreshold() string {
+	if envVar := os.Getenv("CERTSPOTTER_VALKEY_STREAM_THRESHOLD"); envVar != "" {
+		return envVar
+	} else {
+		return "10000"
+	}
+}
 
 func simplifyError(err error) error {
 	var pathErr *fs.PathError
@@ -161,17 +184,20 @@ func main() {
 	loglist.UserAgent = ctclient.UserAgent
 
 	var flags struct {
-		email       []string
-		healthcheck time.Duration
-		logs        string
-		noSave      bool
-		script      string
-		startAtEnd  bool
-		stateDir    string
-		stdout      bool
-		verbose     bool
-		version     bool
-		watchlist   string
+		email                 []string
+		healthcheck           time.Duration
+		logs                  string
+		noSave                bool
+		script                string
+		startAtEnd            bool
+		stateDir              string
+		stdout                bool
+		verbose               bool
+		version               bool
+		watchlist             string
+		valkeyUrl             string
+		valkeyStream          string
+		valkeyStreamThreshold string
 	}
 	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
 	flag.DurationVar(&flags.healthcheck, "healthcheck", 24*time.Hour, "How frequently to perform a health check")
@@ -184,6 +210,9 @@ func main() {
 	flag.BoolVar(&flags.verbose, "verbose", false, "Print detailed information about certspotter's operation to stderr")
 	flag.BoolVar(&flags.version, "version", false, "Print version and exit")
 	flag.StringVar(&flags.watchlist, "watchlist", defaultWatchListPathIfExists(), "File containing domain names to watch")
+	flag.StringVar(&flags.valkeyUrl, "valkey_url", defaultValkeyUrl(), "Send JSON events to the Valkey server identified by this URL")
+	flag.StringVar(&flags.valkeyStream, "valkey_stream", defaultValkeyStream(), "Send JSON events to this Valkey stream")
+	flag.StringVar(&flags.valkeyStreamThreshold, "valkey_stream_threshold", defaultValkeyStreamThreshold(), "Trims the Valkey stream to maintain a specific size or remove old JSON events")
 	flag.Parse()
 
 	if flags.version {
@@ -195,14 +224,27 @@ func main() {
 		os.Exit(2)
 	}
 
+	var valkeyClient valkey.Client
+	var err error
+	if flags.valkeyUrl != "" {
+		valkeyClient, err = valkey.NewClient(valkey.MustParseURL(flags.valkeyUrl))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: unable to connect to Valkey: %s\n", programName, err)
+			os.Exit(1)
+		}
+	}
+
 	fsstate := &monitor.FilesystemState{
-		StateDir:  flags.stateDir,
-		CacheDir:  defaultCacheDir(),
-		SaveCerts: !flags.noSave,
-		Script:    flags.script,
-		ScriptDir: defaultScriptDir(),
-		Email:     flags.email,
-		Stdout:    flags.stdout,
+		StateDir:              flags.stateDir,
+		CacheDir:              defaultCacheDir(),
+		SaveCerts:             !flags.noSave,
+		Script:                flags.script,
+		ScriptDir:             defaultScriptDir(),
+		Email:                 flags.email,
+		Stdout:                flags.stdout,
+		ValkeyClient:          valkeyClient,
+		ValkeyStream:          flags.valkeyStream,
+		ValkeyStreamThreshold: flags.valkeyStreamThreshold,
 	}
 	config := &monitor.Config{
 		LogListSource:       flags.logs,
@@ -221,7 +263,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(fsstate.Email) == 0 && !emailFileExists && fsstate.Script == "" && !fileExists(fsstate.ScriptDir) && fsstate.Stdout == false {
+	if len(fsstate.Email) == 0 && !emailFileExists && fsstate.Script == "" && !fileExists(fsstate.ScriptDir) && fsstate.Stdout == false && fsstate.ValkeyClient == nil {
 		fmt.Fprintf(os.Stderr, "%s: no notification methods were specified\n", programName)
 		fmt.Fprintf(os.Stderr, "Please specify at least one of the following notification methods:\n")
 		fmt.Fprintf(os.Stderr, " - Place one or more email addresses in %s (one address per line)\n", defaultEmailFile())
@@ -229,6 +271,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, " - Specify an email address using the -email flag\n")
 		fmt.Fprintf(os.Stderr, " - Specify the path to an executable script using the -script flag\n")
 		fmt.Fprintf(os.Stderr, " - Specify the -stdout flag\n")
+		fmt.Fprintf(os.Stderr, " - Specify the -valkey_url flag\n")
 		os.Exit(2)
 	}
 
@@ -252,7 +295,7 @@ func main() {
 	defer stop()
 
 	go func() {
-		ticker := time.NewTicker(24*time.Hour)
+		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
 		for {
 			fsstate.PruneOldErrors()
