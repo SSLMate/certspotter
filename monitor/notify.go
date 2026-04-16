@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,22 @@ import (
 	"sync"
 	"time"
 )
+
+// Exit code 75 (EX_TEMPFAIL) from sendmail(1) indicates a transient
+// failure, typically that the local MTA is unreachable.
+const sendmailExTempFail = 75
+
+// sendmailTempFailRetryDelays gives the wait between sendmail retries
+// after an EX_TEMPFAIL.  The last entry is reused indefinitely, so
+// certspotter keeps running (and doesn't lose any entries) across
+// extended MTA outages and delivers pending notifications once the
+// MTA comes back.
+var sendmailTempFailRetryDelays = []time.Duration{
+	30 * time.Second,
+	1 * time.Minute,
+	2 * time.Minute,
+	5 * time.Minute,
+}
 
 var stdoutMu sync.Mutex
 
@@ -36,25 +53,27 @@ func (s *FilesystemState) notify(ctx context.Context, notif *notification) error
 		writeToStdout(notif)
 	}
 
-	if len(s.Email) > 0 {
-		if err := sendEmail(ctx, s.Email, notif); err != nil {
-			return err
-		}
-	}
-
+	// Run each channel in turn and collect (not short-circuit on) errors,
+	// and run email last because it can block for a long time retrying
+	// on a down MTA — running it last means script/hooks still fire
+	// promptly while email waits for the MTA to come back.
+	var errs []error
 	if s.Script != "" {
 		if err := execScript(ctx, s.Script, notif); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-
 	if s.ScriptDir != "" {
 		if err := execScriptDir(ctx, s.ScriptDir, notif); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-
-	return nil
+	if len(s.Email) > 0 {
+		if err := sendEmail(ctx, s.Email, notif); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func writeToStdout(notif *notification) {
@@ -64,11 +83,9 @@ func writeToStdout(notif *notification) {
 }
 
 func sendEmail(ctx context.Context, to []string, notif *notification) error {
-	stdin := new(bytes.Buffer)
-	stderr := new(bytes.Buffer)
-
 	from := os.Getenv("EMAIL")
 
+	stdin := new(bytes.Buffer)
 	if from != "" {
 		fmt.Fprintf(stdin, "From: %s\n", from)
 	}
@@ -81,6 +98,7 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	fmt.Fprintf(stdin, "X-Mailer: certspotter\n")
 	fmt.Fprintf(stdin, "\n")
 	fmt.Fprint(stdin, notif.text)
+	msg := stdin.Bytes()
 
 	args := []string{"-i"}
 	if from != "" {
@@ -89,14 +107,43 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 	args = append(args, "--")
 	args = append(args, to...)
 
+	for attempt := 0; ; attempt++ {
+		err := runSendmail(ctx, args, msg, to)
+		var tempFail sendmailTempFailError
+		if !errors.As(err, &tempFail) {
+			return err
+		}
+		delay := sendmailTempFailRetryDelays[min(attempt, len(sendmailTempFailRetryDelays)-1)]
+		log.Printf("sendmail reported temporary failure (exit %d): %s; retrying in %s", sendmailExTempFail, tempFail.stderr, delay)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+}
+
+type sendmailTempFailError struct {
+	to     []string
+	stderr string
+}
+
+func (e sendmailTempFailError) Error() string {
+	return fmt.Sprintf("error sending email to %v: sendmail failed with exit code %d and error %q", e.to, sendmailExTempFail, e.stderr)
+}
+
+func runSendmail(ctx context.Context, args []string, msg []byte, to []string) error {
+	stderr := new(bytes.Buffer)
+
 	sendmailCtx, cancel := context.WithDeadline(ctx, time.Now().Add(2*time.Minute))
 	defer cancel()
 	sendmail := exec.CommandContext(sendmailCtx, sendmailPath(), args...)
-	sendmail.Stdin = stdin
+	sendmail.Stdin = bytes.NewReader(msg)
 	sendmail.Stderr = stderr
 	sendmail.WaitDelay = 5 * time.Second
 
-	if err := sendmail.Run(); err == nil || err == exec.ErrWaitDelay {
+	err := sendmail.Run()
+	if err == nil || err == exec.ErrWaitDelay {
 		return nil
 	} else if sendmailCtx.Err() != nil && ctx.Err() == nil {
 		return fmt.Errorf("error sending email to %v: sendmail command timed out", to)
@@ -104,6 +151,9 @@ func sendEmail(ctx context.Context, to []string, notif *notification) error {
 		// if the context was canceled, we can't be sure that the error is the fault of sendmail, so ignore it
 		return ctx.Err()
 	} else if exitErr, isExitError := err.(*exec.ExitError); isExitError && exitErr.Exited() {
+		if exitErr.ExitCode() == sendmailExTempFail {
+			return sendmailTempFailError{to: to, stderr: strings.TrimSpace(stderr.String())}
+		}
 		return fmt.Errorf("error sending email to %v: sendmail failed with exit code %d and error %q", to, exitErr.ExitCode(), strings.TrimSpace(stderr.String()))
 	} else if isExitError {
 		return fmt.Errorf("error sending email to %v: sendmail terminated by signal with error %q", to, strings.TrimSpace(stderr.String()))
