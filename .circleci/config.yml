@@ -13,6 +13,7 @@ workflows:
       - gcp-gcr/build-and-push-image:
           name: Build Image
           executor: build
+          extra_build_args: '--label org.opencontainers.image.source=https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME --label org.opencontainers.image.revision=$CIRCLE_SHA1'
           context: gcp-oidc-artifact-registry
           dockerfile: Dockerfile
           registry-url: europe-west1-docker.pkg.dev
