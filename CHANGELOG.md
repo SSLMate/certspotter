@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.24.1 (2026-05-23)
+- Update dependencies.
+- Minor bug fixes.
+
 ## v0.24.0 (2026-01-12)
 - Add certspotter-authorize command, which lets you mark legitimate certificates
   as authorized so you don't get notified about them.
