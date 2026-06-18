@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -119,8 +120,6 @@ func (ctlog *StaticLog) ReconstructTree(ctx context.Context, sth *cttypes.Signed
 		level  uint64
 		offset uint64
 		width  uint64
-		tree   *merkletree.CollapsedTree
-		err    error
 	}
 	var jobs []job
 	for level, size := uint64(0), sth.TreeSize; size > 0; level++ {
@@ -135,31 +134,28 @@ func (ctlog *StaticLog) ReconstructTree(ctx context.Context, sth *cttypes.Signed
 			})
 		}
 	}
+	trees := make([]*merkletree.CollapsedTree, len(jobs))
+	errs := make([]error, len(jobs))
+
 	var wg sync.WaitGroup
-	for i := range jobs {
-		job := &jobs[i]
+	for i, job := range jobs {
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
-			job.tree, job.err = ctlog.getTileCollapsedTree(ctx, job.level, job.offset, job.width)
+			trees[i], errs[i] = ctlog.getTileCollapsedTree(ctx, job.level, job.offset, job.width)
+			wg.Done()
 		}()
 	}
 	wg.Wait()
 
-	var errs []error
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+
 	tree := new(merkletree.CollapsedTree)
-	for i := range jobs {
-		job := &jobs[len(jobs)-1-i]
-		if job.err != nil {
-			errs = append(errs, job.err)
-			continue
-		}
-		if err := tree.Append(*job.tree); err != nil {
+	for _, subtree := range slices.Backward(trees) {
+		if err := tree.Append(*subtree); err != nil {
 			panic(err)
 		}
-	}
-	if len(errs) > 0 {
-		return nil, errors.Join(errs...)
 	}
 
 	if rootHash := tree.CalculateRoot(); rootHash != sth.RootHash {
