@@ -110,6 +110,11 @@ You can use Cert Spotter to detect:
     certspotter reads the watch list only when starting up, so you must restart
     certspotter if you change it.
 
+-keylist *PATH*
+
+:   File containing known key information, one per line. A line consist of a
+    identifier and the sha256 of the public key separated by semi colon
+
 # NOTIFICATIONS
 
 When certspotter detects a certificate matching your watchlist, or encounters

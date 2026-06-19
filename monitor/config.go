@@ -18,6 +18,7 @@ type Config struct {
 	State               StateProvider
 	StartAtEnd          bool
 	WatchList           WatchList
+	KeyList             KeyList
 	Verbose             bool
 	HealthCheckInterval time.Duration
 }
