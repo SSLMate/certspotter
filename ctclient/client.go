@@ -61,6 +61,28 @@ func NewHTTPClient(dialContext func(context.Context, string, string) (net.Conn, 
 
 var defaultHTTPClient = NewHTTPClient(nil)
 
+// maxResponseBytes is a generous upper bound on the size of an HTTP response
+// body that we are willing to buffer in memory. It prevents a malicious or
+// malfunctioning log (or a network attacker, since we deliberately don't
+// verify the log's TLS certificate) from exhausting memory
+// by returning an arbitrarily large response. It is well above the size of any
+// legitimate response.
+const maxResponseBytes = 64 << 20 // 64 MiB
+
+// readResponseBody reads and closes response.Body, returning an error if the
+// body is larger than maxBytes.
+func readResponseBody(response *http.Response, maxBytes int64) ([]byte, error) {
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("error reading response: %w", err)
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, fmt.Errorf("response body exceeds maximum allowed size of %d bytes", maxBytes)
+	}
+	return body, nil
+}
+
 func get(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
@@ -77,10 +99,9 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, 
 		return nil, err
 	}
 
-	responseBody, err := io.ReadAll(response.Body)
-	response.Body.Close()
+	responseBody, err := readResponseBody(response, maxResponseBytes)
 	if err != nil {
-		return nil, fmt.Errorf("Get %q: error reading response: %w", fullURL, err)
+		return nil, fmt.Errorf("Get %q: %w", fullURL, err)
 	}
 
 	if response.StatusCode != 200 {
@@ -146,10 +167,9 @@ func addChainOrPreChain(ctx context.Context, httpClient *http.Client, logURL *ur
 		return nil, err
 	}
 
-	responseBody, err := io.ReadAll(response.Body)
-	response.Body.Close()
+	responseBody, err := readResponseBody(response, maxResponseBytes)
 	if err != nil {
-		return nil, fmt.Errorf("Post %q: error reading response: %w", fullURL, err)
+		return nil, fmt.Errorf("Post %q: %w", fullURL, err)
 	}
 
 	if response.StatusCode != 200 {
