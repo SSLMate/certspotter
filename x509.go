@@ -18,6 +18,7 @@ import (
 	"math/big"
 	"net"
 	"time"
+	"unicode"
 )
 
 var (
@@ -114,17 +115,19 @@ type Certificate struct {
 func (rdns RDNSequence) ParseCNs() ([]string, error) {
 	var cns []string
 
+	// An RDN is a SET OF AttributeTypeAndValue, so the commonName attribute
+	// is not necessarily the first (or only) element.  Examine every
+	// attribute so that a CN doesn't escape detection by being placed in a
+	// non-first position of a multi-valued RDN.
 	for _, rdn := range rdns {
-		if len(rdn) == 0 {
-			continue
-		}
-		atv := rdn[0]
-		if atv.Type.Equal(oidCommonName) {
-			cnString, err := decodeASN1String(&atv.Value)
-			if err != nil {
-				return nil, errors.New("Error decoding CN: " + err.Error())
+		for _, atv := range rdn {
+			if atv.Type.Equal(oidCommonName) {
+				cnString, err := decodeASN1String(&atv.Value)
+				if err != nil {
+					return nil, errors.New("Error decoding CN: " + err.Error())
+				}
+				cns = append(cns, cnString)
 			}
-			cns = append(cns, cnString)
 		}
 	}
 
@@ -159,31 +162,62 @@ func (rdns RDNSequence) String() string {
 	var buf bytes.Buffer
 
 	for _, rdn := range rdns {
-		if len(rdn) == 0 {
-			continue
-		}
-		atv := rdn[0]
-
-		if buf.Len() != 0 {
-			buf.WriteString(", ")
-		}
-		buf.WriteString(rdnLabel(atv.Type))
-		buf.WriteString("=")
-		valueString, err := decodeASN1String(&atv.Value)
-		if err == nil {
-			buf.WriteString(valueString) // TODO: escape non-printable characters, '\', and ','
-		} else {
-			fmt.Fprintf(&buf, "%v", atv.Value.FullBytes)
+		// An RDN is a SET OF AttributeTypeAndValue; render every attribute,
+		// joining the attributes of a multi-valued RDN with '+' and separate
+		// RDNs with ", " (per RFC 4514).
+		for j, atv := range rdn {
+			if buf.Len() != 0 {
+				if j == 0 {
+					buf.WriteString(", ")
+				} else {
+					buf.WriteByte('+')
+				}
+			}
+			buf.WriteString(rdnLabel(atv.Type))
+			buf.WriteString("=")
+			valueString, err := decodeASN1String(&atv.Value)
+			if err == nil {
+				buf.WriteString(escapeDNString(valueString))
+			} else {
+				fmt.Fprintf(&buf, "%v", atv.Value.FullBytes)
+			}
 		}
 	}
 
 	return buf.String()
 }
 
+// escapeDNString escapes a distinguished name attribute value for safe display
+// and for safe use as a hook script environment variable value.  It escapes the
+// backslash and comma characters (so the value is unambiguous within a
+// comma-separated RDNSequence) and replaces non-printable characters with a
+// backslash hex escape.  In particular, this ensures the value never contains a
+// NUL byte, which would otherwise be rejected by os/exec when passed as an
+// environment variable and abort the notification.
+func escapeDNString(value string) string {
+	var buf bytes.Buffer
+	for _, r := range value {
+		switch {
+		case r == '\\' || r == ',':
+			buf.WriteByte('\\')
+			buf.WriteRune(r)
+		case unicode.IsPrint(r):
+			buf.WriteRune(r)
+		case r <= 0xFF:
+			fmt.Fprintf(&buf, "\\x%02x", r)
+		case r <= 0xFFFF:
+			fmt.Fprintf(&buf, "\\u%04x", r)
+		default:
+			fmt.Fprintf(&buf, "\\U%08x", r)
+		}
+	}
+	return buf.String()
+}
+
 func (san SubjectAltName) String() string {
 	switch san.Type {
 	case sanDNSName:
-		return "DNS:" + string(san.Value) // TODO: escape non-printable characters, '\', and ','
+		return "DNS:" + escapeDNString(string(san.Value))
 	case sanIPAddress:
 		if len(san.Value) == 4 || len(san.Value) == 16 {
 			return "IP:" + net.IP(san.Value).String()
