@@ -1,5 +1,13 @@
 # Change Log
 
+## v0.24.2 (2026-06-25)
+- Extract all Common Names from Subject instead of first one in each RDN. Note
+  that modern certificate validators, including those used by all CT-enforcing
+  clients, ignore the Common Name. Therefore, any certificate missed by
+  certspotter due to this bug would not work in CT-enforcing clients anyways.
+- Support -verbose with -version to print full build info.
+- Fix some possible crashes in pathological situations.
+
 ## v0.24.1 (2026-05-23)
 - Update dependencies.
 - Minor bug fixes.
