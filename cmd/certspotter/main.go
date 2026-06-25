@@ -188,6 +188,13 @@ func main() {
 
 	if flags.version {
 		fmt.Fprintf(os.Stdout, "certspotter version %s (%s)\n", version, source)
+		if flags.verbose {
+			if buildinfo, ok := debug.ReadBuildInfo(); ok {
+				fmt.Fprint(os.Stdout, buildinfo)
+			} else {
+				fmt.Fprint(os.Stdout, "build info not available\n")
+			}
+		}
 		os.Exit(0)
 	}
 	if flags.watchlist == "" {
