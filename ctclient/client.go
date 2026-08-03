@@ -69,11 +69,11 @@ var defaultHTTPClient = NewHTTPClient(nil)
 // legitimate response.
 const maxResponseBytes = 64 << 20 // 64 MiB
 
-// readResponseBody reads and closes response.Body, returning an error if the
+// readResponseBody reads and closes r, returning an error if the
 // body is larger than maxBytes.
-func readResponseBody(response *http.Response, maxBytes int64) ([]byte, error) {
-	defer response.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(response.Body, maxBytes+1))
+func readResponseBody(r io.ReadCloser, maxBytes int64) ([]byte, error) {
+	defer r.Close()
+	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("error reading response: %w", err)
 	}
@@ -99,7 +99,7 @@ func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]b
 		return nil, err
 	}
 
-	responseBody, err := readResponseBody(response, maxResponseBytes)
+	responseBody, err := readResponseBody(response.Body, maxResponseBytes)
 	if err != nil {
 		return nil, fmt.Errorf("Get %q: %w", fullURL, err)
 	}
@@ -167,7 +167,7 @@ func addChainOrPreChain(ctx context.Context, httpClient *http.Client, logURL *ur
 		return nil, err
 	}
 
-	responseBody, err := readResponseBody(response, maxResponseBytes)
+	responseBody, err := readResponseBody(response.Body, maxResponseBytes)
 	if err != nil {
 		return nil, fmt.Errorf("Post %q: %w", fullURL, err)
 	}
