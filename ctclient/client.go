@@ -83,7 +83,7 @@ func readResponseBody(response *http.Response, maxBytes int64) ([]byte, error) {
 	return body, nil
 }
 
-func get(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, error) {
+func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, 
 }
 
 func getJSON(ctx context.Context, httpClient *http.Client, fullURL string, response any) error {
-	responseBytes, err := get(ctx, httpClient, fullURL)
+	responseBytes, err := getBytes(ctx, httpClient, fullURL)
 	if err != nil {
 		return err
 	}

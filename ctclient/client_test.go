@@ -43,7 +43,7 @@ func TestReadResponseBody(t *testing.T) {
 	}
 }
 
-// Confirm the cap is actually wired into get(): a body larger than the limit is
+// Confirm the cap is actually wired into getBytes(): a body larger than the limit is
 // rejected with an error instead of being buffered in full.
 func TestGetEnforcesResponseLimit(t *testing.T) {
 	const bodyLen = maxResponseBytes + 1024
@@ -57,8 +57,8 @@ func TestGetEnforcesResponseLimit(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if _, err := get(context.Background(), server.Client(), server.URL); err == nil {
-		t.Errorf("get() accepted an over-limit response body; expected an error")
+	if _, err := getBytes(context.Background(), server.Client(), server.URL); err == nil {
+		t.Errorf("getBytes() accepted an over-limit response body; expected an error")
 	} else if !strings.Contains(err.Error(), "maximum allowed size") {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestGetReadsNormalBody(t *testing.T) {
 	}))
 	defer server.Close()
 
-	body, err := get(context.Background(), server.Client(), server.URL)
+	body, err := getBytes(context.Background(), server.Client(), server.URL)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

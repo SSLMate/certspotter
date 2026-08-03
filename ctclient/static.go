@@ -57,7 +57,7 @@ func (ctlog *StaticLog) AddPreChain(ctx context.Context, chain [][]byte) (*cttyp
 
 func (ctlog *StaticLog) GetSTH(ctx context.Context) (*cttypes.SignedTreeHead, string, error) {
 	fullURL := ctlog.MonitoringURL.JoinPath("/checkpoint").String()
-	responseBody, err := get(ctx, ctlog.HTTPClient, fullURL)
+	responseBody, err := getBytes(ctx, ctlog.HTTPClient, fullURL)
 	if err != nil {
 		return nil, fullURL, err
 	}
@@ -172,7 +172,7 @@ func (ctlog *StaticLog) getDataTile(ctx context.Context, tile uint64, width uint
 	var partialErr error
 	if width < StaticTileWidth {
 		fullURL := ctlog.MonitoringURL.JoinPath(formatTilePath("data", tile, width)).String()
-		if data, err := get(ctx, ctlog.HTTPClient, fullURL); err != nil {
+		if data, err := getBytes(ctx, ctlog.HTTPClient, fullURL); err != nil {
 			partialErr = err
 		} else {
 			return data, nil
@@ -180,7 +180,7 @@ func (ctlog *StaticLog) getDataTile(ctx context.Context, tile uint64, width uint
 	}
 
 	fullURL := ctlog.MonitoringURL.JoinPath(formatTilePath("data", tile, 0)).String()
-	if data, err := get(ctx, ctlog.HTTPClient, fullURL); err != nil {
+	if data, err := getBytes(ctx, ctlog.HTTPClient, fullURL); err != nil {
 		if partialErr != nil {
 			return nil, partialErr
 		} else {
@@ -200,7 +200,7 @@ func (ctlog *StaticLog) getTile(ctx context.Context, level uint64, tile uint64, 
 	var partialErr error
 	if numHashes < StaticTileWidth {
 		fullURL := ctlog.MonitoringURL.JoinPath(formatTilePath(strconv.FormatUint(level, 10), tile, numHashes)).String()
-		if data, err := get(ctx, ctlog.HTTPClient, fullURL); err != nil {
+		if data, err := getBytes(ctx, ctlog.HTTPClient, fullURL); err != nil {
 			partialErr = err
 		} else if expectedLen := merkletree.HashLen * int(numHashes); len(data) != expectedLen {
 			return nil, fmt.Errorf("%s returned %d bytes instead of expected %d", fullURL, len(data), expectedLen)
@@ -210,7 +210,7 @@ func (ctlog *StaticLog) getTile(ctx context.Context, level uint64, tile uint64, 
 	}
 
 	fullURL := ctlog.MonitoringURL.JoinPath(formatTilePath(strconv.FormatUint(level, 10), tile, 0)).String()
-	if data, err := get(ctx, ctlog.HTTPClient, fullURL); err != nil {
+	if data, err := getBytes(ctx, ctlog.HTTPClient, fullURL); err != nil {
 		if partialErr != nil {
 			return nil, partialErr
 		} else {
@@ -251,7 +251,7 @@ func (ctlog *StaticLog) getTileCollapsedTree(ctx context.Context, level uint64, 
 
 func (ctlog *StaticLog) GetIssuer(ctx context.Context, fingerprint *[32]byte) ([]byte, error) {
 	fullURL := ctlog.MonitoringURL.JoinPath("/issuer/" + hex.EncodeToString(fingerprint[:])).String()
-	data, err := get(ctx, ctlog.HTTPClient, fullURL)
+	data, err := getBytes(ctx, ctlog.HTTPClient, fullURL)
 	if err != nil {
 		return nil, err
 	}
