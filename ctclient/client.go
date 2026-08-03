@@ -62,20 +62,15 @@ func NewHTTPClient(dialContext func(context.Context, string, string) (net.Conn, 
 var defaultHTTPClient = NewHTTPClient(nil)
 
 // maxResponseBytes is a generous upper bound on the size of an HTTP response
-// body that we are willing to buffer in memory. It prevents a malicious or
-// malfunctioning log (or a network attacker, since we deliberately don't
-// verify the log's TLS certificate) from exhausting memory
-// by returning an arbitrarily large response. It is well above the size of any
-// legitimate response.
+// body that we are willing to buffer in memory.
 const maxResponseBytes = 64 << 20 // 64 MiB
 
 // maxErrorResponseBytes is longest error response that we'll read
 const maxErrorResponseBytes = 8 << 10 // 8 KiB
 
-// readResponseBody reads and closes r, returning an error if the
+// readResponseBody reads a response body, returning an error if the
 // body is larger than maxBytes.
-func readResponseBody(r io.ReadCloser, maxBytes int64) ([]byte, error) {
-	defer r.Close()
+func readResponseBody(r io.Reader, maxBytes int64) ([]byte, error) {
 	body, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("error reading response: %w", err)
@@ -103,6 +98,7 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) (io.ReadC
 	}
 
 	if response.StatusCode != 200 {
+		defer response.Body.Close()
 		responseBody, _ := readResponseBody(response.Body, maxErrorResponseBytes)
 		return nil, fmt.Errorf("Get %q: %s (%s)", fullURL, response.Status, formatResponseBody(responseBody))
 	}
@@ -111,11 +107,12 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) (io.ReadC
 }
 
 func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, error) {
-	bodyReader, err := get(ctx, httpClient, fullURL)
+	body, err := get(ctx, httpClient, fullURL)
 	if err != nil {
 		return nil, err
 	}
-	return readResponseBody(bodyReader, maxResponseBytes)
+	defer body.Close()
+	return readResponseBody(body, maxResponseBytes)
 }
 
 func getJSON(ctx context.Context, httpClient *http.Client, fullURL string, response any) error {
@@ -173,6 +170,7 @@ func addChainOrPreChain(ctx context.Context, httpClient *http.Client, logURL *ur
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 
 	responseBody, err := readResponseBody(response.Body, maxResponseBytes)
 	if err != nil {
