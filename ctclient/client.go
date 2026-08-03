@@ -69,6 +69,9 @@ var defaultHTTPClient = NewHTTPClient(nil)
 // legitimate response.
 const maxResponseBytes = 64 << 20 // 64 MiB
 
+// maxErrorResponseBytes is longest error response that we'll read
+const maxErrorResponseBytes = 8 << 10 // 8 KiB
+
 // readResponseBody reads and closes r, returning an error if the
 // body is larger than maxBytes.
 func readResponseBody(r io.ReadCloser, maxBytes int64) ([]byte, error) {
@@ -78,12 +81,12 @@ func readResponseBody(r io.ReadCloser, maxBytes int64) ([]byte, error) {
 		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 	if int64(len(body)) > maxBytes {
-		return nil, fmt.Errorf("response body exceeds maximum allowed size of %d bytes", maxBytes)
+		return body, fmt.Errorf("response body exceeds maximum allowed size of %d bytes", maxBytes)
 	}
 	return body, nil
 }
 
-func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, error) {
+func get(ctx context.Context, httpClient *http.Client, fullURL string) (io.ReadCloser, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
 		return nil, err
@@ -99,16 +102,20 @@ func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]b
 		return nil, err
 	}
 
-	responseBody, err := readResponseBody(response.Body, maxResponseBytes)
-	if err != nil {
-		return nil, fmt.Errorf("Get %q: %w", fullURL, err)
-	}
-
 	if response.StatusCode != 200 {
+		responseBody, _ := readResponseBody(response.Body, maxErrorResponseBytes)
 		return nil, fmt.Errorf("Get %q: %s (%s)", fullURL, response.Status, formatResponseBody(responseBody))
 	}
 
-	return responseBody, nil
+	return response.Body, nil
+}
+
+func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]byte, error) {
+	bodyReader, err := get(ctx, httpClient, fullURL)
+	if err != nil {
+		return nil, err
+	}
+	return readResponseBody(bodyReader, maxResponseBytes)
 }
 
 func getJSON(ctx context.Context, httpClient *http.Client, fullURL string, response any) error {
