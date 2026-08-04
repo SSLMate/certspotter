@@ -18,27 +18,23 @@ import (
 	"testing"
 )
 
-func mkResponse(body string) *http.Response {
-	return &http.Response{Body: io.NopCloser(strings.NewReader(body))}
-}
-
 func TestReadResponseBody(t *testing.T) {
 	// under the limit
-	if body, err := readResponseBody(mkResponse("hello").Body, 10); err != nil {
+	if body, err := readResponseBody(strings.NewReader("hello"), 10); err != nil {
 		t.Errorf("unexpected error under limit: %v", err)
 	} else if string(body) != "hello" {
 		t.Errorf("got %q, want %q", body, "hello")
 	}
 
 	// exactly at the limit
-	if body, err := readResponseBody(mkResponse("0123456789").Body, 10); err != nil {
+	if body, err := readResponseBody(strings.NewReader("0123456789"), 10); err != nil {
 		t.Errorf("unexpected error at exact limit: %v", err)
 	} else if len(body) != 10 {
 		t.Errorf("got %d bytes, want 10", len(body))
 	}
 
 	// one byte over the limit
-	if _, err := readResponseBody(mkResponse("0123456789X").Body, 10); err == nil {
+	if _, err := readResponseBody(strings.NewReader("0123456789X"), 10); err == nil {
 		t.Errorf("expected error for oversize body, got nil")
 	}
 }
