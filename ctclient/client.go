@@ -76,7 +76,7 @@ func readResponseBody(r io.Reader, maxBytes int64) ([]byte, error) {
 		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 	if int64(len(body)) > maxBytes {
-		return body, fmt.Errorf("response body exceeds maximum allowed size of %d bytes", maxBytes)
+		return nil, fmt.Errorf("response body exceeds maximum allowed size of %d bytes", maxBytes)
 	}
 	return body, nil
 }
@@ -99,7 +99,7 @@ func get(ctx context.Context, httpClient *http.Client, fullURL string) (io.ReadC
 
 	if response.StatusCode != 200 {
 		defer response.Body.Close()
-		responseBody, _ := readResponseBody(response.Body, maxErrorResponseBytes)
+		responseBody, _ := io.ReadAll(io.LimitReader(response.Body, maxErrorResponseBytes))
 		return nil, fmt.Errorf("Get %q: %s (%s)", fullURL, response.Status, formatResponseBody(responseBody))
 	}
 
@@ -112,7 +112,11 @@ func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]b
 		return nil, err
 	}
 	defer body.Close()
-	return readResponseBody(body, maxResponseBytes)
+	bodyBytes, err := readResponseBody(body, maxResponseBytes)
+	if err != nil {
+		return nil, fmt.Errorf("Get %q: error reading response body: %w", fullURL, err)
+	}
+	return bodyBytes, nil
 }
 
 func getJSON(ctx context.Context, httpClient *http.Client, fullURL string, response any) error {
