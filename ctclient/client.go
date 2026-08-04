@@ -114,7 +114,7 @@ func getBytes(ctx context.Context, httpClient *http.Client, fullURL string) ([]b
 	defer body.Close()
 	bodyBytes, err := readResponseBody(body, maxResponseBytes)
 	if err != nil {
-		return nil, fmt.Errorf("Get %q: error reading response body: %w", fullURL, err)
+		return nil, fmt.Errorf("Get %q: %w", fullURL, err)
 	}
 	return bodyBytes, nil
 }
