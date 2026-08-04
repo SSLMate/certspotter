@@ -12,7 +12,9 @@ package ctclient
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -56,31 +58,72 @@ func (ctlog *RFC6962Log) getEntries(ctx context.Context, startInclusive uint64, 
 	fullURL := ctlog.URL.JoinPath("/ct/v1/get-entries").String()
 	fullURL += fmt.Sprintf("?start=%d&end=%d", startInclusive, endInclusive)
 
-	var parsedResponse struct {
-		Entries []RFC6962LogEntry `json:"entries"`
-	}
-	if err := getJSON(ctx, ctlog.HTTPClient, fullURL, &parsedResponse); err != nil {
+	body, err := get(ctx, ctlog.HTTPClient, fullURL)
+	if err != nil {
 		return nil, err
 	}
-	if len(parsedResponse.Entries) == 0 {
-		return nil, fmt.Errorf("Get %q: zero entries returned", fullURL)
+	defer body.Close()
+
+	dec := json.NewDecoder(io.LimitReader(body, maxResponseBytes))
+	if tok, err := dec.Token(); err != nil {
+		return nil, fmt.Errorf("Get %q: error reading JSON object token: %w", fullURL, err)
+	} else if tok != json.Delim('{') {
+		return nil, fmt.Errorf("Get %q: not a JSON object", fullURL)
 	}
-	if uint64(len(parsedResponse.Entries)) > endInclusive-startInclusive+1 {
-		return nil, fmt.Errorf("Get %q: extraneous entries returned", fullURL)
+	for {
+		if !dec.More() {
+			return nil, fmt.Errorf("Get %q: JSON object missing entries", fullURL)
+		}
+		tok, err := dec.Token()
+		if err != nil {
+			return nil, fmt.Errorf("Get %q: error reading JSON field name: %w", fullURL, err)
+		}
+		if tok == "entries" {
+			break
+		}
+		var rawMessage json.RawMessage
+		if err := dec.Decode(&rawMessage); err != nil {
+			return nil, fmt.Errorf("Get %q: error skipping unwanted JSON field: %w", fullURL, err)
+		}
 	}
-	return parsedResponse.Entries, nil
+	if tok, err := dec.Token(); err != nil {
+		return nil, fmt.Errorf("Get %q: error reading JSON array token: %w", fullURL, err)
+	} else if tok != json.Delim('[') {
+		return nil, fmt.Errorf("Get %q: entries is not a JSON array", fullURL)
+	}
+
+	var entries []RFC6962LogEntry
+	for dec.More() {
+		if uint64(len(entries)) == endInclusive-startInclusive+1 {
+			return entries, fmt.Errorf("Get %q: extraneous entries returned", fullURL)
+		}
+		var entry RFC6962LogEntry
+		if err := dec.Decode(&entry); err != nil {
+			return entries, fmt.Errorf("Get %q: error reading JSON entry: %w", fullURL, err)
+		}
+		entries = append(entries, entry)
+	}
+	if tok, err := dec.Token(); err != nil {
+		return entries, fmt.Errorf("Get %q: error reading end of JSON array: %w", fullURL, err)
+	} else if tok != json.Delim(']') {
+		return entries, fmt.Errorf("Get %q: entries array not terminated", fullURL)
+	}
+	if len(entries) == 0 {
+		return entries, fmt.Errorf("Get %q: zero entries returned", fullURL)
+	}
+	return entries, nil
 }
 
 func (ctlog *RFC6962Log) GetEntries(ctx context.Context, startInclusive uint64, endInclusive uint64) ([]Entry, error) {
 	nativeEntries, err := ctlog.getEntries(ctx, startInclusive, endInclusive)
-	if err != nil {
-		return nil, err
+	var entries []Entry
+	if nativeEntries != nil {
+		entries = make([]Entry, len(nativeEntries))
+		for i := range nativeEntries {
+			entries[i] = &nativeEntries[i]
+		}
 	}
-	entries := make([]Entry, len(nativeEntries))
-	for i := range nativeEntries {
-		entries[i] = &nativeEntries[i]
-	}
-	return entries, nil
+	return entries, err
 }
 
 type entryAndProofResponse struct {
