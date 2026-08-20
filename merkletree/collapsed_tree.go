@@ -137,7 +137,7 @@ func (tree CollapsedTree) Size() uint64 {
 }
 
 type collapsedTreeMessage struct {
-	Offset uint64 `json:"offset,omitempty"`
+	Offset uint64 `json:"offset,omitzero"`
 	Nodes  []Hash `json:"nodes"` // never nil
 	Size   uint64 `json:"size"`
 }
