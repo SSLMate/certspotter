@@ -72,6 +72,19 @@ func (e *verifyEntriesError) Error() string {
 	return fmt.Sprintf("error verifying at tree size %d: the STH root hash (%x) does not match the entries returned by the log (%x)", e.sth.TreeSize, e.sth.RootHash, e.entriesRootHash)
 }
 
+type partialError struct {
+	error
+}
+
+func (e partialError) Unwrap() error {
+	return e.error
+}
+
+func isPartialError(err error) bool {
+	var pe partialError
+	return errors.As(err, &pe)
+}
+
 func withRetry(ctx context.Context, config *Config, ctlog *loglist.Log, maxRetries int, f func() error) error {
 	minSleep := 100 * time.Millisecond
 	numRetries := 0
@@ -82,6 +95,10 @@ func withRetry(ctx context.Context, config *Config, ctlog *loglist.Log, maxRetri
 		}
 		if numRetries > 0 {
 			err = fmt.Errorf("%w (retried %d times)", err, numRetries)
+		}
+		if isPartialError(err) {
+			recordError(ctx, config, ctlog, err)
+			return nil
 		}
 		if maxRetries != -1 && numRetries >= maxRetries {
 			return err
@@ -154,6 +171,9 @@ func (client *logClient) GetEntries(ctx context.Context, startInclusive, endIncl
 			return err
 		}
 		entries, err = client.client.GetEntries(ctx, startInclusive, endInclusive)
+		if err != nil && len(entries) != 0 {
+			err = partialError{err}
+		}
 		return err
 	})
 	return
