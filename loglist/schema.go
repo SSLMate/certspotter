@@ -28,6 +28,7 @@ type Operator struct {
 	TiledLogs []Log    `json:"tiled_logs,omitzero"`
 }
 
+// Log represents the log object in the "v3" JSON log list schema, as published by Chrome, Apple, and SSLMate.
 type Log struct {
 	Key              []byte        `json:"key"`
 	LogID            cttypes.LogID `json:"log_id"`
@@ -122,3 +123,36 @@ const (
 	LogTypeProd = "prod"
 	LogTypeTest = "test"
 )
+
+type LogSpec string
+
+const (
+	StaticCTAPI = "static-ct-api"
+	RFC6962     = "rfc6962"
+)
+
+// InclusionRequest represents the "v2" JSON log object, as published by log operators to request inclusion in browsers.
+type InclusionRequest struct {
+	Key          []byte        `json:"key"`
+	LogID        cttypes.LogID `json:"log_id"`
+	MMDSeconds   int           `json:"mmd_seconds"`
+	FriendlyName string        `json:"friendly_name"`
+	LogSpec      LogSpec       `json:"log_spec"`
+	Endpoint     struct {
+		URL string `json:"url"`
+	} `json:"endpoint,omitzero"`
+	SubmissionEndpoint struct {
+		URL string `json:"url"`
+	} `json:"submission_endpoint,omitzero"`
+	MonitoringEndpoint struct {
+		URL string `json:"url"`
+	} `json:"monitoring_endpoint,omitzero"`
+	TemporalInterval struct {
+		StartInclusive time.Time `json:"start_inclusive"`
+		EndExclusive   time.Time `json:"end_exclusive"`
+	} `json:"temporal_interval"`
+	LogSoftware struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	} `json:"log_software"`
+}
