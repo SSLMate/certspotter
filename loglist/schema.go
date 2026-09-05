@@ -28,17 +28,26 @@ type Operator struct {
 	TiledLogs []Log    `json:"tiled_logs,omitzero"`
 }
 
+type Endpoint struct {
+	URL string `json:"url"`
+}
+
+// Log represents a log, containing information that's useful to a monitor. It's compatible with both the "v3" JSON log list schema published by browsers, and the newer "v2" JSON log schema published by log operators (this means that certain fields, like the MMD and URLs, are duplicated).
 type Log struct {
-	Key              []byte        `json:"key"`
-	LogID            cttypes.LogID `json:"log_id"`
-	MMD              int           `json:"mmd"`
-	URL              string        `json:"url,omitzero"`            // only for rfc6962 logs
-	SubmissionURL    string        `json:"submission_url,omitzero"` // only for static-ct-api logs
-	MonitoringURL    string        `json:"monitoring_url,omitzero"` // only for static-ct-api logs
-	Description      string        `json:"description"`
-	State            State         `json:"state,omitzero"`
-	LogType          LogType       `json:"log_type,omitzero"`
-	TemporalInterval *struct {
+	Key                []byte        `json:"key"`
+	LogID              cttypes.LogID `json:"log_id"`
+	MMD                int           `json:"mmd"`
+	MMDSeconds         int           `json:"mmd_seconds"`
+	URL                string        `json:"url,omitzero"`                 // only for rfc6962 logs
+	Endpoint           Endpoint      `json:"endpoint,omitzero"`            // only for rfc6962 logs
+	SubmissionURL      string        `json:"submission_url,omitzero"`      // only for static-ct-api logs
+	SubmissionEndpoint Endpoint      `json:"submission_endpoint,omitzero"` // only for static-ct-api logs
+	MonitoringURL      string        `json:"monitoring_url,omitzero"`      // only for static-ct-api logs
+	MonitoringEndpoint Endpoint      `json:"monitoring_endpoint,omitzero"` // only for static-ct-api logs
+	Description        string        `json:"description"`
+	State              State         `json:"state,omitzero"`
+	LogType            LogType       `json:"log_type,omitzero"`
+	TemporalInterval   *struct {
 		StartInclusive time.Time `json:"start_inclusive"`
 		EndExclusive   time.Time `json:"end_exclusive"`
 	} `json:"temporal_interval,omitzero"`

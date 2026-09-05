@@ -122,7 +122,7 @@ func Unmarshal(jsonBytes []byte) (*List, error) {
 	if err := json.Unmarshal(jsonBytes, list); err != nil {
 		return nil, err
 	}
-	if err := list.Validate(); err != nil {
+	if err := list.Normalize(); err != nil {
 		return nil, fmt.Errorf("invalid log list: %s", err)
 	}
 	return list, nil
