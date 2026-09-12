@@ -64,7 +64,8 @@ func (ctlog *RFC6962Log) getEntries(ctx context.Context, startInclusive uint64, 
 	}
 	defer body.Close()
 
-	dec := json.NewDecoder(io.LimitReader(body, maxResponseBytes))
+	limitedBody := io.LimitReader(body, maxResponseBytes)
+	dec := json.NewDecoder(limitedBody)
 	if tok, err := dec.Token(); err != nil {
 		return nil, fmt.Errorf("Get %q: error reading JSON object token: %w", fullURL, err)
 	} else if tok != json.Delim('{') {
@@ -111,6 +112,7 @@ func (ctlog *RFC6962Log) getEntries(ctx context.Context, startInclusive uint64, 
 	if len(entries) == 0 {
 		return entries, fmt.Errorf("Get %q: zero entries returned", fullURL)
 	}
+	io.Copy(io.Discard, limitedBody) // So the HTTP connection can be reused
 	return entries, nil
 }
 
