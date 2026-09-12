@@ -47,15 +47,13 @@ for a list of human-friendly names for each log ID.
 All metrics are gauges with a `log_id` label identifying the log the
 metric pertains to.  If a metric does not pertain to a log (because
 certspotter has not stored the relevant state for the log yet), the log
-does not have a sample for that metric; use Prometheus's `absent()`
-function to detect this.
+does not have a sample for that metric.
 
 certspotter\_log\_max\_sth\_size
 
 :   Tree size of the largest signed tree head (STH) certspotter has observed
-    from the log: the largest unverified STH, or the verified STH if there
-    are no unverified STHs. Absent if certspotter has not stored an STH
-    for the log.
+    from the log; in other words, the number of entries in the log.  Absent
+    if certspotter has not yet downloaded an STH from the log.
 
 certspotter\_log\_max\_sth\_timestamp
 
@@ -96,19 +94,16 @@ certspotter\_log\_health\_check\_failures
 
 # EXAMPLES
 
-Print metrics for the default state directory:
+crontab(5) entry that exposes metrics to the node\_exporter textfile collector
+every five minutes (writing to a temporary file and renaming it
+ensures that node\_exporter never reads a partially-written file):
 
-    $ certspotter-metrics
+    */5 * * * * root certspotter-metrics > /var/lib/node_exporter/certspotter.prom.tmp && mv /var/lib/node_exporter/certspotter.prom.tmp /var/lib/node_exporter/certspotter.prom
 
-Print metrics for a specific state directory:
+Prometheus query to determine download backlog (number entries in the
+log that haven't been downloaded yet):
 
-    $ certspotter-metrics -state_dir /var/lib/certspotter
-
-Expose metrics to the node\_exporter textfile collector with a cron job
-that runs every minute. Writing to a temporary file and then renaming it
-ensures that node\_exporter never reads a partially-written file:
-
-    * * * * * certspotter certspotter-metrics > /var/lib/node_exporter/certspotter.prom.tmp && mv /var/lib/node_exporter/certspotter.prom.tmp /var/lib/node_exporter/certspotter.prom
+    certspotter_log_max_sth_size-certspotter_log_download_position
 
 # ENVIRONMENT
 
