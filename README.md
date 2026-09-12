@@ -55,6 +55,7 @@ The following instructions require you to have [Go version 1.21 or higher](https
 * Command line options and operational details: [certspotter(8) man page](man/certspotter.md)
 * The script interface: [certspotter-script(8) man page](man/certspotter-script.md)
 * Authorizing known certificates: [certspotter-authorize(8) man page](man/certspotter-authorize.md)
+* Monitoring certspotter with Prometheus: [certspotter-metrics(8) man page](man/certspotter-metrics.md)
 * [Change Log](CHANGELOG.md)
 
 ## Authorizing Known Certificates to Prevent False Alarms
@@ -77,6 +78,28 @@ certspotter-authorize /path/to/cert.pem
 ```
 
 For more details, see the [certspotter-authorize(8) man page](man/certspotter-authorize.md).
+
+## Monitoring certspotter with Prometheus
+
+You can use the **certspotter-metrics** command to output Prometheus metrics
+about certspotter's progress monitoring each CT log, such as how many entries
+have been downloaded and verified. certspotter-metrics reads the certspotter
+state directory and writes metrics to stdout; run it periodically and expose
+the output to Prometheus, e.g. with the node_exporter textfile collector.
+
+To install certspotter-metrics, run:
+
+```
+go install software.sslmate.com/src/certspotter/cmd/certspotter-metrics@latest
+```
+
+To output metrics, run:
+
+```
+certspotter-metrics
+```
+
+For more details, see the [certspotter-metrics(8) man page](man/certspotter-metrics.md).
 
 ## What certificates are detected by Cert Spotter?
 
