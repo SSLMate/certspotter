@@ -22,10 +22,11 @@ It is safe to run while certspotter is running, and it does not require
 certspotter to be running.
 
 Metrics are output for every log for which certspotter has a state directory
-(`$STATE_DIR/logs/LOG_ID`, where LOG_ID is the base64url-encoded log ID).
+(`$STATE_DIR/logs/LOG_ID`, where `LOG_ID` is the base64url-encoded log ID).
 A log has a state directory once certspotter has started monitoring it.
 The `log_id` label on each metric is the standard base64 encoding (with
-padding) of the 32-byte log ID defined by RFC 6962.
+padding) of the 32-byte log ID defined by RFC 6962. See <https://sslmate.com/app/ctlogs>
+for a list of human-friendly names for each log ID.
 
 **certspotter-metrics** is experimental, and the metrics may change in a future release.
 
