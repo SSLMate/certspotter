@@ -58,6 +58,47 @@ func loadSTHsFromDir(dirPath string) ([]*StoredSTH, error) {
 	return sths, nil
 }
 
+// loadLargestSTHFromDir returns the STH in dirPath with the largest tree size, breaking
+// ties by later timestamp.
+func loadLargestSTHFromDir(dirPath string) (*StoredSTH, error) {
+	compareSTH := func(a, b *StoredSTH) int {
+		return cmp.Or(
+			cmp.Compare(a.TreeSize, b.TreeSize),
+			cmp.Compare(a.Timestamp, b.Timestamp),
+		)
+	}
+
+	entries, err := os.ReadDir(dirPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	var largestSTH *StoredSTH
+	for _, entry := range entries {
+		filename := entry.Name()
+		if strings.HasPrefix(filename, ".") || !strings.HasSuffix(filename, ".json") {
+			continue
+		}
+		if largestSTH != nil {
+			if treeSize, ok := sthFilenameTreeSize(filename); ok && treeSize < largestSTH.TreeSize {
+				continue
+			}
+		}
+		sth, err := readSTHFile(filepath.Join(dirPath, filename))
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		if largestSTH == nil || compareSTH(sth, largestSTH) > 0 {
+			largestSTH = sth
+		}
+	}
+	return largestSTH, nil
+}
+
 func readSTHFile(filePath string) (*StoredSTH, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -120,4 +161,18 @@ func sthFilename(sth *cttypes.SignedTreeHead) string {
 	binary.Write(hasher, binary.LittleEndian, sth.Timestamp)
 	hasher.Write(sth.RootHash[:])
 	return strconv.FormatUint(sth.TreeSize, 10) + "-" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil)) + ".json"
+}
+
+// sthFilenameTreeSize returns the tree size encoded in the filename, or (0, false)
+// if the filename doesn't parse.
+func sthFilenameTreeSize(filename string) (uint64, bool) {
+	separator := strings.IndexByte(filename, '-')
+	if separator <= 0 {
+		return 0, false
+	}
+	treeSize, err := strconv.ParseUint(filename[:separator], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return treeSize, true
 }

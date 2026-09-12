@@ -12,6 +12,7 @@ package monitor
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -73,6 +74,33 @@ func (s *FilesystemState) PrepareLog(ctx context.Context, logID LogID) error {
 	return nil
 }
 
+// ListLogs returns the IDs of the logs that have a state directory (i.e., for
+// which PrepareLog has been called at some point).  Note that LoadLogState can
+// still return nil for a returned log ID, if no state has been stored yet.
+func (s *FilesystemState) ListLogs(ctx context.Context) ([]LogID, error) {
+	entries, err := os.ReadDir(filepath.Join(s.StateDir, "logs"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return []LogID{}, nil
+	} else if err != nil {
+		return nil, err
+	}
+	logIDs := make([]LogID, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasPrefix(name, ".") || !entry.IsDir() {
+			continue
+		}
+		nameBytes, err := base64.RawURLEncoding.DecodeString(name)
+		if err != nil || len(nameBytes) != 32 {
+			continue
+		}
+		var logID LogID
+		copy(logID[:], nameBytes)
+		logIDs = append(logIDs, logID)
+	}
+	return logIDs, nil
+}
+
 func (s *FilesystemState) LoadLogState(ctx context.Context, logID LogID) (*LogState, error) {
 	filePath := filepath.Join(s.logStateDir(logID), "state.json")
 	fileBytes, err := os.ReadFile(filePath)
@@ -106,6 +134,28 @@ func (s *FilesystemState) LoadSTHs(ctx context.Context, logID LogID) ([]*StoredS
 func (s *FilesystemState) RemoveSTH(ctx context.Context, logID LogID, sth *cttypes.SignedTreeHead) error {
 	sthsDirPath := filepath.Join(s.logStateDir(logID), "unverified_sths")
 	return removeSTHFromDir(sthsDirPath, sth)
+}
+
+// LoadLargestSTH returns the stored STH with the largest tree size, breaking
+// ties by later timestamp.  Returns nil if no STHs are stored for the log.
+func (s *FilesystemState) LoadLargestSTH(ctx context.Context, logID LogID) (*StoredSTH, error) {
+	sthsDirPath := filepath.Join(s.logStateDir(logID), "unverified_sths")
+	return loadLargestSTHFromDir(sthsDirPath)
+}
+
+// CountSTHs returns the number of STHs stored for the log.
+func (s *FilesystemState) CountSTHs(ctx context.Context, logID LogID) (int, error) {
+	return countFiles(filepath.Join(s.logStateDir(logID), "unverified_sths"), ".json")
+}
+
+// CountMalformedEntries returns the number of malformed entries recorded for the log.
+func (s *FilesystemState) CountMalformedEntries(ctx context.Context, logID LogID) (int, error) {
+	return countFiles(filepath.Join(s.logStateDir(logID), "malformed_entries"), ".json")
+}
+
+// CountHealthCheckFailures returns the number of health check failures recorded for the log.
+func (s *FilesystemState) CountHealthCheckFailures(ctx context.Context, logID LogID) (int, error) {
+	return countFiles(filepath.Join(s.logStateDir(logID), "healthchecks"), ".txt")
 }
 
 func (s *FilesystemState) StoreIssuer(ctx context.Context, fingerprint *[32]byte, issuer []byte) error {

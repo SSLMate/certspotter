@@ -13,10 +13,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"slices"
+	"strings"
 )
 
 func randomFileSuffix() string {
@@ -70,6 +73,24 @@ func writeJSONFile(filename string, data any, perm os.FileMode) error {
 func fileExists(filename string) bool {
 	_, err := os.Lstat(filename)
 	return err == nil
+}
+
+// countFiles returns the number of non-hidden files in dirPath whose
+// name ends in suffix.  Returns 0 if dirPath does not exist.
+func countFiles(dirPath string, suffix string) (int, error) {
+	entries, err := os.ReadDir(dirPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, entry := range entries {
+		if !entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && strings.HasSuffix(entry.Name(), suffix) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func tailFile(filename string, linesWanted int) ([]byte, int, error) {
