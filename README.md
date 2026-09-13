@@ -79,9 +79,9 @@ certspotter-authorize /path/to/cert.pem
 
 For more details, see the [certspotter-authorize(8) man page](man/certspotter-authorize.md).
 
-## Monitoring certspotter with Prometheus
+## Monitoring certspotter with Prometheus (Experimental)
 
-You can use the **certspotter-metrics** command to output Prometheus metrics
+You can use the experimental **certspotter-metrics** command to output Prometheus metrics
 about certspotter's progress monitoring each CT log, such as how many entries
 have been downloaded and verified. certspotter-metrics reads the certspotter
 state directory and writes metrics to stdout; run it periodically and expose
@@ -93,11 +93,24 @@ To install certspotter-metrics, run:
 go install software.sslmate.com/src/certspotter/cmd/certspotter-metrics@latest
 ```
 
-To output metrics, run:
+Here's a crontab entry that exposes metrics to the node_exporter textfile
+collector every five minutes:
 
 ```
-certspotter-metrics
+*/5 * * * * root certspotter-metrics > /var/lib/node_exporter/certspotter.prom.tmp && mv /var/lib/node_exporter/certspotter.prom.tmp /var/lib/node_exporter/certspotter.prom
 ```
+
+Here's a Prometheus query to determine download backlog (number entries
+in the log that haven't been downloaded yet):
+
+```
+certspotter_log_max_sth_size-certspotter_log_download_position
+```
+
+certspotter-metrics is experimental. Metrics may change in future
+versions, and a future version of certspotter might export metrics
+directly from a builtin HTTP rather than using a separate command.  Please
+provide feedback at <https://github.com/SSLMate/certspotter/issues/79>.
 
 For more details, see the [certspotter-metrics(8) man page](man/certspotter-metrics.md).
 
