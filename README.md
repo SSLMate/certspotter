@@ -109,7 +109,7 @@ certspotter_log_max_sth_size-certspotter_log_download_position
 
 certspotter-metrics is experimental. Metrics may change in future
 versions, and a future version of certspotter might export metrics
-directly from a builtin HTTP rather than using a separate command.  Please
+directly from a builtin HTTP server rather than using a separate command.  Please
 provide feedback at <https://github.com/SSLMate/certspotter/issues/79>.
 
 For more details, see the [certspotter-metrics(8) man page](man/certspotter-metrics.md).
