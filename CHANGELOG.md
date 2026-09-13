@@ -1,5 +1,13 @@
 # Change Log
 
+## v0.25.0 (2026-09-13)
+- Improve performance monitoring slow RFC 6962 logs whose get-entries
+  responses are interrupted.
+- Add experimental certspotter-metrics command for exporting Prometheus
+  metrics about certspotter's operation. Please leave feedback in
+  <https://github.com/SSLMate/certspotter/issues/79>.
+- Minor bug fixes and robustness improvements.
+
 ## v0.24.2 (2026-06-25)
 - Extract all Common Names from Subject instead of first one in each RDN. Note
   that modern certificate validators, including those used by all CT-enforcing
