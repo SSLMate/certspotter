@@ -44,11 +44,13 @@ The following instructions require you to have [Go version 1.21 or higher](https
    execute the provided scripts when it detects a certificate for a domain on
    your watch list.
 
-4. Configure your system to run `certspotter` as a daemon.  You may want to specify
-   the `-start_at_end` command line option to tell certspotter to start monitoring
-   new logs at the end instead of the beginning.  This saves significant bandwidth, but
-   you won't be notified about certificates which were logged before you started
-   using certspotter.
+4. Configure your system to run `certspotter` as a daemon. By default, `certspotter` will download
+   and process all active certificate transparency logs. Different CT log operators will rotate out
+   logs for inactive certificates at differnet cadences. But, generally, this means downloading
+   several months of logs containing millions of certs and consuming terabytes of bandwidth to
+   initiate. So, you may consider using the `-start_at_end` command line option to tell certspotter
+   to start monitoring new logs at the end.  This saves significant bandwidth and processing, but
+   you won't be notified about certificates which were logged before you started using certspotter.
 
 ## Documentation
 
