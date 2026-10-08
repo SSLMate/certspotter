@@ -3,8 +3,9 @@ orbs:
   gcp-gcr: circleci/gcp-gcr@0.16
 executors:
   build:
+    resource_class: medium.gen2
     docker:
-      - image: cimg/base:2023.04
+      - image: cimg/base:2026.08
 
 workflows:
   ci-cd:
