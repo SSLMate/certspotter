@@ -31,6 +31,9 @@ func parseFromURL(url string) ([]CTLogInfo, []CTLogOperatorInfo, error) {
 }
 
 func TestParseFromURL(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping network test in short mode")
+	}
 	logs, ops, err := parseFromURL("https://hg-edge.mozilla.org/mozilla-central/raw-file/tip/security/ct/CTKnownLogs.h")
 	if err != nil {
 		t.Fatal(err)
