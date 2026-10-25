@@ -12,6 +12,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -35,7 +37,11 @@ var programName = os.Args[0]
 var Version = "unknown"
 var Source = "unknown"
 
-const defaultLogList = "https://loglist.certspotter.org/monitor.json"
+const (
+	defaultLogList    = "https://loglist.certspotter.org/monitor.json"
+	chromeLogList     = "https://www.gstatic.com/ct/log_list/v3/log_list.zip"
+	chromeAllLogsList = "https://www.gstatic.com/ct/log_list/v3/all_logs_list.zip"
+)
 
 func certspotterVersion() (string, string) {
 	if buildinfo, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(buildinfo.Main.Version, "v") {
@@ -49,6 +55,30 @@ func fileExists(filename string) bool {
 	_, err := os.Lstat(filename)
 	return err == nil
 }
+
+// readPublicKeyFile reads a DER or PEM-encoded PKIX public key from filename
+// and returns it in DER form.
+func readPublicKeyFile(filename string) ([]byte, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := x509.ParsePKIXPublicKey(content); err == nil {
+		return content, nil
+	}
+	block, _ := pem.Decode(content)
+	if block == nil {
+		return nil, errors.New("not a DER or PEM-encoded public key")
+	}
+	if block.Type != "PUBLIC KEY" {
+		return nil, fmt.Errorf("PEM has type %q instead of \"PUBLIC KEY\"", block.Type)
+	}
+	if _, err := x509.ParsePKIXPublicKey(block.Bytes); err != nil {
+		return nil, err
+	}
+	return block.Bytes, nil
+}
+
 func homedir() string {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
@@ -161,20 +191,22 @@ func main() {
 	loglist.UserAgent = ctclient.UserAgent
 
 	var flags struct {
-		email       []string
-		healthcheck time.Duration
-		logs        string
-		noSave      bool
-		script      string
-		startAtEnd  bool
-		stateDir    string
-		stdout      bool
-		verbose     bool
-		version     bool
-		watchlist   string
+		email         []string
+		healthcheck   time.Duration
+		logListPubkey string
+		logs          string
+		noSave        bool
+		script        string
+		startAtEnd    bool
+		stateDir      string
+		stdout        bool
+		verbose       bool
+		version       bool
+		watchlist     string
 	}
 	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
 	flag.DurationVar(&flags.healthcheck, "healthcheck", 24*time.Hour, "How frequently to perform a health check")
+	flag.StringVar(&flags.logListPubkey, "log_list_pubkey", "", "File path to PEM or DER-encoded public key for verifying log list")
 	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
 	flag.BoolVar(&flags.noSave, "no_save", false, "Do not save a copy of matching certificates in state directory")
 	flag.StringVar(&flags.script, "script", "", "Program to execute when a matching certificate is discovered")
@@ -211,8 +243,20 @@ func main() {
 		Email:     flags.email,
 		Stdout:    flags.stdout,
 	}
+	var logListPubkey []byte
+	if flags.logListPubkey != "" {
+		pubkey, err := readPublicKeyFile(flags.logListPubkey)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: error reading log list public key from %q: %s\n", programName, flags.logListPubkey, err)
+			os.Exit(1)
+		}
+		logListPubkey = pubkey
+	} else if flags.logs == chromeLogList || flags.logs == chromeAllLogsList {
+		logListPubkey = loglist.ChromePubkey
+	}
 	config := &monitor.Config{
 		LogListSource:       flags.logs,
+		LogListPubkey:       logListPubkey,
 		State:               fsstate,
 		StartAtEnd:          flags.startAtEnd,
 		Verbose:             flags.verbose,

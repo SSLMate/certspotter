@@ -15,6 +15,7 @@ import (
 
 type Config struct {
 	LogListSource       string
+	LogListPubkey       []byte // if non-nil, LogListSource is a signed ZIP archive; see loglist.Load
 	State               StateProvider
 	StartAtEnd          bool
 	WatchList           WatchList

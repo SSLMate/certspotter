@@ -18,8 +18,8 @@ import (
 
 type LogID = cttypes.LogID
 
-func getLogList(ctx context.Context, source string, token *loglist.ModificationToken) (map[LogID]*loglist.Log, *loglist.ModificationToken, error) {
-	list, newToken, err := loglist.LoadIfModified(ctx, source, token)
+func getLogList(ctx context.Context, source string, pubkey []byte, token *loglist.ModificationToken) (map[LogID]*loglist.Log, *loglist.ModificationToken, error) {
+	list, newToken, err := loglist.LoadIfModified(ctx, source, pubkey, token)
 	if err != nil {
 		return nil, nil, err
 	}
