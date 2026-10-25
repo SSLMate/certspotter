@@ -339,6 +339,74 @@ func TestFetchSignedZip(t *testing.T) {
 	checkInvalidSignature(t, err)
 }
 
+// publishedLogLists are the signed log lists published by SSLMate and Google,
+// along with snapshots in testdata taken on 2026-10-25.
+var publishedLogLists = []struct {
+	name     string
+	pubkey   []byte
+	snapshot string
+	url      string
+}{
+	{"SSLMate", SSLMatePubkey, "testdata/monitor.zip", "https://loglist.certspotter.org/monitor.zip"},
+	{"Chrome", ChromePubkey, "testdata/log_list.zip", "https://www.gstatic.com/ct/log_list/v3/log_list.zip"},
+}
+
+func TestPublishedPubkeys(t *testing.T) {
+	for _, published := range publishedLogLists {
+		t.Run(published.name, func(t *testing.T) {
+			key, err := x509.ParsePKIXPublicKey(published.pubkey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch key.(type) {
+			case *rsa.PublicKey, *ecdsa.PublicKey:
+			default:
+				t.Fatalf("public key is %T, want *rsa.PublicKey or *ecdsa.PublicKey", key)
+			}
+		})
+	}
+}
+
+func TestPublishedLogLists(t *testing.T) {
+	for _, published := range publishedLogLists {
+		t.Run(published.name, func(t *testing.T) {
+			list, err := ReadFile(published.snapshot, published.pubkey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(list.Operators) == 0 {
+				t.Fatal("no operators in log list")
+			}
+
+			wrongPubkey := marshalPubkey(t, generateECDSAKey(t))
+			_, err = ReadFile(published.snapshot, wrongPubkey)
+			checkInvalidSignature(t, err)
+		})
+	}
+}
+
+func TestFetchPublishedLogLists(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping network test in short mode")
+	}
+	ctx := context.Background()
+	for _, published := range publishedLogLists {
+		t.Run(published.name, func(t *testing.T) {
+			list, err := Fetch(ctx, published.url, published.pubkey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(list.Operators) == 0 {
+				t.Fatal("no operators in log list")
+			}
+
+			wrongPubkey := marshalPubkey(t, generateECDSAKey(t))
+			_, err = Fetch(ctx, published.url, wrongPubkey)
+			checkInvalidSignature(t, err)
+		})
+	}
+}
+
 // fetchChromePubkey downloads Chrome's log list public key and returns it in PKIX DER form.
 func fetchChromePubkey(t *testing.T) []byte {
 	t.Helper()
@@ -361,54 +429,12 @@ func fetchChromePubkey(t *testing.T) []byte {
 	return block.Bytes
 }
 
-func TestChromePubkey(t *testing.T) {
-	key, err := x509.ParsePKIXPublicKey(ChromePubkey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := key.(*rsa.PublicKey); !ok {
-		t.Fatalf("ChromePubkey is %T, want *rsa.PublicKey", key)
-	}
-}
-
-// TestChromeLogList verifies a snapshot of Chrome's log list, taken from
-// https://www.gstatic.com/ct/log_list/v3/log_list.zip on 2026-10-25.
-func TestChromeLogList(t *testing.T) {
-	const path = "testdata/log_list.zip"
-
-	list, err := ReadFile(path, ChromePubkey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(list.Operators) == 0 {
-		t.Fatal("no operators in log list")
-	}
-
-	wrongPubkey := marshalPubkey(t, generateECDSAKey(t))
-	_, err = ReadFile(path, wrongPubkey)
-	checkInvalidSignature(t, err)
-}
-
-func TestFetchChrome(t *testing.T) {
+// TestChromePubkeyCurrent checks that ChromePubkey matches the key currently published by Chrome.
+func TestChromePubkeyCurrent(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping network test in short mode")
 	}
-	const url = "https://www.gstatic.com/ct/log_list/v3/log_list.zip"
-	ctx := context.Background()
-
 	if livePubkey := fetchChromePubkey(t); !bytes.Equal(livePubkey, ChromePubkey) {
 		t.Fatal("ChromePubkey does not match the public key currently published by Chrome")
 	}
-
-	list, err := Fetch(ctx, url, ChromePubkey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(list.Operators) == 0 {
-		t.Fatal("no operators in log list")
-	}
-
-	wrongPubkey := marshalPubkey(t, generateECDSAKey(t))
-	_, err = Fetch(ctx, url, wrongPubkey)
-	checkInvalidSignature(t, err)
 }
