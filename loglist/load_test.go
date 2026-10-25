@@ -75,6 +75,14 @@ func generateECDSAKey(t *testing.T) crypto.Signer {
 	return privkey
 }
 
+var testKeyTypes = []struct {
+	name     string
+	generate func(*testing.T) crypto.Signer
+}{
+	{"RSA", generateRSAKey},
+	{"ECDSA", generateECDSAKey},
+}
+
 // marshalPubkey returns the PKIX DER encoding of privkey's public key.
 func marshalPubkey(t *testing.T, privkey crypto.Signer) []byte {
 	t.Helper()
@@ -158,14 +166,7 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 func TestUnmarshalSigned(t *testing.T) {
-	keyTypes := []struct {
-		name     string
-		generate func(*testing.T) crypto.Signer
-	}{
-		{"RSA", generateRSAKey},
-		{"ECDSA", generateECDSAKey},
-	}
-	for _, keyType := range keyTypes {
+	for _, keyType := range testKeyTypes {
 		t.Run(keyType.name, func(t *testing.T) {
 			privkey := keyType.generate(t)
 			pubkey := marshalPubkey(t, privkey)
@@ -178,7 +179,7 @@ func TestUnmarshalSigned(t *testing.T) {
 			checkTestList(t, list)
 
 			t.Run("WrongKey", func(t *testing.T) {
-				for _, otherKeyType := range keyTypes {
+				for _, otherKeyType := range testKeyTypes {
 					otherPubkey := marshalPubkey(t, otherKeyType.generate(t))
 					_, err := UnmarshalSigned(zipBytes, "log_list.zip", otherPubkey)
 					checkInvalidSignature(t, err)
@@ -251,6 +252,33 @@ func TestUnmarshalSigned(t *testing.T) {
 		_, err = UnmarshalSigned(zipBytes, "log_list.zip", pubkeyDER)
 		if err == nil || !strings.Contains(err.Error(), "unsupported key type") {
 			t.Fatalf("got error %v, want error about unsupported key type", err)
+		}
+	})
+}
+
+func TestSign(t *testing.T) {
+	for _, keyType := range testKeyTypes {
+		t.Run(keyType.name, func(t *testing.T) {
+			privkey := keyType.generate(t)
+			var buf bytes.Buffer
+			if err := Sign(&buf, privkey, "log_list", testListJSON(t)); err != nil {
+				t.Fatal(err)
+			}
+			list, err := UnmarshalSigned(buf.Bytes(), "log_list.zip", marshalPubkey(t, privkey))
+			if err != nil {
+				t.Fatal(err)
+			}
+			checkTestList(t, list)
+		})
+	}
+
+	t.Run("UnsupportedKeyType", func(t *testing.T) {
+		_, privkey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := Sign(io.Discard, privkey, "log_list", testListJSON(t)); err == nil {
+			t.Fatal("expected error for unsupported key type")
 		}
 	})
 }
