@@ -1,5 +1,10 @@
 # Change Log
 
+## v0.26.0 (2026-10-25)
+- Verify signatures of downloaded log lists using a public key shipped with
+  Cert Spotter instead of relying solely on HTTPS.  This prevents a compromised
+  WebPKI CA from disrupting CT monitoring.
+
 ## v0.25.0 (2026-09-13)
 - Improve performance monitoring slow RFC 6962 logs whose get-entries
   responses are interrupted.
