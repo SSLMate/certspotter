@@ -11,6 +11,12 @@ package loglist
 
 import _ "embed"
 
+// SSLMatePubkey is the DER-encoded PKIX public key which SSLMate uses to sign
+// log lists at https://loglist.certspotter.org.
+//
+//go:embed sslmate_pubkey.der
+var SSLMatePubkey []byte
+
 // ChromePubkey is the DER-encoded PKIX public key which Google uses to sign
 // Chrome's CT log lists.
 //

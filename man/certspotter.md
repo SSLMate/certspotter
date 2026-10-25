@@ -52,17 +52,19 @@ You can use Cert Spotter to detect:
 
 :   Path to file containing a PEM or DER-encoded public key which is used
     to verify the signature of the log list specified by `-logs`.  When this
-    option is specified, the log list must be a ZIP archive containing the JSON
-    log list and its signature.  When this option is not specified and `-logs` specifies
-    a URL whose public key is known, the log list is verified using the known key.
-    Otherwise, the log list must be an unsigned JSON file.
+    option is specified, `-logs` must refer to a ZIP archive containing the JSON
+    log list and its signature.  When `-logs` refers to a .zip file under
+    `https://loglist.certspotter.org/` or `https://www.gstatic.com/ct/log_list/`,
+    `-log_list_pubkey` defaults to SSLMate or Google's public key, respectively.
+    Otherwise, if `-log_list_pubkey` is not specified, `-logs` must refer
+    to an unsigned JSON file.
 
 -logs *ADDRESS*
 
 :   Filename or HTTPS URL of a v2 or v3 JSON log list containing logs to monitor,
     or of a ZIP archive containing a signed log list (see `-log_list_pubkey`).
     The schema for this file can be found at <https://www.gstatic.com/ct/log_list/v3/log_list_schema.json>.
-    Defaults to <https://loglist.certspotter.org/monitor.json>, which includes
+    Defaults to <https://loglist.certspotter.org/monitor.zip>, which includes
     the union of active logs recognized by Chrome and Apple.  certspotter loads the
     log list when starting up, and periodically reloads it in case it has changed.
 

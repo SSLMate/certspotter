@@ -37,11 +37,7 @@ var programName = os.Args[0]
 var Version = "unknown"
 var Source = "unknown"
 
-const (
-	defaultLogList    = "https://loglist.certspotter.org/monitor.json"
-	chromeLogList     = "https://www.gstatic.com/ct/log_list/v3/log_list.zip"
-	chromeAllLogsList = "https://www.gstatic.com/ct/log_list/v3/all_logs_list.zip"
-)
+const defaultLogList = "https://loglist.certspotter.org/monitor.zip"
 
 func certspotterVersion() (string, string) {
 	if buildinfo, ok := debug.ReadBuildInfo(); ok && strings.HasPrefix(buildinfo.Main.Version, "v") {
@@ -77,6 +73,23 @@ func readPublicKeyFile(filename string) ([]byte, error) {
 		return nil, err
 	}
 	return block.Bytes, nil
+}
+
+// defaultLogListPubkey returns the public key for verifying the log list at
+// the given URL, if it is a signed log list published by SSLMate or Google.
+// Otherwise, it returns nil.
+func defaultLogListPubkey(url string) []byte {
+	if !strings.HasSuffix(url, ".zip") {
+		return nil
+	}
+	switch {
+	case strings.HasPrefix(url, "https://loglist.certspotter.org/"):
+		return loglist.SSLMatePubkey
+	case strings.HasPrefix(url, "https://www.gstatic.com/ct/log_list/"):
+		return loglist.ChromePubkey
+	default:
+		return nil
+	}
 }
 
 func homedir() string {
@@ -251,8 +264,8 @@ func main() {
 			os.Exit(1)
 		}
 		logListPubkey = pubkey
-	} else if flags.logs == chromeLogList || flags.logs == chromeAllLogsList {
-		logListPubkey = loglist.ChromePubkey
+	} else {
+		logListPubkey = defaultLogListPubkey(flags.logs)
 	}
 	config := &monitor.Config{
 		LogListSource:       flags.logs,
