@@ -11,14 +11,33 @@ package loglist
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	"time"
 )
+
+// maxSignedListAge is the maximum age of a signed log list, as determined
+// by its log_list_timestamp.
+const maxSignedListAge = 48 * time.Hour
 
 func (list *List) Validate() error {
 	for i := range list.Operators {
 		if err := list.Operators[i].Validate(); err != nil {
 			return fmt.Errorf("problem with %dth operator (%s): %w", i, list.Operators[i].Name, err)
 		}
+	}
+	return nil
+}
+
+func (list *List) validateSigned(name string, now time.Time) error {
+	if list.LogListName != "" && list.LogListName != name {
+		return fmt.Errorf("log_list_name is %q, want %q", list.LogListName, name)
+	}
+	if list.LogListTimestamp.IsZero() {
+		return errors.New("log_list_timestamp is missing")
+	}
+	if age := now.Sub(list.LogListTimestamp); age > maxSignedListAge {
+		return fmt.Errorf("log_list_timestamp (%s) is more than %v in the past", list.LogListTimestamp.Format(time.RFC3339), maxSignedListAge)
 	}
 	return nil
 }

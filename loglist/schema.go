@@ -18,6 +18,7 @@ import (
 type List struct {
 	Version          string     `json:"version,omitzero"`
 	LogListTimestamp time.Time  `json:"log_list_timestamp,omitzero"` // Only present in v3 of schema
+	LogListName      string     `json:"log_list_name,omitzero"`      // sslmate extension
 	Operators        []Operator `json:"operators,omitzero"`
 }
 

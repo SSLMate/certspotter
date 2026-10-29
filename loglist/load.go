@@ -77,6 +77,9 @@ func (token *ModificationToken) setRequestHeaders(request *http.Request) {
 // example, log_list.zip must contain log_list.json and log_list.sig.
 // The signature must be an RSA PKCS #1 v1.5 signature or an ASN.1
 // DER-encoded ECDSA signature over the SHA-256 hash of the JSON file.
+// The JSON log list must contain a log_list_timestamp that is no more
+// than 48 hours in the past, and if it contains a log_list_name, it must
+// equal the base name of the archive (e.g. "log_list" for log_list.zip).
 func Load(ctx context.Context, urlOrFile string, pubkey []byte) (*List, error) {
 	list, _, err := LoadIfModified(ctx, urlOrFile, pubkey, nil)
 	return list, err
@@ -169,9 +172,17 @@ func Unmarshal(jsonBytes []byte) (*List, error) {
 // UnmarshalSigned parses a log list from a ZIP archive after verifying its
 // signature with pubkey, which must be a DER-encoded PKIX public key for
 // an RSA or ECDSA key. filename is the name of the archive, which is used to
-// determine the names of the JSON and signature files within the archive.
+// determine the names of the JSON and signature files within the archive,
+// and the expected log_list_name.  The log list must contain a
+// log_list_timestamp that is no more than 48 hours in the past.
 // See [Load] for details.
 func UnmarshalSigned(zipBytes []byte, filename string, pubkey []byte) (*List, error) {
+	return unmarshalSigned(zipBytes, filename, pubkey, time.Now())
+}
+
+// unmarshalSigned implements [UnmarshalSigned], using now as the current
+// time when checking the age of the log list.
+func unmarshalSigned(zipBytes []byte, filename string, pubkey []byte, now time.Time) (*List, error) {
 	key, err := x509.ParsePKIXPublicKey(pubkey)
 	if err != nil {
 		return nil, fmt.Errorf("invalid log list public key: %w", err)
@@ -196,7 +207,14 @@ func UnmarshalSigned(zipBytes []byte, filename string, pubkey []byte) (*List, er
 		return nil, fmt.Errorf("invalid log list signature: %w", err)
 	}
 
-	return Unmarshal(jsonBytes)
+	list, err := Unmarshal(jsonBytes)
+	if err != nil {
+		return nil, err
+	}
+	if err := list.validateSigned(baseName, now); err != nil {
+		return nil, fmt.Errorf("invalid log list: %w", err)
+	}
+	return list, nil
 }
 
 func verifySignature(key crypto.PublicKey, data, signature []byte) error {

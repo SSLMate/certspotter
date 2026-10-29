@@ -30,15 +30,17 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testLogDescription = "Test Log"
 
-func testListJSON(t *testing.T) []byte {
-	t.Helper()
+// testList returns a valid log list with a current timestamp.
+func testList() *List {
 	key := []byte("not a real log key")
-	list := &List{
-		Version: "test",
+	return &List{
+		Version:          "test",
+		LogListTimestamp: time.Now(),
 		Operators: []Operator{{
 			Name: "Test Operator",
 			Logs: []Log{{
@@ -50,11 +52,20 @@ func testListJSON(t *testing.T) []byte {
 			}},
 		}},
 	}
+}
+
+func marshalList(t *testing.T, list *List) []byte {
+	t.Helper()
 	jsonBytes, err := json.Marshal(list)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return jsonBytes
+}
+
+func testListJSON(t *testing.T) []byte {
+	t.Helper()
+	return marshalList(t, testList())
 }
 
 func generateRSAKey(t *testing.T) crypto.Signer {
@@ -133,7 +144,12 @@ func makeZip(t *testing.T, entries ...zipEntry) []byte {
 // containing the test log list signed by privkey.
 func makeSignedZip(t *testing.T, privkey crypto.Signer, baseName string) []byte {
 	t.Helper()
-	jsonBytes := testListJSON(t)
+	return makeSignedZipJSON(t, privkey, baseName, testListJSON(t))
+}
+
+// makeSignedZipJSON is like makeSignedZip, but with the given JSON log list.
+func makeSignedZipJSON(t *testing.T, privkey crypto.Signer, baseName string, jsonBytes []byte) []byte {
+	t.Helper()
 	return makeZip(t,
 		zipEntry{baseName + ".json", jsonBytes},
 		zipEntry{baseName + ".sig", signTestData(t, privkey, jsonBytes)},
@@ -157,12 +173,81 @@ func checkInvalidSignature(t *testing.T, err error) {
 	}
 }
 
+func checkInvalidTimestamp(t *testing.T, err error) {
+	t.Helper()
+	if err == nil || !strings.Contains(err.Error(), "log_list_timestamp") {
+		t.Fatalf("got error %v, want error about log_list_timestamp", err)
+	}
+}
+
 func TestUnmarshalJSON(t *testing.T) {
 	list, err := Unmarshal(testListJSON(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	checkTestList(t, list)
+
+	// Only signed log lists are required to contain log_list_timestamp.
+	t.Run("NoTimestamp", func(t *testing.T) {
+		list := testList()
+		list.LogListTimestamp = time.Time{}
+		if _, err := Unmarshal(marshalList(t, list)); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestUnmarshalSignedListName(t *testing.T) {
+	privkey := generateECDSAKey(t)
+	pubkey := marshalPubkey(t, privkey)
+	signedZip := func(t *testing.T, name string) []byte {
+		t.Helper()
+		list := testList()
+		list.LogListName = name
+		return makeSignedZipJSON(t, privkey, "log_list", marshalList(t, list))
+	}
+
+	// log_list_name is optional, but if present it must match the archive name.
+	for _, name := range []string{"", "log_list"} {
+		list, err := UnmarshalSigned(signedZip(t, name), "log_list.zip", pubkey)
+		if err != nil {
+			t.Fatalf("log_list_name %q: %v", name, err)
+		}
+		checkTestList(t, list)
+	}
+
+	_, err := UnmarshalSigned(signedZip(t, "all_logs_list"), "log_list.zip", pubkey)
+	if err == nil || !strings.Contains(err.Error(), "log_list_name") {
+		t.Fatalf("got error %v, want error about log_list_name", err)
+	}
+}
+
+func TestUnmarshalSignedTimestamp(t *testing.T) {
+	privkey := generateECDSAKey(t)
+	pubkey := marshalPubkey(t, privkey)
+	timestamp := time.Date(2026, time.October, 29, 12, 0, 0, 0, time.UTC)
+	list := testList()
+	list.LogListTimestamp = timestamp
+	zipBytes := makeSignedZipJSON(t, privkey, "log_list", marshalList(t, list))
+
+	for _, now := range []time.Time{timestamp, timestamp.Add(maxSignedListAge)} {
+		list, err := unmarshalSigned(zipBytes, "log_list.zip", pubkey, now)
+		if err != nil {
+			t.Fatalf("now = %s: %v", now, err)
+		}
+		checkTestList(t, list)
+	}
+
+	_, err := unmarshalSigned(zipBytes, "log_list.zip", pubkey, timestamp.Add(maxSignedListAge+time.Second))
+	checkInvalidTimestamp(t, err)
+
+	t.Run("Missing", func(t *testing.T) {
+		list := testList()
+		list.LogListTimestamp = time.Time{}
+		zipBytes := makeSignedZipJSON(t, privkey, "log_list", marshalList(t, list))
+		_, err := UnmarshalSigned(zipBytes, "log_list.zip", pubkey)
+		checkInvalidTimestamp(t, err)
+	})
 }
 
 func TestUnmarshalSigned(t *testing.T) {
@@ -339,8 +424,11 @@ func TestFetchSignedZip(t *testing.T) {
 	checkInvalidSignature(t, err)
 }
 
+// snapshotTime is shortly after the snapshots in publishedLogLists were taken.
+var snapshotTime = time.Date(2026, time.October, 29, 14, 30, 0, 0, time.UTC)
+
 // publishedLogLists are the signed log lists published by SSLMate and Google,
-// along with snapshots in testdata taken on 2026-10-25.
+// along with snapshots in testdata taken on 2026-10-29.
 var publishedLogLists = []struct {
 	name     string
 	pubkey   []byte
@@ -370,13 +458,22 @@ func TestPublishedPubkeys(t *testing.T) {
 func TestPublishedLogLists(t *testing.T) {
 	for _, published := range publishedLogLists {
 		t.Run(published.name, func(t *testing.T) {
-			list, err := ReadFile(published.snapshot, published.pubkey)
+			zipBytes, err := os.ReadFile(published.snapshot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			filename := filepath.Base(published.snapshot)
+			list, err := unmarshalSigned(zipBytes, filename, published.pubkey, snapshotTime)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if len(list.Operators) == 0 {
 				t.Fatal("no operators in log list")
 			}
+
+			// The snapshot must be rejected once it is too old.
+			_, err = unmarshalSigned(zipBytes, filename, published.pubkey, snapshotTime.Add(maxSignedListAge))
+			checkInvalidTimestamp(t, err)
 
 			wrongPubkey := marshalPubkey(t, generateECDSAKey(t))
 			_, err = ReadFile(published.snapshot, wrongPubkey)
