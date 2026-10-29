@@ -1,5 +1,12 @@
 # Change Log
 
+## v0.26.2 (2026-10-29)
+- Add v0.26.1 changelog entry that was mistakenly excluded from the release.
+
+## v0.26.1 (2026-10-29)
+- Further strengthen log list authentication by requiring signed log lists to be
+  fresh and to match the log list name.
+
 ## v0.26.0 (2026-10-25)
 - Verify signatures of downloaded log lists using a public key shipped with
   Cert Spotter instead of relying solely on HTTPS.  This prevents a compromised
