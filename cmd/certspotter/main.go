@@ -220,7 +220,7 @@ func main() {
 	flag.Func("email", "Email address to contact when matching certificate is discovered (repeatable)", appendFunc(&flags.email))
 	flag.DurationVar(&flags.healthcheck, "healthcheck", 24*time.Hour, "How frequently to perform a health check")
 	flag.StringVar(&flags.logListPubkey, "log_list_pubkey", "", "File path to PEM or DER-encoded public key for verifying log list")
-	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list of logs to monitor")
+	flag.StringVar(&flags.logs, "logs", defaultLogList, "File path or URL of JSON list or signed zip of logs to monitor")
 	flag.BoolVar(&flags.noSave, "no_save", false, "Do not save a copy of matching certificates in state directory")
 	flag.StringVar(&flags.script, "script", "", "Program to execute when a matching certificate is discovered")
 	flag.BoolVar(&flags.startAtEnd, "start_at_end", false, "Start monitoring new logs from the end rather than the beginning (saves considerable bandwidth)")
